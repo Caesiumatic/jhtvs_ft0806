@@ -12,6 +12,7 @@ from typing import Sequence
 
 from jhtvs_ft0806 import __version__
 from jhtvs_ft0806.geometry.resolution import resolve_geometries
+from jhtvs_ft0806.hpc.accounting import collect_accounting, submission_status
 from jhtvs_ft0806.hpc.submission import (
     execute_submission,
     prepare_submission,
@@ -187,6 +188,29 @@ def _run_submit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_status(args: argparse.Namespace) -> int:
+    report = submission_status(
+        repository_root=_repository_root(), ledger_path=args.ledger
+    )
+    sys.stdout.write(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+def _run_collect_accounting(args: argparse.Namespace) -> int:
+    summary = collect_accounting(
+        submission_id=args.submission_id,
+        repository_root=_repository_root(),
+        ledger_path=args.ledger,
+        accounting_path=args.accounting,
+        qacct_file=args.qacct_file,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 0 if summary.ledger_status == "complete" else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -310,8 +334,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
     submit.set_defaults(handler=_run_submit)
 
+    status = subparsers.add_parser(
+        "status", help="summarize immutable submission outputs and ledger state"
+    )
+    status.add_argument(
+        "--ledger",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "submission_ledger.csv",
+    )
+    status.set_defaults(handler=_run_status)
+
+    accounting = subparsers.add_parser(
+        "collect-accounting", help="collect complete SGE qacct evidence and actual core-hours"
+    )
+    accounting.add_argument("--submission-id", required=True)
+    accounting.add_argument(
+        "--ledger",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "submission_ledger.csv",
+    )
+    accounting.add_argument(
+        "--accounting",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "accounting.csv",
+    )
+    accounting.add_argument("--qacct-file", type=Path)
+    accounting.set_defaults(handler=_run_collect_accounting)
+
     for command in COMMANDS[2:]:
-        if command in {"build-decks", "audit-decks", "submit"}:
+        if command in {
+            "build-decks",
+            "audit-decks",
+            "submit",
+            "status",
+            "collect-accounting",
+        }:
             continue
         subparser = subparsers.add_parser(command)
         subparser.set_defaults(handler=_not_implemented)

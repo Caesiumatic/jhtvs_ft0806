@@ -1,0 +1,12 @@
+==============================================================
+qname        amd16smt.q
+hostname     node001
+owner        shic4
+jobname      jft_fixture
+jobnumber    12345
+taskid       1
+slots        8
+failed       0
+exit_status  0
+ru_wallclock 90.5
+==============================================================
