@@ -12,6 +12,7 @@ from jhtvs_ft0806.orca.decks import (
     render_sp_deck,
 )
 from jhtvs_ft0806.orca.smd import CUSTOM_SMD_FIELDS, render_smd_block
+from jhtvs_ft0806.orca.preflight import audit_decks
 from jhtvs_ft0806.provenance import sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows, write_csv_deterministic
 
@@ -163,6 +164,32 @@ def test_selected_deck_build_is_hash_bound_and_rejects_unknown_job(
     assert row["geometry_sha256"] == sha256_file(xyz_path)
     assert row["input_sha256"] == sha256_file(input_path)
     assert "# job_id: SP0001" in input_path.read_text(encoding="utf-8")
+
+    audit = audit_decks(
+        spec_dir=SPEC_DIR,
+        geometry_index_path=geometry_index,
+        deck_manifest_path=manifest_path,
+        selected_job_ids={"SP0001"},
+        report_path=tmp_path / "preflight.json",
+    )
+    assert audit.ok
+    assert audit.checks["audited_jobs"] == 1
+    assert audit.checks["nprocs"] == ["8"]
+    assert audit.checks["maxcore_mb_per_rank"] == ["3000"]
+
+    input_path.write_text(
+        input_path.read_text(encoding="utf-8").replace("TightSCF", "LooseSCF"),
+        encoding="utf-8",
+    )
+    tampered = audit_decks(
+        spec_dir=SPEC_DIR,
+        geometry_index_path=geometry_index,
+        deck_manifest_path=manifest_path,
+        selected_job_ids={"SP0001"},
+    )
+    assert not tampered.ok
+    assert any("differs from exact re-render" in issue for issue in tampered.issues)
+    assert any("input SHA-256 mismatch" in issue for issue in tampered.issues)
 
     with pytest.raises(DeckGenerationError, match="unknown selected job IDs"):
         build_decks(

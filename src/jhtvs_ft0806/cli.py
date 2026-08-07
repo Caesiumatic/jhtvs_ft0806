@@ -13,6 +13,7 @@ from typing import Sequence
 from jhtvs_ft0806 import __version__
 from jhtvs_ft0806.geometry.resolution import resolve_geometries
 from jhtvs_ft0806.orca.decks import build_decks
+from jhtvs_ft0806.orca.preflight import audit_decks
 from jhtvs_ft0806.spec_validation import validate_spec
 
 COMMANDS = (
@@ -20,6 +21,7 @@ COMMANDS = (
     "resolve-geometries",
     "scan-reuse",
     "build-decks",
+    "audit-decks",
     "submit",
     "status",
     "collect-accounting",
@@ -120,6 +122,24 @@ def _run_build_decks(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_audit_decks(args: argparse.Namespace) -> int:
+    selected = set(args.job_id) if args.job_id else None
+    report = audit_decks(
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        deck_manifest_path=args.manifest,
+        selected_job_ids=selected,
+        report_path=args.report,
+    )
+    sys.stdout.write(report.to_json() + "\n")
+    logging.getLogger(__name__).info(
+        "ORCA deck preflight %s for %s selected jobs",
+        "passed" if report.ok else "failed",
+        report.checks["selected_jobs"],
+    )
+    return 0 if report.ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -170,8 +190,30 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--require-complete", action="store_true")
     build.set_defaults(handler=_run_build_decks)
 
+    audit = subparsers.add_parser(
+        "audit-decks", help="re-render and hash-audit submit-ready ORCA decks"
+    )
+    audit.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    audit.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    audit.add_argument(
+        "--manifest",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "deck_manifest.csv",
+    )
+    audit.add_argument(
+        "--report",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "orca_preflight.json",
+    )
+    audit.add_argument("--job-id", action="append")
+    audit.set_defaults(handler=_run_audit_decks)
+
     for command in COMMANDS[2:]:
-        if command == "build-decks":
+        if command in {"build-decks", "audit-decks"}:
             continue
         subparser = subparsers.add_parser(command)
         subparser.set_defaults(handler=_not_implemented)
