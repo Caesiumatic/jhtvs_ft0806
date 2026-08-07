@@ -34,7 +34,7 @@ These definitions follow the ORCA 6.1 manual, the original SMD paper, and the Mi
 | Registry class | ORCA deck | Model input |
 |---|---|---|
 | `native_orca_smd` | Use the exact native `SMD(name)`/`SMDsolvent` keyword in the CSV. | Use the resolved numeric vector. |
-| `custom_smd` | Write the exact `orca_parameter_payload_resolved` fields. | Use the same resolved numeric vector. |
+| `custom_smd` | Write the exact `orca_parameter_payload_resolved` fields. S007/S012 use a registry-exact block without a native `SMDsolvent` lookup. | Use the same resolved numeric vector. |
 | Water | Always use native `SMD(Water)` so ORCA retains its special internal CDS treatment. | Use the resolved water vector. |
 
 The pilot must parse ORCA's echoed fields and require:
@@ -50,8 +50,9 @@ A mismatch is a scientific stop before production submission.
 | ID | Medium | Decision class | Frozen decision |
 |---|---|---|---|
 | S003 | Propylene carbonate (PC) | `project_complete_custom` | Retain the project-reviewed complete propylene-carbonate custom SMD set without modification. |
+| S007 | Dimethyl sulfoxide (DMSO) | `custom_registry_exact` | Keep the frozen MNSol vector unchanged; execute the full explicit custom block because the native ORCA 6.1 echo differs from the registry. |
 | S011 | γ-Butyrolactone (GBL) | `project_complete_custom` | Retain the project-reviewed complete gamma-butyrolactone custom SMD set without modification. |
-| S012 | Sulfolane | `native_library_plus_n25_completion` | Use the native MNSol/ORCA vector; complete the model-only n25 field with the measured 25 C refractive index 1.4825. ORCA execution remains native SMD(Sulfolane). |
+| S012 | Sulfolane | `custom_registry_exact` | Keep the frozen MNSol/n25-completed vector unchanged; execute the full explicit custom block because the native ORCA 6.1 echo is incomplete or differs. |
 | S013 | N-Methyl-2-pyrrolidone (NMP) | `physical_properties_plus_amide_analogue` | Use project epsilon/n and measured surface tension (41.3 mN/m); convert solg with 1.43932. Set alpha/phi/psi to zero from composition and use the MNSol tertiary-amide DMAc beta=0.78 analogue. |
 | S014 | Boron trifluoride diethyl etherate (BFEE) | `project_effective_medium_plus_ether_analogue` | Preserve the project BFEE effective-medium epsilon/n. Use the MNSol diethyl-ether CDS analogue (alpha=0, beta=0.41, gamma=23.96), with BFEE composition-specific halogenicity 3/9. |
 | S015 | 1-Butyl-3-methylimidazolium hexafluorophosphate ([BMIM][PF6]) | `project_epsilon_plus_smd_gil` | Use the project-specific dielectric constant and SMD-GIL n/alpha/beta/gamma; compute aromaticity and halogenicity exactly from the 1:1 ion-pair composition. |
@@ -77,8 +78,8 @@ Fractions are computed on the exact neutral ion-pair or fixed 1:2 cluster repres
 ## Validation result
 
 - Rows: 25 unique `solvent_id` values.
-- Native execution rows: 14.
-- Explicit custom rows: 11.
+- Native execution rows: 12.
+- Explicit custom rows: 13.
 - All eight model fields are finite.
 - `epsilon > 1`, `1 < soln, soln25 < 2`, `sola, solb, solg >= 0`, and `0 <= solc, solh <= 1` for all rows.
 - `resolved_model_vector` follows the declared order and uses natural-log epsilon.

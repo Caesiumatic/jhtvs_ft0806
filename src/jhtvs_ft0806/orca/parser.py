@@ -42,6 +42,7 @@ STANDARD_STATE_1M_CORRECTION_EH = (
 ECHO_TOLERANCE_POLICY = "max(5e-4,5e-5*abs(expected))"
 ECHO_FIELDS = {
     "epsilon": "epsilon",
+    "refrac": "refrac_cpcm",
     "soln": "soln_293K",
     "soln25": "soln25_298K",
     "sola": "sola",
@@ -63,6 +64,7 @@ RESULT_FIELDS = (
     "input_sha256",
     "output_path",
     "output_sha256",
+    "orca_version",
     "normal_termination",
     "orca_error",
     "final_energy_Eh",
@@ -87,6 +89,7 @@ RESULT_FIELDS = (
     "bonds_broken",
     "bonds_formed",
     "echo_epsilon",
+    "echo_refrac",
     "echo_soln",
     "echo_soln25",
     "echo_sola",
@@ -108,6 +111,7 @@ _E_FREQ_RE = re.compile(rf"Electronic energy\s+\.\.\.\s+({_NUMBER})\s+Eh")
 _G_MINUS_E_RE = re.compile(rf"G-E\(el\)\s+\.\.\.\s+({_NUMBER})\s+Eh")
 _CPCM_RE = re.compile(rf"CPCM Dielectric\s+:\s+({_NUMBER})\s+Eh")
 _SMD_CDS_RE = re.compile(rf"SMD CDS \(Gcds\)\s+:\s+({_NUMBER})\s+Eh")
+_ORCA_VERSION_RE = re.compile(r"Program Version\s+([^\s]+)", re.IGNORECASE)
 _THERMO_TEMP_RE = re.compile(r"THERMOCHEMISTRY AT\s+([0-9.]+)K", re.IGNORECASE)
 _THERMO_PRESSURE_RE = re.compile(
     r"Pressure\s+\.\.\.\s+([0-9.]+)\s+atm", re.IGNORECASE
@@ -125,6 +129,7 @@ _ECHO_RES = {
     )
     for field, label in {
         "epsilon": "Epsilon",
+        "refrac": "Refrac",
         "soln": "Soln",
         "soln25": "Soln25",
         "sola": "Sola",
@@ -201,12 +206,19 @@ def _audit_echo(
     rendered: dict[str, str] = {}
     deltas: list[float] = []
     reasons: list[str] = []
+    required = {
+        field.strip()
+        for field in solvent["orca_echo_fields_to_capture"].split(";")
+        if field.strip() in ECHO_FIELDS
+    }
     for echo_field, registry_field in ECHO_FIELDS.items():
         observations = [
             float(value) for value in _ECHO_RES[echo_field].findall(text)
         ]
         rendered[echo_field] = str(observations[-1]) if observations else ""
         expected = float(solvent[registry_field])
+        if echo_field not in required:
+            continue
         if not observations:
             reasons.append(f"echo_{echo_field}_missing")
             continue
@@ -292,6 +304,8 @@ def parse_job_result(
 
     text = output_path.read_text(encoding="utf-8", errors="replace")
     result["output_sha256"] = sha256_file(output_path)
+    version_match = _ORCA_VERSION_RE.search(text)
+    result["orca_version"] = version_match.group(1) if version_match else ""
     normal = "ORCA TERMINATED NORMALLY" in text
     orca_error = "ERROR !!!" in text
     result["normal_termination"] = str(normal).lower()

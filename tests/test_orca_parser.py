@@ -6,6 +6,7 @@ import pytest
 
 from jhtvs_ft0806.orca.parser import (
     STANDARD_STATE_1M_CORRECTION_EH,
+    _audit_echo,
     parse_job_result,
 )
 from jhtvs_ft0806.provenance import sha256_file
@@ -98,6 +99,7 @@ def test_real_20260707_excerpt_parses_composite_gibbs_echo_and_qc(
     assert result["frequency_count"] == 15
     assert result["significant_imaginary_count"] == 0
     assert result["echo_qc"] == "pass"
+    assert result["echo_refrac"] == "1.3442"
     assert result["connectivity_status"] == "pass"
 
 
@@ -114,6 +116,27 @@ def test_echo_mismatch_retains_value_but_requires_scientific_stop(
     assert result["scientific_stop_required"] == "true"
     assert "smd_echo_mismatch" in result["qc_reasons"]
     assert result["G_composite_1M_Eh"] != ""
+
+
+def test_registry_exact_custom_refrac_is_a_required_echo_field() -> None:
+    text = (
+        "  Epsilon ... 46.8260\n"
+        "  Refrac ... 1.4170\n"
+        "  Soln ... 1.4783\n"
+        "  Soln25 ... 1.4783\n"
+        "  Sola ... 0.0000\n"
+        "  Solb ... 0.8800\n"
+        "  Solg ... 61.7800\n"
+        "  Solc ... 0.0000\n"
+        "  Solh ... 0.0000\n"
+    )
+
+    echoed, max_delta, echo_qc, mismatch = _audit_echo(text, _solvent("S007"))
+
+    assert echoed["refrac"] == "1.417"
+    assert float(max_delta) == pytest.approx(0.0613)
+    assert echo_qc == "mismatch"
+    assert mismatch
 
 
 def test_missing_output_identity_is_not_accepted(tmp_path: Path) -> None:
@@ -150,11 +173,27 @@ def test_significant_imaginary_frequency_retains_composite_value(
             "smd_energy_sp",
             "S001",
             "  Epsilon ... 35.6880\n"
+            "  Refrac ... 1.3442\n"
             "  Soln ... 1.3442\n"
             "  Soln25 ... 1.3416\n"
             "  Sola ... 0.0700\n"
             "  Solb ... 0.3200\n"
             "  Solg ... 41.2500\n"
+            "  Solc ... 0.0000\n"
+            "  Solh ... 0.0000\n"
+            "CPCM Dielectric : -0.0123 Eh\n"
+            "SMD CDS (Gcds) : 0.0004 Eh\n",
+        ),
+        (
+            "smd_energy_sp",
+            "S007",
+            "  Epsilon ... 46.8260\n"
+            "  Refrac ... 1.4783\n"
+            "  Soln ... 1.4783\n"
+            "  Soln25 ... 1.4783\n"
+            "  Sola ... 0.0000\n"
+            "  Solb ... 0.8800\n"
+            "  Solg ... 61.7800\n"
             "  Solc ... 0.0000\n"
             "  Solh ... 0.0000\n"
             "CPCM Dielectric : -0.0123 Eh\n"
@@ -184,6 +223,7 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
         f"# workflow_revision: {job['workflow_revision']}\n"
         f"# method_id: {job['method_id']}\n"
         + smd_text
+        + "Program Version 6.1.0\n"
         + "FINAL SINGLE POINT ENERGY -40.123456789\n"
         + "ORCA TERMINATED NORMALLY\n",
         encoding="utf-8",
@@ -207,6 +247,7 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
 
     assert result["qc_status"] == "clean"
     assert float(result["final_energy_Eh"]) == pytest.approx(-40.123456789)
+    assert result["orca_version"] == "6.1.0"
     assert result["echo_qc"] == (
         "not_applicable" if solvent_id == "GAS" else "pass"
     )

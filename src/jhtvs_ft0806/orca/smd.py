@@ -20,6 +20,10 @@ CUSTOM_SMD_FIELDS = (
     "solh",
 )
 CUSTOM_SMD_LIBRARY_SEED = "water"
+REGISTRY_EXACT_CUSTOM_SPECIAL_CASES = {
+    "custom_registry_exact_pending_echo",
+    "custom_registry_exact",
+}
 _NATIVE_INPUT = re.compile(r"^native: SMD\((.+)\)$")
 
 
@@ -67,10 +71,15 @@ def render_smd_block(row: Mapping[str, str]) -> str:
         rendered_values = "".join(
             f"  {field} {values[field]}\n" for field in CUSTOM_SMD_FIELDS
         )
+        library_seed = (
+            ""
+            if row.get("special_case", "") in REGISTRY_EXACT_CUSTOM_SPECIAL_CASES
+            else f'  SMDsolvent "{CUSTOM_SMD_LIBRARY_SEED}"\n'
+        )
         return (
             "%cpcm\n"
             "  smd true\n"
-            f'  SMDsolvent "{CUSTOM_SMD_LIBRARY_SEED}"\n'
+            f"{library_seed}"
             f"{rendered_values}"
             "end\n"
         )
@@ -86,10 +95,16 @@ def smd_payload_sha256(row: Mapping[str, str]) -> str:
             "name": native_smd_name(row),
         }
     else:
+        registry_exact = (
+            row.get("special_case", "") in REGISTRY_EXACT_CUSTOM_SPECIAL_CASES
+        )
         payload = {
             "mode": "custom_smd",
-            "library_seed": CUSTOM_SMD_LIBRARY_SEED,
             "values": parse_custom_payload(row["orca_parameter_payload_resolved"]),
         }
+        if registry_exact:
+            payload["execution"] = "registry_exact"
+        else:
+            payload["library_seed"] = CUSTOM_SMD_LIBRARY_SEED
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()

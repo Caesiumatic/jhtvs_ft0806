@@ -175,9 +175,9 @@ class _Validator:
         modes = Counter(row["orca_smd_mode"] for row in rows)
         self.report.checks["smd_mode_counts"] = dict(sorted(modes.items()))
         self.require(
-            modes == Counter({"native_orca_smd": 14, "custom_smd": 11}),
+            modes == Counter({"native_orca_smd": 12, "custom_smd": 13}),
             "smd_mode_counts",
-            f"expected 14 native and 11 custom SMD rows, found {dict(modes)}",
+            f"expected 12 native and 13 custom SMD rows, found {dict(modes)}",
         )
         expected_order = "log_epsilon|soln|soln25|sola|solb|solg|solc|solh"
         for row in rows:

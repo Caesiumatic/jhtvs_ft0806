@@ -127,6 +127,52 @@ def test_gas_sp_has_no_smd_block_and_water_keeps_native_route() -> None:
     assert "  epsilon " not in water
 
 
+@pytest.mark.parametrize(
+    ("solvent_id", "expected"),
+    [
+        (
+            "S007",
+            "%cpcm\n"
+            "  smd true\n"
+            "  epsilon 46.826\n"
+            "  refrac 1.4783\n"
+            "  soln 1.4783\n"
+            "  soln25 1.4783\n"
+            "  sola 0.0\n"
+            "  solb 0.88\n"
+            "  solg 61.78\n"
+            "  solc 0.0\n"
+            "  solh 0.0\n"
+            "end\n",
+        ),
+        (
+            "S012",
+            "%cpcm\n"
+            "  smd true\n"
+            "  epsilon 43.962\n"
+            "  refrac 1.4825\n"
+            "  soln 1.4833\n"
+            "  soln25 1.4825\n"
+            "  sola 0.0\n"
+            "  solb 0.88\n"
+            "  solg 87.49\n"
+            "  solc 0.0\n"
+            "  solh 0.0\n"
+            "end\n",
+        ),
+    ],
+)
+def test_registry_exact_custom_blocks_have_no_native_lookup(
+    solvent_id: str, expected: str
+) -> None:
+    rendered = render_smd_block(_solvents()[solvent_id])
+
+    assert rendered == expected
+    assert "SMDsolvent" not in rendered
+    assert "SMD(DMSO)" not in rendered
+    assert "SMD(Sulfolane)" not in rendered
+
+
 def test_selected_deck_build_is_hash_bound_and_rejects_unknown_job(
     tmp_path: Path,
 ) -> None:

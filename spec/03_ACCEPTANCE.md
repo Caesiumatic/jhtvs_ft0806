@@ -45,7 +45,7 @@ infer-fullspace
 
 ## Dataset acceptance
 
-- 25 complete SMD rows: 14 native, 11 custom;
+- 25 complete SMD rows: 12 native, 13 custom;
 - 372 states and 236 reactions;
 - 88 calibration reactions: 60 train, 14 val, 14 test;
 - exactly six full-25 anchors;
