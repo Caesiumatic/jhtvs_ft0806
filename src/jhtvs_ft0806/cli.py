@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Sequence
 
 from jhtvs_ft0806 import __version__
+from jhtvs_ft0806.geometry.resolution import resolve_geometries
 from jhtvs_ft0806.spec_validation import validate_spec
 
 COMMANDS = (
@@ -77,6 +78,26 @@ def _not_implemented(args: argparse.Namespace) -> int:
     return 2
 
 
+def _run_resolve_geometries(args: argparse.Namespace) -> int:
+    summary = resolve_geometries(
+        spec_dir=args.spec_dir,
+        tier1_run=args.tier1_run,
+        run_dir=args.run_dir,
+        index_path=args.index,
+        n_conformers=args.n_conformers,
+    )
+    sys.stdout.write(json.dumps(summary.to_dict(), sort_keys=True, indent=2) + "\n")
+    logging.getLogger(__name__).info(
+        "geometry resolution: %d resolved, %d pending, %d failed",
+        summary.resolved,
+        summary.pending,
+        summary.failed,
+    )
+    if summary.failed or (args.require_complete and summary.pending):
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -88,7 +109,25 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--report", type=Path)
     validate.set_defaults(handler=_run_validate_spec)
 
-    for command in COMMANDS[1:]:
+    resolve = subparsers.add_parser(
+        "resolve-geometries",
+        help="materialize same-run Tier-1 geometries and prepare/collect sigma preoptimization",
+    )
+    resolve.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    resolve.add_argument("--tier1-run", type=Path, required=True)
+    resolve.add_argument(
+        "--run-dir", type=Path, default=_repository_root() / "runs" / "geometry"
+    )
+    resolve.add_argument(
+        "--index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    resolve.add_argument("--n-conformers", type=int, default=100)
+    resolve.add_argument("--require-complete", action="store_true")
+    resolve.set_defaults(handler=_run_resolve_geometries)
+
+    for command in COMMANDS[2:]:
         subparser = subparsers.add_parser(command)
         subparser.set_defaults(handler=_not_implemented)
     return parser

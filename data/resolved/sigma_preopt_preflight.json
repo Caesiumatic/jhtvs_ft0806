@@ -1,0 +1,24 @@
+{
+  "array_rows": 122,
+  "array_sha256": "da7b9e5e37e38d14f5cd48a98bd48b081f53f8d21dba3a38040833d72da607a8",
+  "charge_counts": {
+    "2": 122
+  },
+  "exact_command_rows": 122,
+  "exact_parameter_rows": 122,
+  "issues": [],
+  "launcher_sha256": "7eb2959ec965edad6ecab90446ac43f2b25756207a0af104da218af9d3f97bbd",
+  "manifest_sha256": "0043d6df29b456b35f1d8024d7bef823acee07114e7855f44860afa597da75ee",
+  "multiplicity_counts": {
+    "1": 122
+  },
+  "source_hash_rows": 122,
+  "status": "PASS",
+  "task_count": 122,
+  "uhf_counts": {
+    "0": 122
+  },
+  "unique_geometry_keys": 122,
+  "unique_media": 25,
+  "unique_sigma_states": 20
+}
