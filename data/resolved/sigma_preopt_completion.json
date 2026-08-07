@@ -1,0 +1,42 @@
+{
+  "accounting": {
+    "actual_core_hours": "2.08277778",
+    "failed_tasks": 0,
+    "qacct_path": "runs/geometry/qacct_423357.txt",
+    "qacct_sha256": "8262099fee2e535ce24a40d4d76f45a00fbb9826a1a85ff74a452122742f22d2",
+    "scheduler_records": 122,
+    "wallclock_seconds_max": 277,
+    "wallclock_seconds_min": 5
+  },
+  "array_range": "1-122:1",
+  "cluster_host": "lop.scs.illinois.edu",
+  "completed_at": "2026-08-07T13:24:17-05:00",
+  "deck_rebuild": {
+    "deck_manifest_sha256": "8daf9943ebb65bd542179872d7f900a778d6934dab1da7319b1c772df78d0a54",
+    "jobs_ready": 815,
+    "orca_preflight_sha256": "6016d0b928a67f3400a7c8c98f5f72281862ed2d395a9dc070629aff5de6051c",
+    "planned_core_hours": "3890.50",
+    "preflight_status": "PASS"
+  },
+  "execution_commit": "c13f33e6067a7db9ae282b0c9b6d2e83f67d9f0e",
+  "geometry_collection": {
+    "connectivity_pass": 122,
+    "failed": 0,
+    "geometry_index_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
+    "pending": 0,
+    "resolved_sigma": 122,
+    "resolved_tier1": 583,
+    "resolved_total": 705,
+    "status": "PASS"
+  },
+  "job_id": "423357",
+  "normal_termination_tasks": 122,
+  "result_bundle_sha256": "49685f9eda4a09be79ea24dc403004072ab177d09b2c57985d00688aad423ee3",
+  "schema_version": 1,
+  "source_and_output_hash_check": "PASS",
+  "started_at": "2026-08-07T13:14:37-05:00",
+  "status": "complete",
+  "task_count": 122,
+  "task_table_sha256": "da7b9e5e37e38d14f5cd48a98bd48b081f53f8d21dba3a38040833d72da607a8",
+  "xtb_version": "6.7.1 (edcfbbe)"
+}

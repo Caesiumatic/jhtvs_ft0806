@@ -1,32 +1,32 @@
 {
   "checks": {
-    "audited_jobs": 665,
-    "deck_manifest_sha256": "2a2a2c380fb3e22bad64e3db42ae19ad6cee7b08c0689dd07212c3847cdf3b1f",
-    "geometry_index_sha256": "08b80a8b21f7b55a2353e07d4d5158653ef58a795a6b8874a6a1f3815c407aa2",
-    "input_bundle_sha256": "6d1c54c69709252bea342cd0307e1e9c9d18b47a0ed88a3ea245e58c2180d6f9",
+    "audited_jobs": 815,
+    "deck_manifest_sha256": "8daf9943ebb65bd542179872d7f900a778d6934dab1da7319b1c772df78d0a54",
+    "geometry_index_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
+    "input_bundle_sha256": "e23cfb1ed4a0b803735a8ec89926ccedad43e47ba0c1c5f884befe6389e90a0a",
     "job_class_counts": {
-      "diagnostic_gas_sp": 22,
-      "optfreq": 60,
-      "smd_energy_sp": 583
+      "diagnostic_gas_sp": 30,
+      "optfreq": 80,
+      "smd_energy_sp": 705
     },
     "maxcore_mb_per_rank": [
       "3000"
     ],
     "method_counts": {
-      "T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_v4": 60,
-      "T2_wB97X-D3_def2-TZVPD_SMD_energy_SP_v1": 583,
-      "T2_wB97X-D3_def2-TZVPD_gas_energy_SP_v1": 22
+      "T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_v4": 80,
+      "T2_wB97X-D3_def2-TZVPD_SMD_energy_SP_v1": 705,
+      "T2_wB97X-D3_def2-TZVPD_gas_energy_SP_v1": 30
     },
     "nprocs": [
       "8"
     ],
     "output_absence_required": true,
-    "planned_core_h": "2541.90",
-    "selected_jobs": 665,
+    "planned_core_h": "3890.50",
+    "selected_jobs": 815,
     "smd_mode_counts": {
-      "custom_smd": 304,
-      "gas": 22,
-      "native_orca_smd": 339
+      "custom_smd": 376,
+      "gas": 30,
+      "native_orca_smd": 409
     },
     "smd_registry_sha256": "fd3a84bd53cae13941b6766e6d72cb287c2cb0a8ceb47c2a69e85fb22d9cd4bc",
     "spec_sha256": "fa50127778dcf2c5be9b4fa9d0ed905acb5d13229564164b70ce227b3f201a54"
