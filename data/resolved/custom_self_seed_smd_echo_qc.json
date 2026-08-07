@@ -1,0 +1,124 @@
+{
+  "status": "SCIENTIFIC_DECISION_REQUIRED",
+  "execution_status": "PASS",
+  "numeric_echo_status": "PASS",
+  "solvent_name_status": "FAIL",
+  "production_continued": false,
+  "registry_modified_after_qc": false,
+  "submission": {
+    "submission_id": "20260807-echo-custom-self-seed-s007-s012-v1",
+    "submission_sha256": "8407fbcbe2221109ea5a3482442db893fe64ebc2544fa9009663c0f483f8bd35",
+    "scheduler_job_id": "423412",
+    "submitted_git_commit": "8533412",
+    "submitted_at_utc": "2026-08-07T21:15:32.080226+00:00",
+    "qsub_verification": "found suitable queue(s)",
+    "task_table_sha256": "ef3489aa28b74922cfe8690fc60c81133a67508a8cbe11eb9b1cfc3f9d509056",
+    "preflight_report_sha256": "da0b64c21a9a62e60d653f21213e9d3ab1e0cac3b87d618b1df8ad560bf62571",
+    "runner_sha256": "763b1fd46d2783efa5e210ae28b50fc8827e6e16b77e6d899581a798140c7238",
+    "qacct_sha256": "9aa199e47d9013a7a549034dc44800357bf4af61febf894bea1814017e1694a3",
+    "actual_core_h": "0.3644444444444444444444444444"
+  },
+  "registry": {
+    "path": "spec/solvent_smd_registry.csv",
+    "sha256": "d4f82e65bedde55caaca49fe35df5ba5a0074fbebbcd25d04b7cc5ec4cb804bc",
+    "row_sha256_method": "SHA-256 of the exact UTF-8 CSV record including its line terminator",
+    "S007_row_sha256": "5dd40b69faf3ece4c90529debfc08841e0ec47fe682dd57d5b7520686961eaa4",
+    "S012_row_sha256": "1923c2cbbba0ee515474df472f875709e34428140b25b8b04135ed4518e225c7"
+  },
+  "tolerance": "abs(observed - expected) <= max(5e-4,5e-5*abs(expected))",
+  "results_csv": {
+    "path": "data/resolved/custom_self_seed_smd_echo_results.csv",
+    "sha256": "6a93c0e7758e16e3d62f28c3f3594501b9878aeea5520c3c08dab9caf5caf18d"
+  },
+  "jobs": [
+    {
+      "job_id": "SP0230",
+      "solvent_id": "S007",
+      "input_path": "runs/orca/sp/SP0230/SP0230.inp",
+      "input_sha256": "d604c2d9a1effffc6b66c771acfee4eb009f1f31ccf9613075cd94a74a2c8859",
+      "output_path": "runs/orca/sp/SP0230/SP0230.out",
+      "output_sha256": "622967e334a2f997a3d5b0cfb5c640fd474977296abe599ee014d36e0e41fb30",
+      "orca_version": "6.1.0",
+      "normal_termination": true,
+      "cpcm_dielectric_Eh": "-0.00066607047600",
+      "smd_cds_Eh": "-0.00132507913068",
+      "expected_solvent_name": "DMSO",
+      "observed_solvent_name": "CUSTOM",
+      "expected_echo": {
+        "epsilon": 46.826,
+        "refrac": 1.4783,
+        "soln": 1.4783,
+        "soln25": 1.4783,
+        "sola": 0.0,
+        "solb": 0.88,
+        "solg": 61.78,
+        "solc": 0.0,
+        "solh": 0.0
+      },
+      "observed_echo": {
+        "epsilon": 46.826,
+        "refrac": 1.4783,
+        "soln": 1.4783,
+        "soln25": 1.4783,
+        "sola": 0.0,
+        "solb": 0.88,
+        "solg": 61.78,
+        "solc": 0.0,
+        "solh": 0.0
+      },
+      "echo_max_abs_delta": 0.0,
+      "numeric_echo_qc": "PASS",
+      "overall_qc": "FAIL"
+    },
+    {
+      "job_id": "SP0339",
+      "solvent_id": "S012",
+      "input_path": "runs/orca/sp/SP0339/SP0339.inp",
+      "input_sha256": "18df75874eb59110cd2b9d1aa70fb6a1dde276aa936ff4ca5c404de03dc0aaf6",
+      "output_path": "runs/orca/sp/SP0339/SP0339.out",
+      "output_sha256": "3d7fd3866c1a51aaaac52aa1e21f3cbaacc80b9a4b4760d112c5da3588be98a3",
+      "orca_version": "6.1.0",
+      "normal_termination": true,
+      "cpcm_dielectric_Eh": "-0.00154142347872",
+      "smd_cds_Eh": "0.00491355865693",
+      "expected_solvent_name": "SULFOLANE",
+      "observed_solvent_name": "CUSTOM",
+      "expected_echo": {
+        "epsilon": 43.962,
+        "refrac": 1.4825,
+        "soln": 1.4833,
+        "soln25": 1.4825,
+        "sola": 0.0,
+        "solb": 0.88,
+        "solg": 87.49,
+        "solc": 0.0,
+        "solh": 0.0
+      },
+      "observed_echo": {
+        "epsilon": 43.962,
+        "refrac": 1.4825,
+        "soln": 1.4833,
+        "soln25": 1.4825,
+        "sola": 0.0,
+        "solb": 0.88,
+        "solg": 87.49,
+        "solc": 0.0,
+        "solh": 0.0
+      },
+      "echo_max_abs_delta": 0.0,
+      "numeric_echo_qc": "PASS",
+      "overall_qc": "FAIL"
+    }
+  ],
+  "diagnostic_exclusion": {
+    "native_library_outputs": "superseded_native_library_diagnostic",
+    "no_seed_outputs": "custom_no_seed_failure",
+    "self_seed_outputs": "scientific_qc_failed_solvent_name",
+    "excluded_from": [
+      "exact_reuse",
+      "training_labels",
+      "validation_labels",
+      "production_results"
+    ]
+  }
+}
