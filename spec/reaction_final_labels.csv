@@ -1,0 +1,1 @@
+reaction_id,reaction_class,role,parent_id,solvent_id,split,stoichiometry,deltaE_base_MACE_rxn_eV,deltaE_T2_SMD_SP_rxn_eV,deltaG_T2_SMD_min_rxn_eV,sp_residual_eV,rt_correction_eV,final_residual_eV,Eox_vs_AgAgCl_V,deltaG_sigma_kcal_mol,complete_tuple,qc_status,qc_reasons,source_job_ids

@@ -1,0 +1,21 @@
+cation,anion,smiles,family,cation_smiles,anion_smiles,tier1_note
+Tetrabutylammonium (TBA+),Hexafluorophosphate (PF6−),CCCC[N+](CCCC)(CCCC)CCCC.F[P-](F)(F)(F)(F)F,Tetraalkylammonium,CCCC[N+](CCCC)(CCCC)CCCC,F[P-](F)(F)(F)(F)F,
+Tetrabutylammonium (TBA+),Tetrafluoroborate (BF4−),CCCC[N+](CCCC)(CCCC)CCCC.F[B-](F)(F)F,Tetraalkylammonium,CCCC[N+](CCCC)(CCCC)CCCC,F[B-](F)(F)F,
+Tetrabutylammonium (TBA+),Perchlorate (ClO4−),CCCC[N+](CCCC)(CCCC)CCCC.[O-][Cl+3]([O-])([O-])[O-],Tetraalkylammonium,CCCC[N+](CCCC)(CCCC)CCCC,[O-][Cl+3]([O-])([O-])[O-],
+Tetrabutylammonium (TBA+),Trifluoromethanesulfonate (OTf−),CCCC[N+](CCCC)(CCCC)CCCC.O=S(=O)([O-])C(F)(F)F,Tetraalkylammonium,CCCC[N+](CCCC)(CCCC)CCCC,O=S(=O)([O-])C(F)(F)F,
+Tetrabutylammonium (TBA+),Bis(trifluoromethanesulfonyl)imide (TFSI−),CCCC[N+](CCCC)(CCCC)CCCC.O=S(=O)([N-]S(=O)(=O)C(F)(F)F)C(F)(F)F,Tetraalkylammonium,CCCC[N+](CCCC)(CCCC)CCCC,O=S(=O)([N-]S(=O)(=O)C(F)(F)F)C(F)(F)F,
+Tetraethylammonium (TEA+),Hexafluorophosphate (PF6−),CC[N+](CC)(CC)CC.F[P-](F)(F)(F)(F)F,Tetraalkylammonium,CC[N+](CC)(CC)CC,F[P-](F)(F)(F)(F)F,
+Tetraethylammonium (TEA+),Tetrafluoroborate (BF4−),CC[N+](CC)(CC)CC.F[B-](F)(F)F,Tetraalkylammonium,CC[N+](CC)(CC)CC,F[B-](F)(F)F,
+Tetraethylammonium (TEA+),Perchlorate (ClO4−),CC[N+](CC)(CC)CC.[O-][Cl+3]([O-])([O-])[O-],Tetraalkylammonium,CC[N+](CC)(CC)CC,[O-][Cl+3]([O-])([O-])[O-],
+Lithium (Li+),Perchlorate (ClO4−),[Li+].[O-][Cl+3]([O-])([O-])[O-],Lithium,[Li+],[O-][Cl+3]([O-])([O-])[O-],
+Lithium (Li+),Tetrafluoroborate (BF4−),[Li+].F[B-](F)(F)F,Lithium,[Li+],F[B-](F)(F)F,
+Lithium (Li+),Bis(trifluoromethanesulfonyl)imide (TFSI−),[Li+].O=S(=O)([N-]S(=O)(=O)C(F)(F)F)C(F)(F)F,Lithium,[Li+],O=S(=O)([N-]S(=O)(=O)C(F)(F)F)C(F)(F)F,
+Sodium (Na+),Perchlorate (ClO4−),[Na+].[O-][Cl+3]([O-])([O-])[O-],Sodium,[Na+],[O-][Cl+3]([O-])([O-])[O-],
+Sodium (Na+),Poly(styrene sulfonate) H-capped repeat-unit anion (PSS− proxy),[Na+].CCc1ccc(S(=O)(=O)[O-])cc1,Polymeric,[Na+],CCc1ccc(S(=O)(=O)[O-])cc1,
+Sodium (Na+),4-Dodecylbenzenesulfonate (DBSA−),[Na+].CCCCCCCCCCCCc1ccc(S(=O)(=O)[O-])cc1,Surfactant,[Na+],CCCCCCCCCCCCc1ccc(S(=O)(=O)[O-])cc1,
+Proton (H+),Hydrogen sulfate (HSO4−),O=S(=O)([O-])O,Acid,,O=S(=O)([O-])O,Proton cation omitted; Tier-1 uses the anion only.
+Proton (H+),Perchlorate (ClO4−),[O-][Cl+3]([O-])([O-])[O-],Acid,,[O-][Cl+3]([O-])([O-])[O-],Proton cation omitted; Tier-1 uses the anion only.
+Proton (H+),"4-Methylbenzenesulfonate (tosylate, pTS−)",Cc1ccc(S(=O)(=O)[O-])cc1,Organic acid,,Cc1ccc(S(=O)(=O)[O-])cc1,Proton cation omitted; Tier-1 uses the anion only.
+Proton (H+),Camphor-10-sulfonate (CSA−),CC1(C)C2CCC1(CS(=O)(=O)[O-])C(=O)C2,Organic acid,,CC1(C)C2CCC1(CS(=O)(=O)[O-])C(=O)C2,Proton cation omitted; Tier-1 uses the anion only.
+Potassium (K+),Chloride (Cl−),[K+].[Cl-],Inorganic,[K+],[Cl-],
+Silver (Ag+),Perchlorate (ClO4−),[Ag+].[O-][Cl+3]([O-])([O-])[O-],Silver,[Ag+],[O-][Cl+3]([O-])([O-])[O-],

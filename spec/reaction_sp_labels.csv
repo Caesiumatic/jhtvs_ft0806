@@ -1,0 +1,1 @@
+reaction_id,reaction_class,role,parent_id,solvent_id,split,stoichiometry,deltaE_base_MACE_rxn_eV,deltaE_T2_SMD_SP_rxn_eV,sp_residual_eV,delta_CPCM_dielectric_rxn_eV,delta_SMD_CDS_rxn_eV,complete_tuple,qc_status,qc_reasons,source_job_ids

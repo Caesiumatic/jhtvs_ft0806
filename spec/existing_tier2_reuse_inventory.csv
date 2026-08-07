@@ -1,0 +1,1 @@
+reuse_record_id,job_class,state_id,solvent_id,reaction_ids,geometry_hash,workflow_revision,method_id,thermochemistry_convention_id,source_path,source_output_sha256,qc_status,reusable_for_sp,reusable_for_final,notes

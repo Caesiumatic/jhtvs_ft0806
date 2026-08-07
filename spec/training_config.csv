@@ -1,0 +1,58 @@
+category,key,value,unit,source_id,notes
+scope,production_targets,monomer Eox; solvent-target self Eox; anion Eox; deltaG_sigma,,SRC_PROJECT_ORIGIN;SRC_PROJECT_TIER2_CURRENT,One unified 25-medium property surrogate.
+scope,excluded_capabilities,forces; ML geometry optimization; molecular dynamics,,SRC_HANDOFF_SPEC,Do not expose derivatives as validated physical forces.
+environment,python_version,3.11,,SRC_MACE_RELEASE,Pin lock file after successful local and Lop smoke tests.
+environment,mace_torch_version,0.3.16,,SRC_MACE_RELEASE;SRC_MACE_SOURCE_V0316,Exact initial implementation pin.
+environment,mace_source_commit,4d2da09413ac1407f37cdbb6b81fa28e4c15655e,git SHA,SRC_MACE_RELEASE;SRC_MACE_SOURCE_V0316,Tag v0.3.16.
+environment,graph_electrostatics_version,v0.4.0,,SRC_MACE_POLAR_DOCS,Record resolved commit and package checksum in the run manifest.
+foundation,checkpoint,polar-1-l,,SRC_MACE_POLAR_DOCS;SRC_MACE_RELEASE,Large MACE-POLAR-1 checkpoint.
+foundation,default_dtype,float64,,SRC_MACE_POLAR_DOCS;SRC_MACE_RELEASE,All feature extraction and training.
+foundation,base_checkpoint_semantics,immutable original polar-1-l energy baseline,,SRC_HANDOFF_SPEC,LoRA must not redefine deltaE_base_MACE_rxn or any target.
+input,charge,formal total charge,e,SRC_PROJECT_TIER1_CURRENT;SRC_MACE_POLAR_DOCS,Graph-level state condition.
+input,spin,multiplicity = unpaired electrons + 1,,SRC_PROJECT_TIER1_CURRENT;SRC_MACE_RELEASE,Closed shell 1; radical doublet 2.
+input,reference_geometry,solvent-specific Tier-1 GFN2/ddCOSMO optimized state geometry,,SRC_PROJECT_TIER1_CURRENT;SRC_HANDOFF_SPEC,Same protocol for training and full-space inference.
+input,sigma_reference_geometry,deterministic sigma construction -> target-medium GFN2/ddCOSMO preopt -> connectivity QC,,SRC_PROJECT_TIER2_CURRENT;SRC_HANDOFF_SPEC,"Charge +2, multiplicity 1."
+input,solvent_vector,ln(epsilon)|soln|soln25|sola|solb|solg|solc|solh,,SRC_ORCA61_SMD;SRC_MNSOL_DESCRIPTORS,Read only from solvent_smd_registry.csv; echo is audit only.
+input,solvent_normalization,train-split mean and standard deviation,,SRC_HANDOFF_SPEC,Persist statistics; no test-anchor contribution.
+feature,api,"raw PolarMACE model forward, not ASE energy-only interface",,SRC_MACE_SOURCE_V0316,Required for node_feats and polar outputs.
+feature,node_feats,split by checkpoint e3nn irreps; retain 0e channels per interaction; molecular sum and mean pooling,,SRC_MACE_SOURCE_V0316;SRC_HANDOFF_SPEC,Rotation-invariant state features only.
+feature,polar_invariants,density monopole summaries; l=1 norms; spin-density monopole summaries; l=1 norms; dipole norm,,SRC_MACE_POLAR_DOCS;SRC_MACE_SOURCE_V0316,Do not feed raw Cartesian/spherical vector components.
+feature,global_scalars,immutable base MACE energy; electrostatic energy; electron energy; atom count; charge; multiplicity,,SRC_MACE_SOURCE_V0316;SRC_HANDOFF_SPEC,Standardize train-derived continuous scalars.
+feature,frozen_cache_key,checkpoint_sha256|geometry_sha256|charge|multiplicity|feature_schema_revision,,SRC_HANDOFF_SPEC,Frozen-head stage only.
+feature,lora_feature_mode,online forward pass through LoRA-wrapped model,,SRC_MACE_LORA;SRC_HANDOFF_SPEC,No frozen feature cache during LoRA training; gradients must reach adapters.
+architecture,state_mlp,two-layer MLP; hidden 256; SiLU; LayerNorm,,SRC_HANDOFF_SPEC,Shared across state roles.
+architecture,solvent_encoder,8->64->128; SiLU; LayerNorm,,SRC_HANDOFF_SPEC,Shared across all 25 media.
+architecture,fusion,FiLM/gating at state-property representation,,SRC_HANDOFF_SPEC,Late fusion; do not modify PolarMACE electrostatic recursion in v1.
+architecture,reaction_aggregation,concat product sum|reactant sum|signed difference|deltaE_base_MACE_rxn,,SRC_HANDOFF_SPEC,Exact stoichiometric coefficients from reaction registry.
+architecture,redox_head,"one shared head + role embedding {monomer,solvent,anion}",,SRC_HANDOFF_SPEC,Predict final residual and auxiliary corrections.
+architecture,sigma_head,separate sigma head,,SRC_HANDOFF_SPEC,Same state/solvent encoders.
+target,sp_residual,deltaE_T2_SMD_SP_rxn - deltaE_base_MACE_rxn,eV,SRC_HANDOFF_SPEC,Reaction-level auxiliary target.
+target,rt_correction,deltaG_T2_SMD_min_rxn - deltaE_T2_SMD_SP_rxn,eV,SRC_PROJECT_TIER2_CURRENT;SRC_HANDOFF_SPEC,Only complete clean Opt/Freq tuples.
+target,final_residual,deltaG_T2_SMD_min_rxn - deltaE_base_MACE_rxn,eV,SRC_HANDOFF_SPEC,Primary target.
+target,prediction_formula,deltaG_pred = deltaE_base_MACE_rxn + final_residual_pred,eV,SRC_HANDOFF_SPEC,Baseline remains from original checkpoint in every stage.
+loss,redox_final_weight,1.0,,SRC_HANDOFF_SPEC,Huber after train-only target scaling.
+loss,sigma_final_weight,1.0,,SRC_HANDOFF_SPEC,Huber after train-only target scaling.
+loss,sp_weight,0.5,,SRC_HANDOFF_SPEC,Masked to SP-complete rows.
+loss,rt_weight,0.25,,SRC_HANDOFF_SPEC,Masked to final-complete clean rows.
+loss,consistency_weight,0.25,,SRC_HANDOFF_SPEC,final_residual ~= sp_residual + rt_correction.
+loss,anchor_parent_weighting,sum of row weights within each parent = 1,,SRC_HANDOFF_SPEC,Prevents full-25 anchors from dominating.
+split,group_key,parent_id,,SRC_HANDOFF_SPEC,"All states, media, sigma product and conformers stay together."
+split,calibration_counts,60 train; 14 val; 14 test reactions,,SRC_HANDOFF_SPEC,Defined by calibration_tuple_design.csv.
+split,full25_anchors,3 train; 3 blind test,,SRC_HANDOFF_SPEC,Blind test anchors never select architecture or hyperparameters.
+training,head_warmup_epochs,50,epochs,SRC_HANDOFF_SPEC,Freeze PolarMACE; train encoders and property heads.
+training,head_lr,3e-4,,SRC_HANDOFF_SPEC,AdamW initial setting.
+training,lora_enabled,true,,SRC_MACE_LORA;SRC_HANDOFF_SPEC,Begin only after frozen-head smoke and validation.
+training,lora_rank,4,,SRC_MACE_LORA,Official default starting rank.
+training,lora_alpha,1.0,,SRC_MACE_LORA,Official default starting scale.
+training,lora_lr,1e-4,,SRC_HANDOFF_SPEC,Property heads continue at 3e-4 unless validation dictates within supplied search grid.
+training,early_stopping,grouped validation MAE; patience 30,,SRC_HANDOFF_SPEC,Test split never queried for stopping.
+training,seeds,17;29;43;71;101,,SRC_HANDOFF_SPEC,Five independent ensemble members.
+evaluation,metrics,MAE; Spearman; per-parent solvent-trend correlation; boundary false pass/false fail; top-K recall; interval coverage; coverage-accuracy,,SRC_PROJECT_ORIGIN;SRC_HANDOFF_SPEC,"Report by role, family, charge class and solvent region."
+uncertainty,ensemble_rule,"calculate each reaction property and screening margin per member, then mean/std",,SRC_HANDOFF_SPEC,Preserves correlated component errors.
+uncertainty,abstention,ensemble disagreement + feature-distance OOD + upstream QC,,SRC_HANDOFF_SPEC,Thresholds frozen on validation only.
+qc,clean,included in scalar losses,,SRC_PROJECT_TIER2_CURRENT;SRC_HANDOFF_SPEC,Complete tuple required.
+qc,flagged,retain value and reason; exclude from primary scalar loss,,SRC_PROJECT_TIER2_CURRENT;SRC_HANDOFF_SPEC,May train separate failure/OOD classifier.
+qc,missing,retain failure record only,,SRC_PROJECT_TIER2_CURRENT;SRC_HANDOFF_SPEC,No numeric imputation.
+budget,first_round_hard_stop,8000,CPU core-hour,SRC_PROJECT_TIMINGS;SRC_HANDOFF_SPEC,Consumed + queued planned cost guard.
+budget,project_total_cap,12000,CPU core-hour,SRC_PROJECT_TIMINGS;SRC_HANDOFF_SPEC,All retries and active-learning additions included.
+output,expected_fullspace_rows,5300,reaction-medium rows,SRC_HANDOFF_SPEC,2500 monomer + 25 solvent self + 275 anion + 2500 sigma.

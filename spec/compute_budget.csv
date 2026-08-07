@@ -1,0 +1,6 @@
+record_type,phase,job_class,logical_jobs,planned_core_h,hard_stop_core_h,project_cap_core_h,execution_rule
+manifest,fixed_geometry_sp,smd_energy_sp + diagnostic_gas_sp,735,1601.30,,,Bundle short SP jobs by geometry/state where scheduler-safe; preserve one logical row per scientific job.
+manifest,full_optfreq,SMD Opt/Freq -> TZVPD final SP,80,2289.20,,,Submit in small waves after complete-tuple pilot and qacct review.
+total,initial_manifest,all planned first-package jobs,815,3890.50,8000,12000,Stop new submission when consumed plus queued planned core-hours reaches the applicable limit.
+guard,first_round,all CPU jobs including retries,,,8000,,Automatic submission guard; already-running jobs may finish.
+guard,whole_project,all CPU jobs including active learning,,,,12000,No new CPU submission at or above cap.

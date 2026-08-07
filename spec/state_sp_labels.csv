@@ -1,0 +1,1 @@
+source_job_id,state_id,solvent_id,geometry_hash,formal_charge,multiplicity,split,method_id,workflow_revision,E_base_MACE_eV,E_T2_SMD_SP_Eh,E_T2_SMD_SP_eV,CPCM_dielectric_Eh,SMD_CDS_Eh,echoed_smd_vector,normal_termination,qc_status,qc_reasons,output_sha256
