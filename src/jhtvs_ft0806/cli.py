@@ -208,6 +208,7 @@ def _run_collect_accounting(args: argparse.Namespace) -> int:
         ledger_path=args.ledger,
         accounting_path=args.accounting,
         qacct_file=args.qacct_file,
+        allow_partial=args.allow_partial,
     )
     sys.stdout.write(
         json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
@@ -396,6 +397,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=_repository_root() / "data" / "resolved" / "accounting.csv",
     )
     accounting.add_argument("--qacct-file", type=Path)
+    accounting.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="account canceled/failed arrays even when qacct covers only started tasks",
+    )
     accounting.set_defaults(handler=_run_collect_accounting)
 
     parse = subparsers.add_parser(

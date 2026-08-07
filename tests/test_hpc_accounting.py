@@ -4,7 +4,10 @@ import csv
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from jhtvs_ft0806.hpc.accounting import (
+    AccountingError,
     collect_accounting,
     parse_qacct,
     submission_status,
@@ -157,3 +160,57 @@ def test_collect_accounting_accepts_lop_duration_suffixes(
     assert summary.actual_core_h == Decimal("90.5") * Decimal("8") / Decimal(
         "3600"
     )
+
+
+def test_partial_qacct_requires_opt_in_and_accounts_started_tasks(
+    tmp_path: Path,
+) -> None:
+    root, ledger, accounting, _ = _accounting_fixture(tmp_path)
+    task_table = root / "runs" / "hpc" / "submissions" / "fixture" / "tasks.tsv"
+    with task_table.open("a", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+        writer.writerow(
+            (
+                "2",
+                "1",
+                "SP0002",
+                "diagnostic_gas_sp",
+                "runs/orca/sp/SP0002/SP0002.inp",
+                "fixture-input-sha-2",
+                "runs/orca/sp/SP0002/SP0002.out",
+                "8",
+                "1.74",
+                "jhtvs-ft0806-sp-v3",
+                "fixture-method",
+            )
+        )
+    ledger_rows = read_csv_rows(ledger)
+    ledger_rows[0]["job_count"] = "2"
+    ledger_rows[0]["array_task_count"] = "2"
+    ledger_rows[0]["task_table_sha256"] = sha256_file(task_table)
+    write_csv_deterministic(ledger, LEDGER_FIELDS, ledger_rows)
+
+    with pytest.raises(AccountingError, match="qacct task coverage mismatch"):
+        collect_accounting(
+            submission_id="fixture",
+            repository_root=root,
+            ledger_path=ledger,
+            accounting_path=accounting,
+            qacct_file=QACCT_FIXTURE,
+        )
+
+    summary = collect_accounting(
+        submission_id="fixture",
+        repository_root=root,
+        ledger_path=ledger,
+        accounting_path=accounting,
+        qacct_file=QACCT_FIXTURE,
+        allow_partial=True,
+    )
+
+    assert summary.array_tasks == 1
+    assert summary.logical_jobs == 2
+    assert summary.failed_array_tasks == 1
+    assert summary.ledger_status == "failed"
+    assert len(read_csv_rows(accounting)) == 1
+    assert read_csv_rows(ledger)[0]["status"] == "failed"

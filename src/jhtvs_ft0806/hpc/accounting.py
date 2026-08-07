@@ -222,6 +222,7 @@ def collect_accounting(
     ledger_path: Path,
     accounting_path: Path,
     qacct_file: Path | None = None,
+    allow_partial: bool = False,
 ) -> AccountingSummary:
     repository_root = repository_root.resolve()
     ledger_path = ledger_path.resolve()
@@ -254,10 +255,12 @@ def collect_accounting(
         tasks_by_array.setdefault(int(task["array_task"]), []).append(task)
     expected_tasks = set(tasks_by_array)
     actual_tasks = set(records)
-    if actual_tasks != expected_tasks:
+    unexpected_tasks = actual_tasks - expected_tasks
+    missing_tasks = expected_tasks - actual_tasks
+    if unexpected_tasks or (missing_tasks and not allow_partial):
         raise AccountingError(
-            f"qacct task coverage mismatch; missing={sorted(expected_tasks - actual_tasks)}, "
-            f"unexpected={sorted(actual_tasks - expected_tasks)}"
+            f"qacct task coverage mismatch; missing={sorted(missing_tasks)}, "
+            f"unexpected={sorted(unexpected_tasks)}"
         )
     submission_dir = task_table_path.parent
     stored_qacct_path = submission_dir / "qacct.txt"
@@ -273,7 +276,7 @@ def collect_accounting(
     completed_logical_jobs = 0
     actual_core_h = Decimal("0")
     collected_at = datetime.now(UTC).isoformat()
-    for array_task in sorted(expected_tasks):
+    for array_task in sorted(actual_tasks):
         record = records[array_task]
         slots = int(record["slots"])
         if slots != int(ledger_row["nprocs"]):
@@ -319,6 +322,7 @@ def collect_accounting(
             }
         )
 
+    failed_array_tasks += len(missing_tasks)
     ledger_status = "complete" if failed_array_tasks == 0 else "failed"
     lock_path = ledger_path.parent / ".submission.lock"
     with lock_path.open("a+", encoding="utf-8") as lock:
