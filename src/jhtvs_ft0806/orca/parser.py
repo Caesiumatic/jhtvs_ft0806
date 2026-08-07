@@ -14,6 +14,10 @@ from jhtvs_ft0806.geometry.xyz import (
     inferred_bonds,
     read_xyz,
 )
+from jhtvs_ft0806.orca.smd import (
+    SELF_SEEDED_CUSTOM_SPECIAL_CASES,
+    custom_self_seed_name,
+)
 from jhtvs_ft0806.provenance import sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows, write_csv_deterministic
 from jhtvs_ft0806.spec_validation import validate_spec
@@ -88,6 +92,7 @@ RESULT_FIELDS = (
     "connectivity_status",
     "bonds_broken",
     "bonds_formed",
+    "echo_solvent_name",
     "echo_epsilon",
     "echo_refrac",
     "echo_soln",
@@ -112,6 +117,9 @@ _G_MINUS_E_RE = re.compile(rf"G-E\(el\)\s+\.\.\.\s+({_NUMBER})\s+Eh")
 _CPCM_RE = re.compile(rf"CPCM Dielectric\s+:\s+({_NUMBER})\s+Eh")
 _SMD_CDS_RE = re.compile(rf"SMD CDS \(Gcds\)\s+:\s+({_NUMBER})\s+Eh")
 _ORCA_VERSION_RE = re.compile(r"Program Version\s+([^\s]+)", re.IGNORECASE)
+_SMD_SOLVENT_NAME_RE = re.compile(
+    r"^\s*Solvent:\s+\.\.\.\s+(\S+)", re.IGNORECASE | re.MULTILINE
+)
 _THERMO_TEMP_RE = re.compile(r"THERMOCHEMISTRY AT\s+([0-9.]+)K", re.IGNORECASE)
 _THERMO_PRESSURE_RE = re.compile(
     r"Pressure\s+\.\.\.\s+([0-9.]+)\s+atm", re.IGNORECASE
@@ -211,6 +219,14 @@ def _audit_echo(
         for field in solvent["orca_echo_fields_to_capture"].split(";")
         if field.strip() in ECHO_FIELDS
     }
+    solvent_names = _SMD_SOLVENT_NAME_RE.findall(text)
+    rendered["solvent_name"] = solvent_names[-1] if solvent_names else ""
+    if solvent.get("special_case", "") in SELF_SEEDED_CUSTOM_SPECIAL_CASES:
+        expected_name = custom_self_seed_name(solvent).upper()
+        if not solvent_names:
+            reasons.append("echo_solvent_name_missing")
+        elif any(name.upper() != expected_name for name in solvent_names):
+            reasons.append("echo_solvent_name_mismatch")
     for echo_field, registry_field in ECHO_FIELDS.items():
         observations = [
             float(value) for value in _ECHO_RES[echo_field].findall(text)

@@ -120,6 +120,7 @@ def test_echo_mismatch_retains_value_but_requires_scientific_stop(
 
 def test_registry_exact_custom_refrac_is_a_required_echo_field() -> None:
     text = (
+        "Solvent: ... DMSO\n"
         "  Epsilon ... 46.8260\n"
         "  Refrac ... 1.4170\n"
         "  Soln ... 1.4783\n"
@@ -135,6 +136,27 @@ def test_registry_exact_custom_refrac_is_a_required_echo_field() -> None:
 
     assert echoed["refrac"] == "1.417"
     assert float(max_delta) == pytest.approx(0.0613)
+    assert echo_qc == "mismatch"
+    assert mismatch
+
+
+def test_self_seeded_custom_solvent_name_must_match() -> None:
+    text = (
+        "Solvent: ... WATER\n"
+        "  Epsilon ... 46.8260\n"
+        "  Refrac ... 1.4783\n"
+        "  Soln ... 1.4783\n"
+        "  Soln25 ... 1.4783\n"
+        "  Sola ... 0.0000\n"
+        "  Solb ... 0.8800\n"
+        "  Solg ... 61.7800\n"
+        "  Solc ... 0.0000\n"
+        "  Solh ... 0.0000\n"
+    )
+
+    echoed, _, echo_qc, mismatch = _audit_echo(text, _solvent("S007"))
+
+    assert echoed["solvent_name"] == "WATER"
     assert echo_qc == "mismatch"
     assert mismatch
 
@@ -187,6 +209,7 @@ def test_significant_imaginary_frequency_retains_composite_value(
         (
             "smd_energy_sp",
             "S007",
+            "Solvent: ... DMSO\n"
             "  Epsilon ... 46.8260\n"
             "  Refrac ... 1.4783\n"
             "  Soln ... 1.4783\n"
@@ -194,6 +217,22 @@ def test_significant_imaginary_frequency_retains_composite_value(
             "  Sola ... 0.0000\n"
             "  Solb ... 0.8800\n"
             "  Solg ... 61.7800\n"
+            "  Solc ... 0.0000\n"
+            "  Solh ... 0.0000\n"
+            "CPCM Dielectric : -0.0123 Eh\n"
+            "SMD CDS (Gcds) : 0.0004 Eh\n",
+        ),
+        (
+            "smd_energy_sp",
+            "S012",
+            "Solvent: ... SULFOLANE\n"
+            "  Epsilon ... 43.9620\n"
+            "  Refrac ... 1.4825\n"
+            "  Soln ... 1.4833\n"
+            "  Soln25 ... 1.4825\n"
+            "  Sola ... 0.0000\n"
+            "  Solb ... 0.8800\n"
+            "  Solg ... 87.4900\n"
             "  Solc ... 0.0000\n"
             "  Solh ... 0.0000\n"
             "CPCM Dielectric : -0.0123 Eh\n"
@@ -248,6 +287,10 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
     assert result["qc_status"] == "clean"
     assert float(result["final_energy_Eh"]) == pytest.approx(-40.123456789)
     assert result["orca_version"] == "6.1.0"
+    if solvent_id in {"S007", "S012"}:
+        assert result["echo_solvent_name"] == (
+            "DMSO" if solvent_id == "S007" else "SULFOLANE"
+        )
     assert result["echo_qc"] == (
         "not_applicable" if solvent_id == "GAS" else "pass"
     )

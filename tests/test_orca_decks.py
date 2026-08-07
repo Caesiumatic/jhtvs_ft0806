@@ -134,6 +134,7 @@ def test_gas_sp_has_no_smd_block_and_water_keeps_native_route() -> None:
             "S007",
             "%cpcm\n"
             "  smd true\n"
+            "  smdsolvent \"DMSO\"\n"
             "  epsilon 46.826\n"
             "  refrac 1.4783\n"
             "  soln 1.4783\n"
@@ -143,12 +144,15 @@ def test_gas_sp_has_no_smd_block_and_water_keeps_native_route() -> None:
             "  solg 61.78\n"
             "  solc 0.0\n"
             "  solh 0.0\n"
+            "  smd18 false\n"
+            "  draco false\n"
             "end\n",
         ),
         (
             "S012",
             "%cpcm\n"
             "  smd true\n"
+            "  smdsolvent \"Sulfolane\"\n"
             "  epsilon 43.962\n"
             "  refrac 1.4825\n"
             "  soln 1.4833\n"
@@ -158,19 +162,31 @@ def test_gas_sp_has_no_smd_block_and_water_keeps_native_route() -> None:
             "  solg 87.49\n"
             "  solc 0.0\n"
             "  solh 0.0\n"
+            "  smd18 false\n"
+            "  draco false\n"
             "end\n",
         ),
     ],
 )
-def test_registry_exact_custom_blocks_have_no_native_lookup(
+def test_registry_exact_custom_blocks_use_only_the_approved_self_seed(
     solvent_id: str, expected: str
 ) -> None:
     rendered = render_smd_block(_solvents()[solvent_id])
 
     assert rendered == expected
-    assert "SMDsolvent" not in rendered
-    assert "SMD(DMSO)" not in rendered
-    assert "SMD(Sulfolane)" not in rendered
+    assert 'SMDsolvent "water"' not in rendered
+    assert "! SMD(" not in rendered
+
+
+def test_self_seed_name_is_read_from_the_registry_row() -> None:
+    solvent = dict(_solvents()["S007"])
+    solvent["orca_smd_input_from_source"] = (
+        'custom self-seed: SMDsolvent("REGISTRY_TEST")'
+    )
+
+    rendered = render_smd_block(solvent)
+
+    assert 'smdsolvent "REGISTRY_TEST"' in rendered
 
 
 def test_selected_deck_build_is_hash_bound_and_rejects_unknown_job(
