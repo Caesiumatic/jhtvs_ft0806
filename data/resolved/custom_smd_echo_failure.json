@@ -1,0 +1,101 @@
+{
+  "status": "SCIENTIFIC_DECISION_REQUIRED",
+  "submission_id": "20260807-echo-custom-s007-s012-v1",
+  "scheduler_job_id": "423399",
+  "submitted_git_commit": "82d066d",
+  "submitted_at_utc": "2026-08-07T20:15:26.101377+00:00",
+  "orca_version": "6.1.0",
+  "qsub_verification": "found suitable queue(s)",
+  "preflight_status": "PASS",
+  "preflight_report_sha256": "578436a0474bb5880395ff1a8be09c720c8527f0d823d695a896b3646cd64f50",
+  "smd_registry_sha256": "3b25cd83a1124772c2144e9af186ededdaa80d1d606925b78e35e262b20f2a71",
+  "task_table_sha256": "2a91faa135821f3b1a350ec6faf251837ff8c1658ad0b814a9a886e61b6cd10e",
+  "runner_sha256": "763b1fd46d2783efa5e210ae28b50fc8827e6e16b77e6d899581a798140c7238",
+  "qacct_sha256": "3a46983f88e0a56d8612a8250f5547ec592f3e0567e65aa3edad7be986629de0",
+  "actual_core_h": "0",
+  "failure": {
+    "stage": "ORCA custom SMD initialization before SCF",
+    "message": "[file orca_tools/Tool-Solvation/solv_defs.cpp, line 4786]: Solvent name not provided, please provide a valid solvent name!",
+    "normal_termination": false,
+    "cpcm_dielectric_parsed": false,
+    "smd_cds_parsed": false,
+    "echo_fields_parsed": false,
+    "registry_modified_after_failure": false,
+    "production_continued": false
+  },
+  "jobs": [
+    {
+      "job_id": "SP0230",
+      "solvent_id": "S007",
+      "input_path": "runs/orca/sp/SP0230/SP0230.inp",
+      "input_sha256": "c01bc1ebef98836e574553693273cba3a8b07ccd474a213179cd5e92ac094cf8",
+      "expected_echo": {
+        "epsilon": 46.826,
+        "refrac": 1.4783,
+        "soln": 1.4783,
+        "soln25": 1.4783,
+        "sola": 0.0,
+        "solb": 0.88,
+        "solg": 61.78,
+        "solc": 0.0,
+        "solh": 0.0
+      },
+      "resolved_model_vector": "3.84643860422|1.4783|1.4783|0|0.88|61.78|0|0",
+      "output_path": "runs/orca/sp/SP0230/SP0230.out",
+      "output_sha256": "6d109520508eb53baa8adeea8c884be487ea9f73b901560b5d349e2a1270c618",
+      "qacct": {
+        "array_task": 2,
+        "exit_status": 2,
+        "wallclock_s": 0,
+        "core_h": "0.00000000"
+      }
+    },
+    {
+      "job_id": "SP0339",
+      "solvent_id": "S012",
+      "input_path": "runs/orca/sp/SP0339/SP0339.inp",
+      "input_sha256": "700f90907a1cb8b4658520461c0c1210b8a8429ddf14ead7fe3d5fae3b4db4a3",
+      "expected_echo": {
+        "epsilon": 43.962,
+        "refrac": 1.4825,
+        "soln": 1.4833,
+        "soln25": 1.4825,
+        "sola": 0.0,
+        "solb": 0.88,
+        "solg": 87.49,
+        "solc": 0.0,
+        "solh": 0.0
+      },
+      "resolved_model_vector": "3.78332562441|1.4833|1.4825|0|0.88|87.49|0|0",
+      "output_path": "runs/orca/sp/SP0339/SP0339.out",
+      "output_sha256": "107ccb72b8e6852e27dfdae5595d210cfdb440cd6afbbdaf44fafb523678f5d1",
+      "qacct": {
+        "array_task": 1,
+        "exit_status": 2,
+        "wallclock_s": 0,
+        "core_h": "0.00000000"
+      }
+    }
+  ],
+  "superseded_native_library_diagnostic": [
+    {
+      "job_id": "SP0230",
+      "archive_output_path": "runs/orca/superseded_native_library_diagnostic/20260807/SP0230/SP0230.out",
+      "archive_output_sha256": "efd99970482d50c51c654eab7a63e4fff8747b4fefa5b09a03671128dbe5d249",
+      "archive_input_sha256": "844dab8a4905f966fc4281112f1b75a4b6579e32511168a60a4d1bdce388c80d"
+    },
+    {
+      "job_id": "SP0339",
+      "archive_output_path": "runs/orca/superseded_native_library_diagnostic/20260807/SP0339/SP0339.out",
+      "archive_output_sha256": "59cad1c1f1155f878aa4e5aef8edc866de527626467ebb7c4dccd9be743fa8d4",
+      "archive_input_sha256": "b7e0734c1a96ac4286be799881cd8705cfc5631c7d3dd3a0fd4812af24c64b66"
+    }
+  ],
+  "archived_stale_native_inputs": 66,
+  "exclusion": [
+    "exact_reuse",
+    "training_labels",
+    "validation_labels",
+    "production_results"
+  ]
+}
