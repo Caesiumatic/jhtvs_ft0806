@@ -1,0 +1,38 @@
+{
+  "array_range": "1-122:1",
+  "cluster_host": "lop.scs.illinois.edu",
+  "environment": {
+    "conda_environment": "screen2026",
+    "module": "miniforge3/23.3.1",
+    "python_version": "3.11.15",
+    "xtb_version": "6.7.1 (edcfbbe)"
+  },
+  "job_id": "423357",
+  "job_name": "jft_sigma_v1",
+  "max_concurrent_tasks": 20,
+  "preflight_path": "data/resolved/sigma_preopt_preflight.json",
+  "preflight_sha256": "571e3c11f8373bef99e2a2428594dc99092d315b9f51076b74c8dfda902888f9",
+  "preflight_status": "PASS",
+  "queue": "amd16smt",
+  "remote_commit": "c13f33e6067a7db9ae282b0c9b6d2e83f67d9f0e",
+  "remote_run_root": "/home/shic4/jhtvs_ft0806/runs/geometry",
+  "runner_path": "hpc/run_sigma_preopt.sh",
+  "runner_sha256": "7eb2959ec965edad6ecab90446ac43f2b25756207a0af104da218af9d3f97bbd",
+  "scheduler": "SGE",
+  "schema_version": 1,
+  "scientific_parameters": {
+    "charge": 2,
+    "epsilon_source": "spec/solvent_smd_registry.csv",
+    "method": "GFN2-xTB default optimization with ddCOSMO",
+    "multiplicity": 1,
+    "uhf": 0
+  },
+  "slots_per_task": 1,
+  "source_geometry_hash_check": "PASS",
+  "status_at_receipt": "qw",
+  "submission_time": "2026-08-07T13:14:31-05:00",
+  "submission_verification": "found suitable queue(s)",
+  "task_count": 122,
+  "task_table_path": "runs/geometry/sigma_preopt_array.tsv",
+  "task_table_sha256": "da7b9e5e37e38d14f5cd48a98bd48b081f53f8d21dba3a38040833d72da607a8"
+}
