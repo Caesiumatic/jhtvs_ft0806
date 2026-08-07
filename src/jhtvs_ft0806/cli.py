@@ -20,6 +20,7 @@ from jhtvs_ft0806.hpc.submission import (
 )
 from jhtvs_ft0806.orca.decks import build_decks
 from jhtvs_ft0806.orca.preflight import audit_decks
+from jhtvs_ft0806.orca.parser import parse_results
 from jhtvs_ft0806.spec_validation import validate_spec
 
 COMMANDS = (
@@ -211,6 +212,20 @@ def _run_collect_accounting(args: argparse.Namespace) -> int:
     return 0 if summary.ledger_status == "complete" else 1
 
 
+def _run_parse_results(args: argparse.Namespace) -> int:
+    summary = parse_results(
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        deck_manifest_path=args.manifest,
+        output_path=args.output,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 1 if summary.scientific_stops else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -361,6 +376,27 @@ def build_parser() -> argparse.ArgumentParser:
     accounting.add_argument("--qacct-file", type=Path)
     accounting.set_defaults(handler=_run_collect_accounting)
 
+    parse = subparsers.add_parser(
+        "parse-results", help="parse ORCA outputs and retain raw values with QC status"
+    )
+    parse.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    parse.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    parse.add_argument(
+        "--manifest",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "deck_manifest.csv",
+    )
+    parse.add_argument(
+        "--output",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "state_results.csv",
+    )
+    parse.set_defaults(handler=_run_parse_results)
+
     for command in COMMANDS[2:]:
         if command in {
             "build-decks",
@@ -368,6 +404,7 @@ def build_parser() -> argparse.ArgumentParser:
             "submit",
             "status",
             "collect-accounting",
+            "parse-results",
         }:
             continue
         subparser = subparsers.add_parser(command)
