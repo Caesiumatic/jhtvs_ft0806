@@ -132,3 +132,28 @@ def test_collect_accounting_uses_qacct_slots_wallclock_and_is_idempotent(
     assert read_csv_rows(ledger)[0]["status"] == "complete"
     status = submission_status(repository_root=root, ledger_path=ledger)
     assert status["logical_job_counts"] == {"complete": 1}
+
+
+def test_collect_accounting_accepts_lop_duration_suffixes(
+    tmp_path: Path,
+) -> None:
+    root, ledger, accounting, _ = _accounting_fixture(tmp_path)
+    lop_qacct = tmp_path / "qacct_lop.txt"
+    lop_qacct.write_text(
+        QACCT_FIXTURE.read_text(encoding="utf-8").replace(
+            "ru_wallclock 90.5", "ru_wallclock 1m30.5s"
+        ),
+        encoding="utf-8",
+    )
+
+    summary = collect_accounting(
+        submission_id="fixture",
+        repository_root=root,
+        ledger_path=ledger,
+        accounting_path=accounting,
+        qacct_file=lop_qacct,
+    )
+
+    assert summary.actual_core_h == Decimal("90.5") * Decimal("8") / Decimal(
+        "3600"
+    )

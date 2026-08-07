@@ -38,6 +38,12 @@ ACCOUNTING_FIELDS = (
     "collected_at_utc",
 )
 _SEPARATOR = re.compile(r"^=+$")
+_DURATION_RE = re.compile(
+    r"^(?:(?P<days>\d+(?:\.\d+)?)d)?"
+    r"(?:(?P<hours>\d+(?:\.\d+)?)h)?"
+    r"(?:(?P<minutes>\d+(?:\.\d+)?)m)?"
+    r"(?:(?P<seconds>\d+(?:\.\d+)?)s)?$"
+)
 
 
 class AccountingError(SubmissionError):
@@ -119,6 +125,26 @@ def _qacct_blocks(text: str) -> list[dict[str, str]]:
     return blocks
 
 
+def _duration_seconds(value: str) -> Decimal:
+    try:
+        return Decimal(value)
+    except ArithmeticError:
+        pass
+    match = _DURATION_RE.fullmatch(value)
+    if match is None or not any(match.groupdict().values()):
+        raise ValueError(f"invalid duration: {value!r}")
+    units = {
+        "days": Decimal("86400"),
+        "hours": Decimal("3600"),
+        "minutes": Decimal("60"),
+        "seconds": Decimal("1"),
+    }
+    return sum(
+        (Decimal(raw) * units[name] for name, raw in match.groupdict().items() if raw),
+        Decimal("0"),
+    )
+
+
 def parse_qacct(text: str, *, scheduler_job_id: str) -> dict[int, dict[str, str]]:
     records: dict[int, dict[str, str]] = {}
     for block in _qacct_blocks(text):
@@ -133,7 +159,7 @@ def parse_qacct(text: str, *, scheduler_job_id: str) -> dict[int, dict[str, str]
         try:
             task_id = int(block["taskid"])
             slots = int(block["slots"])
-            wallclock = Decimal(block["ru_wallclock"])
+            wallclock = _duration_seconds(block["ru_wallclock"])
             int(block["failed"])
             int(block["exit_status"])
         except (ValueError, ArithmeticError) as exc:
@@ -254,7 +280,7 @@ def collect_accounting(
             raise AccountingError(
                 f"qacct slots mismatch for {scheduler_job_id}.{array_task}"
             )
-        wallclock = Decimal(record["ru_wallclock"])
+        wallclock = _duration_seconds(record["ru_wallclock"])
         core_h = wallclock * Decimal(slots) / Decimal("3600")
         array_jobs = tasks_by_array[array_task]
         completed_jobs = sum(
