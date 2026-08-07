@@ -1,0 +1,24 @@
+# workflow_revision: sp-revision
+# job_id: SPG001
+# job_class: smd_energy_sp
+# state_id: FIX_Q0_M1
+# solvent_id: S001
+# formal_charge: 0
+# multiplicity: 1
+# geometry_key: fixture:geometry
+# geometry_sha256: fixture-geometry-sha
+# method_id: sp-method
+# smd_registry_sha256: registry-sha
+# smd_payload_sha256: 2ac42ed3e22fe59dd5791310aba80df0f44a97fce93a0f99bfc908a252e00b57
+# thermochemistry_convention_id: not_applicable
+! wB97X-D3 def2-TZVPD def2/J RIJCOSX TightSCF DEFGRID3
+%pal nprocs 8 end
+%maxcore 3000
+%cpcm
+  smd true
+  SMDsolvent "Acetonitrile"
+end
+* xyz 0 1
+H        0.0000000000       0.0000000000       0.0000000000
+H        0.7400000000       0.0000000000       0.0000000000
+*

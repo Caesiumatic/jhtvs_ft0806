@@ -12,6 +12,7 @@ from typing import Sequence
 
 from jhtvs_ft0806 import __version__
 from jhtvs_ft0806.geometry.resolution import resolve_geometries
+from jhtvs_ft0806.orca.decks import build_decks
 from jhtvs_ft0806.spec_validation import validate_spec
 
 COMMANDS = (
@@ -98,6 +99,27 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_build_decks(args: argparse.Namespace) -> int:
+    selected = set(args.job_id) if args.job_id else None
+    summary = build_decks(
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        run_dir=args.run_dir,
+        manifest_path=args.manifest,
+        selected_job_ids=selected,
+    )
+    sys.stdout.write(json.dumps(summary.to_dict(), sort_keys=True, indent=2) + "\n")
+    logging.getLogger(__name__).info(
+        "deck generation: %d ready, %d waiting for geometry, %d existing outputs",
+        summary.ready,
+        summary.waiting_geometry,
+        summary.existing_outputs,
+    )
+    if args.require_complete and summary.waiting_geometry:
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -127,7 +149,30 @@ def build_parser() -> argparse.ArgumentParser:
     resolve.add_argument("--require-complete", action="store_true")
     resolve.set_defaults(handler=_run_resolve_geometries)
 
+    build = subparsers.add_parser(
+        "build-decks", help="generate manifest-bound ORCA SP and Opt/Freq decks"
+    )
+    build.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    build.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    build.add_argument(
+        "--run-dir", type=Path, default=_repository_root() / "runs" / "orca"
+    )
+    build.add_argument(
+        "--manifest",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "deck_manifest.csv",
+    )
+    build.add_argument("--job-id", action="append")
+    build.add_argument("--require-complete", action="store_true")
+    build.set_defaults(handler=_run_build_decks)
+
     for command in COMMANDS[2:]:
+        if command == "build-decks":
+            continue
         subparser = subparsers.add_parser(command)
         subparser.set_defaults(handler=_not_implemented)
     return parser
