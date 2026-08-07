@@ -1,0 +1,35 @@
+{
+  "status": "SELECTED",
+  "stage": "state_class_sp_pilot",
+  "selection_source": "frozen spec/sp_job_manifest.csv and resolved geometry index",
+  "job_count": 10,
+  "planned_core_h": "22.36",
+  "method_id": "T2_wB97X-D3_def2-TZVPD_SMD_energy_SP_v1",
+  "coverage": {
+    "neutral": {
+      "small": {"job_id": "SP0093", "atom_count": 5, "medium_id": "S002"},
+      "large": {"job_id": "SP0247", "atom_count": 71, "medium_id": "S007"}
+    },
+    "radical_cation": {
+      "small": {"job_id": "SP0305", "atom_count": 3, "medium_id": "S010"},
+      "large": {"job_id": "SP0481", "atom_count": 71, "medium_id": "S016"}
+    },
+    "anion": {
+      "small": {"job_id": "SP0231", "atom_count": 1, "medium_id": "S007"},
+      "large": {"job_id": "SP0493", "atom_count": 51, "medium_id": "S017"}
+    },
+    "neutral_radical": {
+      "small": {"job_id": "SP0341", "atom_count": 5, "medium_id": "S012"},
+      "large": {"job_id": "SP0492", "atom_count": 51, "medium_id": "S017"}
+    },
+    "sigma_dication": {
+      "small": {"job_id": "SP0232", "atom_count": 18, "medium_id": "S007"},
+      "large": {"job_id": "SP0500", "atom_count": 106, "medium_id": "S017"}
+    }
+  },
+  "custom_self_seed_coverage": {
+    "S007": ["SP0231", "SP0232", "SP0247"],
+    "S012": ["SP0341"]
+  },
+  "echo_pilot_overlap": []
+}

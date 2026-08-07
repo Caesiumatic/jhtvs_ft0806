@@ -1,0 +1,19 @@
+# neutral, small / large
+SP0093
+SP0247
+
+# radical cation, small / large
+SP0305
+SP0481
+
+# anion, small / large
+SP0231
+SP0493
+
+# neutral radical, small / large
+SP0341
+SP0492
+
+# sigma dication, small / large
+SP0232
+SP0500

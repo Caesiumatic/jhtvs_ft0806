@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 from jhtvs_ft0806.hpc.submission import selected_ids_from_file
@@ -61,3 +62,42 @@ def test_echo_sp_retry_is_limited_to_the_two_incomplete_native_smd_jobs() -> Non
         solvents[jobs[job_id]["solvent_id"]]["orca_smd_mode"]
         for job_id in selected
     } == {"native_orca_smd"}
+
+
+def test_state_class_sp_pilot_covers_small_and_large_examples() -> None:
+    selected = selected_ids_from_file(
+        ROOT / "config" / "state_class_sp_pilot_job_ids.txt"
+    )
+    echo = selected_ids_from_file(ROOT / "config" / "echo_sp_pilot_job_ids.txt")
+    jobs = {
+        row["job_id"]: row
+        for row in read_csv_rows(ROOT / "spec" / "sp_job_manifest.csv")
+    }
+    geometry = {
+        row["geometry_key"]: row
+        for row in read_csv_rows(ROOT / "data" / "resolved" / "geometry_index.csv")
+    }
+    categories = {
+        ("0", "1"): "neutral",
+        ("1", "2"): "radical_cation",
+        ("-1", "1"): "anion",
+        ("0", "2"): "neutral_radical",
+        ("2", "1"): "sigma_dication",
+    }
+    counts: Counter[str] = Counter()
+    sizes: dict[str, list[int]] = {category: [] for category in categories.values()}
+    media: set[str] = set()
+    for job_id in selected:
+        row = jobs[job_id]
+        category = categories[(row["formal_charge"], row["multiplicity"])]
+        counts[category] += 1
+        sizes[category].append(
+            _xyz_atom_count(ROOT / geometry[row["geometry_key"]]["xyz_path"])
+        )
+        media.add(row["solvent_id"])
+
+    assert len(selected) == 10
+    assert not selected & echo
+    assert counts == Counter({category: 2 for category in categories.values()})
+    assert all(min(values) < max(values) for values in sizes.values())
+    assert {"S007", "S012"} <= media
