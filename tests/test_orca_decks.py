@@ -179,6 +179,39 @@ def test_registry_exact_custom_blocks_use_only_the_approved_self_seed(
     assert "! SMD(" not in rendered
 
 
+def test_registry_exact_optfreq_reuses_the_echo_payload_in_both_steps() -> None:
+    solvent = _solvents()["S007"]
+    job = {
+        "workflow_revision": "jhtvs-ft0806-optfreq-v3",
+        "job_id": "OF-S007-TEST",
+        "state_id": "A001_QM1_M1",
+        "solvent_id": "S007",
+        "formal_charge": "-1",
+        "multiplicity": "1",
+        "method_id": "T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_v4",
+        "functional": "wB97X-D3",
+        "optfreq_basis": "ma-def2-TZVP",
+        "final_sp_basis": "def2-TZVPD",
+        "nprocs": "8",
+        "maxcore_mb_per_rank": "3000",
+    }
+
+    rendered = render_optfreq_deck(
+        job,
+        _geometry(),
+        FIXTURE_DIR / "small.xyz",
+        solvent,
+        registry_sha256="registry-sha",
+        registry_row_sha256="row-sha",
+    )
+    echo_payload = render_smd_block(solvent)
+
+    assert rendered.count(echo_payload) == 2
+    assert rendered.count('smdsolvent "DMSO"') == 2
+    assert 'SMDsolvent "water"' not in rendered
+    assert "! SMD(" not in rendered
+
+
 def test_self_seed_name_is_read_from_the_registry_row() -> None:
     solvent = dict(_solvents()["S007"])
     solvent["orca_smd_input_from_source"] = (
