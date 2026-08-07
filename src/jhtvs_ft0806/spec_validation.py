@@ -9,6 +9,14 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
+from jhtvs_ft0806.geometry.topology import (
+    TopologyError,
+    build_repeat_chain,
+    canonical_smiles,
+    formula_composition,
+    molecule_from_smiles,
+    molecular_formula,
+)
 from jhtvs_ft0806.provenance import sha256_file
 from jhtvs_ft0806.schemas import (
     SchemaError,
@@ -27,6 +35,11 @@ EXPECTED_COUNTS = {
     "optfreq_job_manifest.csv": 80,
     "training_config.csv": 57,
     "compute_budget.csv": 5,
+    "sigma_coupling_topology.csv": 100,
+    "source_fullspace_monomers_with_coupling.csv": 100,
+    "source_fullspace_hexamers.csv": 100,
+    "source_registry_sigma_addendum.csv": 4,
+    "package_manifest_sigma_addendum.csv": 7,
 }
 
 EXPECTED_FULL25_ANCHORS = {
@@ -95,7 +108,7 @@ class _Validator:
     def validate_manifest(self) -> None:
         manifest = self.rows("package_manifest.csv")
         self.report.checks["manifest_entries"] = len(manifest)
-        self.require(len(manifest) == 26, "manifest_count", "package manifest must contain 26 entries")
+        self.require(len(manifest) == 33, "manifest_count", "package manifest must contain 33 entries")
         self.check_unique(manifest, ("filename",), "package_manifest.csv")
         for row in manifest:
             filename = row["filename"]
@@ -254,6 +267,188 @@ class _Validator:
         self.report.checks["expected_fullspace_predictions"] = expected_predictions
         self.require(expected_predictions == 5300, "fullspace_count", f"expected 5300 inference rows, derived {expected_predictions}")
         return state_by_id, reaction_by_id, stoichiometries
+
+    def validate_sigma_topology(
+        self,
+        state_by_id: Mapping[str, Mapping[str, str]],
+        reaction_by_id: Mapping[str, Mapping[str, str]],
+    ) -> None:
+        topology_rows = self.rows("sigma_coupling_topology.csv")
+        coupling_rows = self.rows("source_fullspace_monomers_with_coupling.csv")
+        hexamer_rows = self.rows("source_fullspace_hexamers.csv")
+        monomer_rows = self.rows("source_fullspace_monomers.csv")
+        self.check_unique(topology_rows, ("parent_id",), "sigma_coupling_topology.csv")
+        self.check_unique(topology_rows, ("sigma_state_id",), "sigma_coupling_topology.csv")
+        self.check_unique(topology_rows, ("reaction_id",), "sigma_coupling_topology.csv")
+        self.check_unique(topology_rows, ("topology_sha256",), "sigma_coupling_topology.csv")
+        self.check_unique(coupling_rows, ("parent_id",), "source_fullspace_monomers_with_coupling.csv")
+
+        expected_parents = {f"M{index:03d}" for index in range(1, 101)}
+        actual_parents = {row["parent_id"] for row in topology_rows}
+        self.require(
+            actual_parents == expected_parents,
+            "sigma_parent_coverage",
+            "sigma topology must cover M001-M100 exactly",
+        )
+        coupling_by_parent = {row["parent_id"]: row for row in coupling_rows}
+
+        link_counts: Counter[str] = Counter()
+        exact_cover_count = 0
+        hexamer_match_count = 0
+        dimer_match_count = 0
+        site_element_counts: Counter[str] = Counter()
+        site_h_counts: Counter[int] = Counter()
+        symmetry_counts: Counter[str] = Counter()
+        approved_count = 0
+        restorable_site_count = 0
+
+        for row_index, row in enumerate(topology_rows, start=1):
+            parent_id = row["parent_id"]
+            expected_parent = f"M{row_index:03d}"
+            self.require(
+                parent_id == expected_parent,
+                "sigma_row_alignment",
+                f"row {row_index}: expected {expected_parent}, found {parent_id}",
+            )
+            if row_index > len(monomer_rows) or row_index > len(hexamer_rows):
+                self.issue("sigma_row_alignment", f"{parent_id}: source row is missing")
+                continue
+            source_monomer = monomer_rows[row_index - 1]
+            source_hexamer = hexamer_rows[row_index - 1]
+            coupling = coupling_by_parent.get(parent_id)
+            if coupling is None:
+                self.issue("sigma_coupling_coverage", f"{parent_id}: coupling row is missing")
+                continue
+
+            expected_state = f"D{row_index:03d}_QP2_M1"
+            expected_reaction = f"RXN_SIG_M{row_index:03d}"
+            self.require(row["sigma_state_id"] == expected_state, "sigma_state_alignment", f"{parent_id}: expected state {expected_state}")
+            self.require(row["reaction_id"] == expected_reaction, "sigma_reaction_alignment", f"{parent_id}: expected reaction {expected_reaction}")
+            state = state_by_id.get(row["sigma_state_id"])
+            reaction = reaction_by_id.get(row["reaction_id"])
+            self.require(state is not None, "sigma_state_coverage", f"{parent_id}: state is absent from registry")
+            self.require(reaction is not None, "sigma_reaction_coverage", f"{parent_id}: reaction is absent from registry")
+            if state is not None:
+                self.require(state["parent_id"] == parent_id, "sigma_state_alignment", f"{parent_id}: state parent differs")
+                self.require(state["formal_charge"] == "2" and state["multiplicity"] == "1", "sigma_state_charge_multiplicity", f"{parent_id}: registry state must be q=+2, multiplicity=1")
+            if reaction is not None:
+                self.require(reaction["parent_id"] == parent_id and reaction["role"] == "monomer_sigma", "sigma_reaction_alignment", f"{parent_id}: reaction registry row differs")
+
+            for topology_field, source_field in (
+                ("monomer_name", "input"),
+                ("source_monomer_smiles", "smiles"),
+                ("family", "family"),
+            ):
+                self.require(
+                    row[topology_field] == source_monomer[source_field],
+                    "sigma_monomer_alignment",
+                    f"{parent_id}: {topology_field} differs from source monomer row",
+                )
+            self.require(
+                source_hexamer["input"] == f"{row['monomer_name']} hexamer (n=6)"
+                and source_hexamer["smiles"] == row["source_hexamer_smiles"]
+                and source_hexamer["family"] == row["family"],
+                "sigma_hexamer_alignment",
+                f"{parent_id}: explicit hexamer row is not aligned",
+            )
+            for field in (
+                "site_a_atom_index_0based",
+                "site_b_atom_index_0based",
+                "coupling_marker",
+                "coupling_smiles",
+                "coupling_atom_mapped_smiles",
+                "repeat_link_rule",
+                "link_atom_pair",
+                "topology_sha256",
+            ):
+                self.require(
+                    row[field] == coupling[field],
+                    "sigma_coupling_alignment",
+                    f"{parent_id}: {field} differs from monomer coupling registry",
+                )
+
+            try:
+                site_a = int(row["site_a_atom_index_0based"])
+                site_b = int(row["site_b_atom_index_0based"])
+                monomer = molecule_from_smiles(row["source_monomer_smiles"])
+                atom_count = monomer.GetNumAtoms()
+                self.require(site_a < site_b, "sigma_site_order", f"{parent_id}: site_a must be the lower source atom index")
+                self.require(row["rdkit_atom_index_base"] == "0", "sigma_index_base", f"{parent_id}: atom indices must be 0-based")
+                self.require(int(row["site_a_atom_map_1based"]) == site_a + 1 and int(row["site_b_atom_map_1based"]) == site_b + 1, "sigma_atom_map", f"{parent_id}: 1-based atom maps differ from source indices")
+
+                site_atoms = (monomer.GetAtomWithIdx(site_a), monomer.GetAtomWithIdx(site_b))
+                actual_elements = tuple(atom.GetSymbol() for atom in site_atoms)
+                actual_hydrogens = tuple(atom.GetTotalNumHs(includeNeighbors=True) for atom in site_atoms)
+                self.require(actual_elements == (row["site_a_element"], row["site_b_element"]), "sigma_site_element", f"{parent_id}: site elements differ from the source graph")
+                self.require(actual_hydrogens == (int(row["site_a_total_h_in_monomer"]), int(row["site_b_total_h_in_monomer"])), "sigma_site_hydrogen", f"{parent_id}: site H counts differ from the source graph")
+                restorable_site_count += sum(value >= 1 for value in actual_hydrogens)
+                site_element_counts.update(actual_elements)
+                site_h_counts.update(actual_hydrogens)
+
+                hexamer = build_repeat_chain(row["source_monomer_smiles"], site_a, site_b, copies=6)
+                expected_hexamer = molecule_from_smiles(row["source_hexamer_smiles"])
+                if canonical_smiles(hexamer) == canonical_smiles(expected_hexamer):
+                    hexamer_match_count += 1
+                else:
+                    self.issue("sigma_hexamer_reconstruction", f"{parent_id}: reconstructed n=6 graph differs from frozen source")
+
+                dimer = build_repeat_chain(row["source_monomer_smiles"], site_a, site_b, copies=2)
+                expected_dimer = molecule_from_smiles(row["neutral_dimer_smiles"])
+                dimer_matches = canonical_smiles(dimer) == canonical_smiles(expected_dimer)
+                formula_matches = molecular_formula(dimer) == row["neutral_dimer_formula"]
+                if dimer_matches and formula_matches:
+                    dimer_match_count += 1
+                else:
+                    self.issue("sigma_dimer_reconstruction", f"{parent_id}: reconstructed neutral n=2 graph or formula differs")
+                self.require(dimer.GetNumHeavyAtoms() == int(row["neutral_dimer_heavy_atom_count"]) == 2 * monomer.GetNumHeavyAtoms(), "sigma_dimer_composition", f"{parent_id}: neutral dimer heavy-atom count differs from 2M")
+                self.require(monomer.GetNumHeavyAtoms() == int(row["monomer_heavy_atom_count"]), "sigma_monomer_composition", f"{parent_id}: monomer heavy-atom count differs")
+                self.require(molecular_formula(monomer) == row["monomer_formula"], "sigma_monomer_formula", f"{parent_id}: monomer formula differs")
+                monomer_composition, monomer_charge = formula_composition(row["monomer_formula"])
+                dimer_composition, dimer_charge = formula_composition(row["neutral_dimer_formula"])
+                sigma_composition, sigma_charge = formula_composition(row["sigma_formula_expected"])
+                expected_sigma_composition = Counter({element: 2 * count for element, count in monomer_composition.items()})
+                expected_dimer_composition = expected_sigma_composition.copy()
+                expected_dimer_composition["H"] -= 2
+                self.require(monomer_charge == 0 and dimer_charge == 0, "sigma_formula_charge", f"{parent_id}: source monomer and neutral dimer must be neutral")
+                self.require(dimer_composition == expected_dimer_composition and row["neutral_dimer_formula_is_2M_minus_H2"] == "true", "sigma_dimer_formula", f"{parent_id}: neutral dimer formula must equal 2M-H2")
+                self.require(sigma_composition == expected_sigma_composition and sigma_charge == 2, "sigma_formula", f"{parent_id}: sigma formula must equal 2M with charge +2")
+                self.require(int(row["junction_copy1_atom_index_0based"]) == site_b and int(row["junction_copy2_atom_index_0based"]) == atom_count + site_a, "sigma_junction_index", f"{parent_id}: combined-molecule junction indices differ")
+            except (TopologyError, ValueError, IndexError) as exc:
+                self.issue("sigma_topology_exception", f"{parent_id}: {exc}")
+
+            link_counts[row["link_atom_pair"]] += 1
+            symmetry_counts[row["site_pair_symmetry_equivalent"]] += 1
+            exact_cover_count += (
+                int(row["hexamer_substructure_match_count"]) >= 6
+                and row["hexamer_exact_cover_count"] == "1"
+                and row["hexamer_inter_repeat_bond_count"] == "5"
+            )
+            approved_count += row["topology_status"] == "approved"
+            self.require(row["reconstructed_hexamer_matches_source"] == "True", "sigma_supplied_reconstruction", f"{parent_id}: supplied reconstruction status is not true")
+            self.require(row["repeat_link_rule"] == "copy_i.site_b--copy_i+1.site_a" and row["inter_repeat_bond_type"] == "single", "sigma_repeat_rule", f"{parent_id}: repeat-link rule differs")
+            self.require(row["sigma_product_charge"] == "2" and row["sigma_product_multiplicity"] == "1", "sigma_charge_multiplicity", f"{parent_id}: sigma product must be q=+2, multiplicity=1")
+
+        cn_parents = {row["parent_id"] for row in topology_rows if row["link_atom_pair"] == "C-N"}
+        self.report.checks["sigma_link_counts"] = dict(sorted(link_counts.items()))
+        self.report.checks["sigma_cn_parents"] = sorted(cn_parents)
+        self.report.checks["sigma_exact_six_copy_covers"] = exact_cover_count
+        self.report.checks["sigma_exact_hexamer_reconstructions"] = hexamer_match_count
+        self.report.checks["sigma_exact_neutral_dimers"] = dimer_match_count
+        self.report.checks["sigma_site_element_counts"] = dict(sorted(site_element_counts.items()))
+        self.report.checks["sigma_site_h_counts"] = {str(key): value for key, value in sorted(site_h_counts.items())}
+        self.report.checks["sigma_symmetry_counts"] = dict(sorted(symmetry_counts.items()))
+        self.report.checks["sigma_restorable_sites"] = restorable_site_count
+        self.report.checks["sigma_approved_rows"] = approved_count
+        self.require(link_counts == Counter({"C-C": 91, "C-N": 9}), "sigma_link_counts", f"expected 91 C-C and 9 C-N rows, found {dict(link_counts)}")
+        self.require(cn_parents == {f"M{index:03d}" for index in range(60, 69)}, "sigma_cn_coverage", f"C-N rows must be M060-M068, found {sorted(cn_parents)}")
+        self.require(exact_cover_count == 100, "sigma_exact_cover", f"expected 100 unique exact six-copy covers, found {exact_cover_count}")
+        self.require(hexamer_match_count == 100, "sigma_hexamer_reconstruction", f"expected 100 exact n=6 reconstructions, found {hexamer_match_count}")
+        self.require(dimer_match_count == 100, "sigma_dimer_reconstruction", f"expected 100 exact neutral dimers, found {dimer_match_count}")
+        self.require(site_element_counts == Counter({"C": 191, "N": 9}), "sigma_site_element_counts", f"site element counts differ: {dict(site_element_counts)}")
+        self.require(site_h_counts == Counter({1: 191, 2: 9}), "sigma_site_h_counts", f"site H counts differ: {dict(site_h_counts)}")
+        self.require(symmetry_counts == Counter({"True": 60, "False": 40}), "sigma_symmetry_counts", f"site symmetry counts differ: {dict(symmetry_counts)}")
+        self.require(restorable_site_count == 200, "sigma_restorable_sites", f"expected 200 restorable coupling sites, found {restorable_site_count}")
+        self.require(approved_count == 100, "sigma_approved_rows", f"expected 100 approved topology rows, found {approved_count}")
 
     def validate_calibration(
         self,
@@ -437,6 +632,7 @@ class _Validator:
             self.validate_sources()
             solvent_ids, solvent_by_id = self.validate_solvents()
             state_by_id, reaction_by_id, stoichiometries = self.validate_states_reactions(solvent_ids)
+            self.validate_sigma_topology(state_by_id, reaction_by_id)
             assigned = self.validate_calibration(solvent_ids, reaction_by_id)
             self.validate_manifests(
                 solvent_ids,
