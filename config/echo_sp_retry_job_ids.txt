@@ -1,0 +1,3 @@
+# Native-SMD jobs terminated after exceeding their planned walltime window in v2.
+SP0280
+SP0555

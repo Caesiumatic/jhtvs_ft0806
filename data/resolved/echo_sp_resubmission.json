@@ -14,6 +14,20 @@
   "medium_count": 25,
   "method_id": "T2_wB97X-D3_def2-TZVPD_SMD_energy_SP_v1",
   "nprocs": 8,
+  "outcome": {
+    "archived_files": 46,
+    "completed_logical_jobs": 23,
+    "consumed_core_h": "11.27777777777777777777777777",
+    "failed_array_tasks": [
+      7,
+      15
+    ],
+    "qacct_sha256": "9a2bb4f52da4a6dd811bd86ec1929330e70f9a72c6f0cda7496f5965e0e09650",
+    "retry_job_ids": [
+      "SP0280",
+      "SP0555"
+    ]
+  },
   "parallel_environment": "orte",
   "preflight_report_sha256": "55c26a6ad846ea2a56278cdff6456c81e03a6698d12fceb66121272f58a1dd63",
   "qsub_verification": "found suitable queue(s)",
@@ -21,7 +35,7 @@
   "replaces_failed_submission_id": "20260807-echo-sp-v1",
   "runner_sha256": "763b1fd46d2783efa5e210ae28b50fc8827e6e16b77e6d899581a798140c7238",
   "scheduler_job_id": "423374",
-  "status": "submitted",
+  "status": "partial_complete_retry_pending",
   "submission_id": "20260807-echo-sp-v2",
   "submission_sha256": "7d11d8c25f8a4da654a58d01267c1d066fb9d9313876883ddf68e0c581fadd2c",
   "submitted_at_utc": "2026-08-07T18:53:02.232635+00:00",

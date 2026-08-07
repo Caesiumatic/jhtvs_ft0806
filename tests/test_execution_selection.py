@@ -42,3 +42,22 @@ def test_echo_sp_pilot_uses_one_smallest_ready_job_per_medium() -> None:
             if candidate["solvent_id"] == row["solvent_id"]
         ]
         assert (selected_count, row["job_id"]) == min(medium_counts)
+
+
+def test_echo_sp_retry_is_limited_to_the_two_incomplete_native_smd_jobs() -> None:
+    selected = selected_ids_from_file(ROOT / "config" / "echo_sp_retry_job_ids.txt")
+    jobs = {
+        row["job_id"]: row
+        for row in read_csv_rows(ROOT / "spec" / "sp_job_manifest.csv")
+    }
+    solvents = {
+        row["solvent_id"]: row
+        for row in read_csv_rows(ROOT / "spec" / "solvent_smd_registry.csv")
+    }
+
+    assert selected == {"SP0280", "SP0555"}
+    assert {jobs[job_id]["solvent_id"] for job_id in selected} == {"S009", "S019"}
+    assert {
+        solvents[jobs[job_id]["solvent_id"]]["orca_smd_mode"]
+        for job_id in selected
+    } == {"native_orca_smd"}
