@@ -1,0 +1,22 @@
+{
+  "status": "SELECTED",
+  "stage": "complete_optfreq_reaction_tuple_pilot",
+  "selection_source": "frozen spec/optfreq_job_manifest.csv and resolved geometry index",
+  "reaction_id": "RXN_AOX_A001",
+  "reaction_class": "anion_oxidation",
+  "medium_id": "S007",
+  "medium_name": "DMSO",
+  "execution_mode": "custom_self_seed_registry_exact",
+  "job_ids": ["OF040", "OF041"],
+  "state_ids": ["A001_Q0_M2", "A001_QM1_M1"],
+  "job_count": 2,
+  "planned_core_h": "49.64",
+  "method_id": "T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_v4",
+  "workflow_revision": "jhtvs-ft0806-optfreq-v3",
+  "thermochemistry_convention_id": "orca_298.15K_1atm_QuasiRRHO_project_1M_v1",
+  "geometry_atom_counts": {
+    "OF040": 7,
+    "OF041": 7
+  },
+  "submission_gate": "state_class_sp_pilot_clean_with_accounting"
+}

@@ -1,0 +1,3 @@
+# complete S007 anion-oxidation tuple: RXN_AOX_A001
+OF040
+OF041

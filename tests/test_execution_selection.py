@@ -101,3 +101,27 @@ def test_state_class_sp_pilot_covers_small_and_large_examples() -> None:
     assert counts == Counter({category: 2 for category in categories.values()})
     assert all(min(values) < max(values) for values in sizes.values())
     assert {"S007", "S012"} <= media
+
+
+def test_optfreq_pilot_is_one_complete_s007_reaction_tuple() -> None:
+    selected = selected_ids_from_file(
+        ROOT / "config" / "optfreq_reaction_pilot_job_ids.txt"
+    )
+    jobs = {
+        row["job_id"]: row
+        for row in read_csv_rows(ROOT / "spec" / "optfreq_job_manifest.csv")
+    }
+    selected_rows = [jobs[job_id] for job_id in selected]
+
+    assert selected == {"OF040", "OF041"}
+    assert {row["reaction_ids"] for row in selected_rows} == {"RXN_AOX_A001"}
+    assert {row["state_id"] for row in selected_rows} == {
+        "A001_Q0_M2",
+        "A001_QM1_M1",
+    }
+    assert {row["solvent_id"] for row in selected_rows} == {"S007"}
+    assert all(
+        "complete anion oxidation tuple" in row["purposes"]
+        for row in selected_rows
+    )
+    assert sum(float(row["planning_core_h"]) for row in selected_rows) == 49.64
