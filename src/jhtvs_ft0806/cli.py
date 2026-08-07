@@ -18,6 +18,10 @@ from jhtvs_ft0806.hpc.submission import (
     prepare_submission,
     selected_ids_from_file,
 )
+from jhtvs_ft0806.labels.assembly import (
+    PINNED_REFERENCE_CONVERSION_RELATIVE_PATH,
+    assemble_labels,
+)
 from jhtvs_ft0806.orca.decks import build_decks
 from jhtvs_ft0806.orca.preflight import audit_decks
 from jhtvs_ft0806.orca.parser import parse_results
@@ -226,6 +230,24 @@ def _run_parse_results(args: argparse.Namespace) -> int:
     return 1 if summary.scientific_stops else 0
 
 
+def _run_assemble_labels(args: argparse.Namespace) -> int:
+    summary = assemble_labels(
+        spec_dir=args.spec_dir,
+        state_results_path=args.state_results,
+        baseline_state_energies_path=args.baseline_state_energies,
+        state_sp_output_path=args.state_sp_output,
+        reaction_sp_output_path=args.reaction_sp_output,
+        reaction_final_output_path=args.reaction_final_output,
+        reference_conversion_path=args.reference_project
+        / PINNED_REFERENCE_CONVERSION_RELATIVE_PATH,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 1 if summary.scientific_stops else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -397,6 +419,53 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parse.set_defaults(handler=_run_parse_results)
 
+    labels = subparsers.add_parser(
+        "assemble-labels",
+        help="assemble state, SP-reaction, and final-reaction labels",
+    )
+    labels.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    labels.add_argument(
+        "--state-results",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "state_results.csv",
+    )
+    labels.add_argument(
+        "--baseline-state-energies",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "base_state_energies.csv",
+    )
+    labels.add_argument(
+        "--state-sp-output",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "state_sp_labels.csv",
+    )
+    labels.add_argument(
+        "--reaction-sp-output",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "reaction_sp_labels.csv",
+    )
+    labels.add_argument(
+        "--reaction-final-output",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "reaction_final_labels.csv",
+    )
+    labels.add_argument(
+        "--reference-project",
+        type=Path,
+        default=_repository_root().parent / "20260707",
+        help="path to the supplied project containing the pinned Ag/AgCl conversion",
+    )
+    labels.set_defaults(handler=_run_assemble_labels)
+
     for command in COMMANDS[2:]:
         if command in {
             "build-decks",
@@ -405,6 +474,7 @@ def build_parser() -> argparse.ArgumentParser:
             "status",
             "collect-accounting",
             "parse-results",
+            "assemble-labels",
         }:
             continue
         subparser = subparsers.add_parser(command)
