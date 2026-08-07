@@ -8,6 +8,17 @@
     "python": "3.11.15",
     "rdkit": "2026.03.3"
   },
+  "failure": {
+    "archived_files": 766,
+    "archived_job_directories": 10,
+    "cause": "logical job ID overwrote exported SGE JOB_ID and OpenMPI rejected the nonnumeric value",
+    "completed_logical_jobs": 0,
+    "consumed_core_h": "1.691111111111111111111111109",
+    "failed_array_tasks": 25,
+    "fix_commit": "76804a97f7cf0ad034843a9cb34019c983eee623",
+    "qacct_records": 11,
+    "qacct_sha256": "1019fc12f719fbec1390a20143d9df1a429c93aeaf057b79d03c0d4b54747f99"
+  },
   "geometry_index_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
   "git_commit": "5c1353b30fcdd66a7d1c17bddca50f7fa36ea2c9",
   "input_bundle_sha256": "dcba989c06340ddfb6ffd7948c9918c9e7b2abfcae7f05790d514589513d7767",
@@ -29,7 +40,7 @@
     "native_orca_smd": 14
   },
   "smd_registry_sha256": "fd3a84bd53cae13941b6766e6d72cb287c2cb0a8ceb47c2a69e85fb22d9cd4bc",
-  "status": "submitted",
+  "status": "failed_engineering_retriable",
   "submission_id": "20260807-echo-sp-v1",
   "submission_sha256": "006c877493ea832edb13558afb54d5e42b564d9a96ec8ae1d9439c8043923c7e",
   "submitted_at_utc": "2026-08-07T18:45:11.120126+00:00",
