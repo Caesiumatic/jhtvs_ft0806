@@ -12,6 +12,11 @@ from typing import Sequence
 
 from jhtvs_ft0806 import __version__
 from jhtvs_ft0806.geometry.resolution import resolve_geometries
+from jhtvs_ft0806.hpc.submission import (
+    execute_submission,
+    prepare_submission,
+    selected_ids_from_file,
+)
 from jhtvs_ft0806.orca.decks import build_decks
 from jhtvs_ft0806.orca.preflight import audit_decks
 from jhtvs_ft0806.spec_validation import validate_spec
@@ -140,6 +145,48 @@ def _run_audit_decks(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _run_submit(args: argparse.Namespace) -> int:
+    selected = set(args.job_id or ())
+    if args.job_id_file is not None:
+        selected.update(selected_ids_from_file(args.job_id_file))
+    plan = prepare_submission(
+        submission_id=args.submission_id,
+        selected_job_ids=selected,
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        deck_manifest_path=args.manifest,
+        submissions_root=args.submissions_root,
+        accounting_path=args.accounting,
+        ledger_path=args.ledger,
+        runner_path=args.runner,
+        budget_scope=args.budget_scope,
+        queue=args.queue,
+        parallel_environment=args.parallel_environment,
+        nprocs=args.nprocs,
+        max_concurrent=args.max_concurrent,
+    )
+    result = (
+        execute_submission(
+            plan=plan,
+            runner_path=args.runner,
+            spec_dir=args.spec_dir,
+            accounting_path=args.accounting,
+            ledger_path=args.ledger,
+            budget_scope=args.budget_scope,
+        )
+        if args.execute
+        else plan.to_dict()
+    )
+    sys.stdout.write(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+    logging.getLogger(__name__).info(
+        "ORCA submission %s: %d jobs in %d array tasks",
+        "executed" if args.execute else "prepared without qsub",
+        plan.job_count,
+        plan.array_task_count,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -212,8 +259,59 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--job-id", action="append")
     audit.set_defaults(handler=_run_audit_decks)
 
+    submit = subparsers.add_parser(
+        "submit", help="prepare and optionally qsub a budget-guarded ORCA job wave"
+    )
+    submit.add_argument("--submission-id", required=True)
+    submit.add_argument("--job-id", action="append")
+    submit.add_argument("--job-id-file", type=Path)
+    submit.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    submit.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    submit.add_argument(
+        "--manifest",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "deck_manifest.csv",
+    )
+    submit.add_argument(
+        "--submissions-root",
+        type=Path,
+        default=_repository_root() / "runs" / "hpc" / "submissions",
+    )
+    submit.add_argument(
+        "--accounting",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "accounting.csv",
+    )
+    submit.add_argument(
+        "--ledger",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "submission_ledger.csv",
+    )
+    submit.add_argument(
+        "--runner", type=Path, default=_repository_root() / "hpc" / "run_orca.sh"
+    )
+    submit.add_argument(
+        "--budget-scope",
+        choices=("first_round", "whole_project"),
+        default="first_round",
+    )
+    submit.add_argument("--queue", default="amd16smt")
+    submit.add_argument("--parallel-environment", default="orte")
+    submit.add_argument("--nprocs", type=int, default=8)
+    submit.add_argument("--max-concurrent", type=int, default=8)
+    submit.add_argument(
+        "--execute",
+        action="store_true",
+        help="invoke qsub; without this flag only immutable inputs are prepared",
+    )
+    submit.set_defaults(handler=_run_submit)
+
     for command in COMMANDS[2:]:
-        if command in {"build-decks", "audit-decks"}:
+        if command in {"build-decks", "audit-decks", "submit"}:
             continue
         subparser = subparsers.add_parser(command)
         subparser.set_defaults(handler=_not_implemented)
