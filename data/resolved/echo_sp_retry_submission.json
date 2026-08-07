@@ -1,0 +1,32 @@
+{
+  "budget": {
+    "consumed_core_h": "12.96888883",
+    "first_round_limit_core_h": "8000",
+    "projected_core_h": "16.44888883",
+    "proposed_core_h": "3.48"
+  },
+  "git_commit": "4327d9482782d760a2a89d3f5296179d1b7a2c2b",
+  "input_bundle_sha256": "04745f32d118839dcc335c7577b132c4bb2e9aeeb8d8d7342557c82ba4de17ba",
+  "job_ids": [
+    "SP0280",
+    "SP0555"
+  ],
+  "max_concurrent": 2,
+  "maxcore_mb_per_rank": 3000,
+  "nprocs": 8,
+  "parallel_environment": "orte",
+  "preflight_report_sha256": "95059969061be3fc210ac2c6ee490755e747e3e161663529966ec11584819515",
+  "qsub_verification": "found suitable queue(s)",
+  "queue": "amd16smt",
+  "runner_sha256": "763b1fd46d2783efa5e210ae28b50fc8827e6e16b77e6d899581a798140c7238",
+  "scheduler_job_id": "423389",
+  "solvent_ids": [
+    "S009",
+    "S019"
+  ],
+  "status": "submitted",
+  "submission_id": "20260807-echo-sp-v3",
+  "submission_sha256": "3320d4971e41b81d780d9f618e0b571bb75f8a9a97617278608c12858aba4914",
+  "submitted_at_utc": "2026-08-07T19:16:08.290599+00:00",
+  "task_table_sha256": "1a1cf0f2878b06c8fdc8a90da02e19707e63cb054ffd092999403e2ed7a0a7d2"
+}
