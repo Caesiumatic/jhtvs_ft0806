@@ -9,7 +9,9 @@
 # geometry_sha256: fixture-geometry-sha
 # method_id: sp-method
 # smd_registry_sha256: registry-sha
+# smd_registry_row_sha256: not_applicable
 # smd_payload_sha256: 2ac42ed3e22fe59dd5791310aba80df0f44a97fce93a0f99bfc908a252e00b57
+# exact_reuse_key: e7cfefc1118045b1ddf13690d1fac0e5db790a4ef4a1df96772d00ec074ada60
 # thermochemistry_convention_id: not_applicable
 ! wB97X-D3 def2-TZVPD def2/J RIJCOSX TightSCF DEFGRID3
 %pal nprocs 8 end

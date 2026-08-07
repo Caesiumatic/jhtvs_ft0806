@@ -9,7 +9,9 @@
 # geometry_sha256: fixture-geometry-sha
 # method_id: optfreq-method
 # smd_registry_sha256: registry-sha
+# smd_registry_row_sha256: not_applicable
 # smd_payload_sha256: 8508d5bf039f7a04d859bedf9951b9127cbbbf245c79170c66812080a3ec5460
+# exact_reuse_key: 48638547ad49a69347c9c8a551b465799a46e43e7ea4ca98ac32b7c02dae297e
 # thermochemistry_convention_id: orca_298.15K_1atm_QuasiRRHO_project_1M_v1
 %pal nprocs 8 end
 %maxcore 3000

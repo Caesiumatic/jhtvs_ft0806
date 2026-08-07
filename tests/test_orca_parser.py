@@ -9,6 +9,7 @@ from jhtvs_ft0806.orca.parser import (
     _audit_echo,
     parse_job_result,
 )
+from jhtvs_ft0806.orca.smd import render_smd_block, smd_payload_sha256
 from jhtvs_ft0806.provenance import sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows
 
@@ -140,7 +141,7 @@ def test_registry_exact_custom_refrac_is_a_required_echo_field() -> None:
     assert mismatch
 
 
-def test_self_seeded_custom_solvent_name_must_match() -> None:
+def test_self_seeded_custom_solvent_name_must_be_custom() -> None:
     text = (
         "Solvent: ... WATER\n"
         "  Epsilon ... 46.8260\n"
@@ -159,6 +160,80 @@ def test_self_seeded_custom_solvent_name_must_match() -> None:
     assert echoed["solvent_name"] == "WATER"
     assert echo_qc == "mismatch"
     assert mismatch
+
+    accepted = text.replace("Solvent: ... WATER", "Solvent: ... CUSTOM")
+    echoed, _, echo_qc, mismatch = _audit_echo(accepted, _solvent("S007"))
+
+    assert echoed["solvent_name"] == "CUSTOM"
+    assert echo_qc == "pass"
+    assert not mismatch
+
+
+def test_self_seeded_custom_input_seed_mismatch_is_scientific_stop(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "runs" / "orca" / "sp" / "SPSEED"
+    run_dir.mkdir(parents=True)
+    input_path = run_dir / "SPSEED.inp"
+    output_path = run_dir / "SPSEED.out"
+    solvent = _solvent("S007")
+    input_path.write_text(
+        render_smd_block(solvent).replace(
+            'smdsolvent "DMSO"', 'smdsolvent "Sulfolane"'
+        ),
+        encoding="utf-8",
+    )
+    input_sha256 = sha256_file(input_path)
+    job = {
+        "job_id": "SPSEED",
+        "state_id": "FIX_Q0_M1",
+        "solvent_id": "S007",
+        "workflow_revision": "jhtvs-ft0806-sp-v3",
+        "method_id": "fixture-sp-method",
+    }
+    output_path.write_text(
+        f"# job_id: {job['job_id']}\n"
+        f"# input_sha256: {input_sha256}\n"
+        f"# workflow_revision: {job['workflow_revision']}\n"
+        f"# method_id: {job['method_id']}\n"
+        "Solvent: ... CUSTOM\n"
+        "  Epsilon ... 46.8260\n"
+        "  Refrac ... 1.4783\n"
+        "  Soln ... 1.4783\n"
+        "  Soln25 ... 1.4783\n"
+        "  Sola ... 0.0000\n"
+        "  Solb ... 0.8800\n"
+        "  Solg ... 61.7800\n"
+        "  Solc ... 0.0000\n"
+        "  Solh ... 0.0000\n"
+        "CPCM Dielectric : -0.0123 Eh\n"
+        "SMD CDS (Gcds) : 0.0004 Eh\n"
+        "FINAL SINGLE POINT ENERGY -40.123456789\n"
+        "ORCA TERMINATED NORMALLY\n",
+        encoding="utf-8",
+    )
+    manifest = {
+        "job_class": "smd_energy_sp",
+        "geometry_key": "fixture:geometry",
+        "geometry_sha256": "fixture-geometry-sha",
+        "input_path": "runs/orca/sp/SPSEED/SPSEED.inp",
+        "input_sha256": input_sha256,
+        "smd_payload_sha256": smd_payload_sha256(solvent),
+        "status": "ready",
+    }
+
+    result = parse_job_result(
+        manifest=manifest,
+        job=job,
+        geometry=None,
+        solvent=solvent,
+        repository_root=tmp_path,
+    )
+
+    assert result["echo_qc"] == "pass"
+    assert result["qc_status"] == "flagged"
+    assert result["scientific_stop_required"] == "true"
+    assert "smd_input_payload_mismatch" in result["qc_reasons"]
 
 
 def test_missing_output_identity_is_not_accepted(tmp_path: Path) -> None:
@@ -209,7 +284,7 @@ def test_significant_imaginary_frequency_retains_composite_value(
         (
             "smd_energy_sp",
             "S007",
-            "Solvent: ... DMSO\n"
+            "Solvent: ... CUSTOM\n"
             "  Epsilon ... 46.8260\n"
             "  Refrac ... 1.4783\n"
             "  Soln ... 1.4783\n"
@@ -225,7 +300,7 @@ def test_significant_imaginary_frequency_retains_composite_value(
         (
             "smd_energy_sp",
             "S012",
-            "Solvent: ... SULFOLANE\n"
+            "Solvent: ... CUSTOM\n"
             "  Epsilon ... 43.9620\n"
             "  Refrac ... 1.4825\n"
             "  Soln ... 1.4833\n"
@@ -247,7 +322,16 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
     run_dir.mkdir(parents=True)
     input_path = run_dir / "SPGOLD.inp"
     output_path = run_dir / "SPGOLD.out"
-    input_path.write_text("# fixture SP input\n", encoding="utf-8")
+    solvent = None if solvent_id == "GAS" else _solvent(solvent_id)
+    input_path.write_text(
+        "# fixture SP input\n"
+        + (
+            render_smd_block(solvent)
+            if solvent_id in {"S007", "S012"} and solvent is not None
+            else ""
+        ),
+        encoding="utf-8",
+    )
     input_sha256 = sha256_file(input_path)
     job = {
         "job_id": "SPGOLD",
@@ -274,13 +358,16 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
         "input_path": "runs/orca/sp/SPGOLD/SPGOLD.inp",
         "input_sha256": input_sha256,
         "status": "ready",
+        "smd_payload_sha256": (
+            smd_payload_sha256(solvent) if solvent is not None else ""
+        ),
     }
 
     result = parse_job_result(
         manifest=manifest,
         job=job,
         geometry=None,
-        solvent=None if solvent_id == "GAS" else _solvent(solvent_id),
+        solvent=solvent,
         repository_root=tmp_path,
     )
 
@@ -288,9 +375,7 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
     assert float(result["final_energy_Eh"]) == pytest.approx(-40.123456789)
     assert result["orca_version"] == "6.1.0"
     if solvent_id in {"S007", "S012"}:
-        assert result["echo_solvent_name"] == (
-            "DMSO" if solvent_id == "S007" else "SULFOLANE"
-        )
+        assert result["echo_solvent_name"] == "CUSTOM"
     assert result["echo_qc"] == (
         "not_applicable" if solvent_id == "GAS" else "pass"
     )

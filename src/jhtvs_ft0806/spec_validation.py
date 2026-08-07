@@ -219,6 +219,27 @@ class _Validator:
         if water is not None:
             self.require(water["orca_smd_mode"] == "native_orca_smd", "water_mode", "water must execute with native SMD")
             self.require("SMD(Water)" in water["orca_smd_input_from_source"], "water_keyword", "water must use native SMD(Water)")
+        for solvent_id, seed in {"S007": "DMSO", "S012": "Sulfolane"}.items():
+            row = by_id.get(solvent_id)
+            self.require(row is not None, "self_seed_medium_missing", f"{solvent_id}: registry row is missing")
+            if row is None:
+                continue
+            self.require(
+                row["orca_smd_input_from_source"]
+                == f'custom self-seed: SMDsolvent("{seed}")',
+                "self_seed_medium_mismatch",
+                f"{solvent_id}: self seed must be {seed!r}",
+            )
+            self.require(
+                row["special_case"] == "custom_self_seed_registry_exact",
+                "self_seed_execution_status",
+                f"{solvent_id}: exact custom self-seed mode is not approved",
+            )
+            self.require(
+                row["production_status"] == "custom_self_seed_registry_exact",
+                "self_seed_production_status",
+                f"{solvent_id}: production status is not registry exact",
+            )
         return set(by_id), by_id
 
     @staticmethod

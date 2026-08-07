@@ -11,7 +11,7 @@ from typing import Mapping
 
 from jhtvs_ft0806.geometry.xyz import read_xyz
 from jhtvs_ft0806.orca.smd import render_smd_block, smd_payload_sha256
-from jhtvs_ft0806.provenance import sha256_file
+from jhtvs_ft0806.provenance import content_hash, csv_record_sha256, sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows, write_csv_deterministic
 from jhtvs_ft0806.spec_validation import validate_spec
 
@@ -26,7 +26,9 @@ DECK_MANIFEST_FIELDS = (
     "input_sha256",
     "geometry_key",
     "geometry_sha256",
+    "smd_registry_row_sha256",
     "smd_payload_sha256",
+    "exact_reuse_key",
     "workflow_revision",
     "method_id",
     "thermochemistry_convention_id",
@@ -72,6 +74,8 @@ def _metadata(
     *,
     job_class: str,
     smd_sha256: str,
+    smd_registry_row_sha256: str,
+    exact_reuse_key: str,
     registry_sha256: str,
 ) -> str:
     values = {
@@ -86,7 +90,9 @@ def _metadata(
         "geometry_sha256": geometry["xyz_sha256"],
         "method_id": job["method_id"],
         "smd_registry_sha256": registry_sha256,
+        "smd_registry_row_sha256": smd_registry_row_sha256 or "not_applicable",
         "smd_payload_sha256": smd_sha256 or "not_applicable",
+        "exact_reuse_key": exact_reuse_key,
         "thermochemistry_convention_id": (
             THERMOCHEMISTRY_CONVENTION_ID
             if job_class == "optfreq"
@@ -96,6 +102,39 @@ def _metadata(
     return "".join(f"# {key}: {value}\n" for key, value in values.items())
 
 
+def build_exact_reuse_key(
+    job: Mapping[str, str],
+    geometry: Mapping[str, str],
+    *,
+    job_class: str,
+    smd_registry_row_sha256: str,
+    smd_payload_sha256: str,
+) -> str:
+    """Bind reuse to scientific identity, not ORCA's display-only solvent label."""
+
+    thermochemistry = (
+        THERMOCHEMISTRY_CONVENTION_ID
+        if job_class == "optfreq"
+        else "not_applicable"
+    )
+    return content_hash(
+        {
+            "schema": "jhtvs_ft0806_exact_reuse_v1",
+            "job_class": job_class,
+            "state_id": job["state_id"],
+            "medium_id": job["solvent_id"],
+            "geometry_sha256": geometry["xyz_sha256"],
+            "smd_registry_row_sha256": (
+                smd_registry_row_sha256 or "not_applicable"
+            ),
+            "input_payload_sha256": smd_payload_sha256 or "not_applicable",
+            "method_id": job["method_id"],
+            "workflow_revision": job["workflow_revision"],
+            "thermochemistry_convention_id": thermochemistry,
+        }
+    )
+
+
 def render_sp_deck(
     job: Mapping[str, str],
     geometry: Mapping[str, str],
@@ -103,17 +142,27 @@ def render_sp_deck(
     solvent: Mapping[str, str] | None,
     *,
     registry_sha256: str,
+    registry_row_sha256: str = "",
 ) -> str:
     is_gas = job["job_class"] == "diagnostic_gas_sp"
     if is_gas != (solvent is None):
         raise DeckGenerationError(f"{job['job_id']}: gas/SMD solvent routing mismatch")
     smd_block = "" if solvent is None else render_smd_block(solvent)
     smd_sha = "" if solvent is None else smd_payload_sha256(solvent)
+    reuse_key = build_exact_reuse_key(
+        job,
+        geometry,
+        job_class=job["job_class"],
+        smd_registry_row_sha256=registry_row_sha256,
+        smd_payload_sha256=smd_sha,
+    )
     header = _metadata(
         job,
         geometry,
         job_class=job["job_class"],
         smd_sha256=smd_sha,
+        smd_registry_row_sha256=registry_row_sha256,
+        exact_reuse_key=reuse_key,
         registry_sha256=registry_sha256,
     )
     return (
@@ -135,14 +184,24 @@ def render_optfreq_deck(
     solvent: Mapping[str, str],
     *,
     registry_sha256: str,
+    registry_row_sha256: str = "",
 ) -> str:
     smd = render_smd_block(solvent)
     smd_sha = smd_payload_sha256(solvent)
+    reuse_key = build_exact_reuse_key(
+        job,
+        geometry,
+        job_class="optfreq",
+        smd_registry_row_sha256=registry_row_sha256,
+        smd_payload_sha256=smd_sha,
+    )
     header = _metadata(
         job,
         geometry,
         job_class="optfreq",
         smd_sha256=smd_sha,
+        smd_registry_row_sha256=registry_row_sha256,
+        exact_reuse_key=reuse_key,
         registry_sha256=registry_sha256,
     )
     first_step = (
@@ -232,6 +291,14 @@ def build_decks(
         for row in read_csv_rows(spec_dir / "solvent_smd_registry.csv")
     }
     registry_sha256 = sha256_file(spec_dir / "solvent_smd_registry.csv")
+    registry_row_sha256 = {
+        solvent_id: csv_record_sha256(
+            spec_dir / "solvent_smd_registry.csv",
+            key_field="solvent_id",
+            key_value=solvent_id,
+        )
+        for solvent_id in solvent_by_id
+    }
     logical_jobs: list[tuple[str, dict[str, str], str]] = []
     for row in read_csv_rows(spec_dir / "sp_job_manifest.csv"):
         logical_jobs.append((row["job_class"], row, row["geometry_key"]))
@@ -256,7 +323,9 @@ def build_decks(
         input_path = _deck_path(run_dir, job_class, job["job_id"])
         input_sha = ""
         geometry_sha = ""
+        smd_row_sha = ""
         smd_sha = ""
+        reuse_key = ""
         if geometry is None or geometry["status"] != "resolved":
             status = "waiting_geometry"
             reason = (
@@ -276,6 +345,8 @@ def build_decks(
                     f"{job['job_id']}: geometry hash differs from resolved index"
                 )
             solvent = None if job_class == "diagnostic_gas_sp" else solvent_by_id[job["solvent_id"]]
+            if solvent is not None:
+                smd_row_sha = registry_row_sha256[job["solvent_id"]]
             if job_class == "optfreq":
                 if solvent is None:
                     raise DeckGenerationError(
@@ -287,6 +358,7 @@ def build_decks(
                     xyz_path,
                     solvent,
                     registry_sha256=registry_sha256,
+                    registry_row_sha256=smd_row_sha,
                 )
             else:
                 text = render_sp_deck(
@@ -295,9 +367,17 @@ def build_decks(
                     xyz_path,
                     solvent,
                     registry_sha256=registry_sha256,
+                    registry_row_sha256=smd_row_sha,
                 )
             if solvent is not None:
                 smd_sha = smd_payload_sha256(solvent)
+            reuse_key = build_exact_reuse_key(
+                job,
+                geometry,
+                job_class=job_class,
+                smd_registry_row_sha256=smd_row_sha,
+                smd_payload_sha256=smd_sha,
+            )
             output_path = input_path.with_suffix(".out")
             if output_path.exists():
                 if input_path.is_file() and input_path.read_text(encoding="utf-8") == text:
@@ -324,7 +404,9 @@ def build_decks(
                 "input_sha256": input_sha,
                 "geometry_key": geometry_key,
                 "geometry_sha256": geometry_sha,
+                "smd_registry_row_sha256": smd_row_sha,
                 "smd_payload_sha256": smd_sha,
+                "exact_reuse_key": reuse_key,
                 "workflow_revision": job["workflow_revision"],
                 "method_id": job["method_id"],
                 "thermochemistry_convention_id": (

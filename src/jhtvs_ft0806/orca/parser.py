@@ -16,9 +16,11 @@ from jhtvs_ft0806.geometry.xyz import (
 )
 from jhtvs_ft0806.orca.smd import (
     SELF_SEEDED_CUSTOM_SPECIAL_CASES,
-    custom_self_seed_name,
+    render_smd_block,
+    smd_payload_sha256,
 )
-from jhtvs_ft0806.provenance import sha256_file
+from jhtvs_ft0806.orca.decks import build_exact_reuse_key
+from jhtvs_ft0806.provenance import csv_record_sha256, sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows, write_csv_deterministic
 from jhtvs_ft0806.spec_validation import validate_spec
 
@@ -64,6 +66,9 @@ RESULT_FIELDS = (
     "method_id",
     "geometry_key",
     "geometry_sha256",
+    "smd_registry_row_sha256",
+    "smd_payload_sha256",
+    "exact_reuse_key",
     "input_path",
     "input_sha256",
     "output_path",
@@ -222,10 +227,9 @@ def _audit_echo(
     solvent_names = _SMD_SOLVENT_NAME_RE.findall(text)
     rendered["solvent_name"] = solvent_names[-1] if solvent_names else ""
     if solvent.get("special_case", "") in SELF_SEEDED_CUSTOM_SPECIAL_CASES:
-        expected_name = custom_self_seed_name(solvent).upper()
         if not solvent_names:
             reasons.append("echo_solvent_name_missing")
-        elif any(name.upper() != expected_name for name in solvent_names):
+        elif any(name.upper() != "CUSTOM" for name in solvent_names):
             reasons.append("echo_solvent_name_mismatch")
     for echo_field, registry_field in ECHO_FIELDS.items():
         observations = [
@@ -273,6 +277,7 @@ def parse_job_result(
     geometry: Mapping[str, str] | None,
     solvent: Mapping[str, str] | None,
     repository_root: Path,
+    registry_row_sha256: str = "",
 ) -> dict[str, object]:
     job_id = job["job_id"]
     job_class = manifest["job_class"]
@@ -289,6 +294,11 @@ def parse_job_result(
             "method_id": job["method_id"],
             "geometry_key": manifest["geometry_key"],
             "geometry_sha256": manifest["geometry_sha256"],
+            "smd_registry_row_sha256": manifest.get(
+                "smd_registry_row_sha256", ""
+            ),
+            "smd_payload_sha256": manifest.get("smd_payload_sha256", ""),
+            "exact_reuse_key": manifest.get("exact_reuse_key", ""),
             "input_path": manifest["input_path"],
             "input_sha256": manifest["input_sha256"],
             "output_path": _relative_or_absolute(output_path, repository_root),
@@ -313,6 +323,40 @@ def parse_job_result(
         reasons.append("input_missing_or_hash_mismatch")
         result["qc_reasons"] = ";".join(reasons)
         return result
+    input_text = input_path.read_text(encoding="utf-8")
+    input_identity_mismatch = False
+    strict_input_identity = solvent is not None and (
+        bool(registry_row_sha256)
+        or solvent.get("special_case", "") in SELF_SEEDED_CUSTOM_SPECIAL_CASES
+    )
+    if solvent is not None and strict_input_identity:
+        expected_payload_sha = smd_payload_sha256(solvent)
+        if manifest.get("smd_payload_sha256", "") != expected_payload_sha:
+            reasons.append("smd_input_payload_sha_mismatch")
+            input_identity_mismatch = True
+        if render_smd_block(solvent) not in input_text:
+            reasons.append("smd_input_payload_mismatch")
+            input_identity_mismatch = True
+        if registry_row_sha256:
+            if manifest.get("smd_registry_row_sha256", "") != registry_row_sha256:
+                reasons.append("smd_registry_row_sha_mismatch")
+                input_identity_mismatch = True
+            if geometry is None:
+                reasons.append("exact_reuse_geometry_missing")
+                input_identity_mismatch = True
+            else:
+                expected_reuse_key = build_exact_reuse_key(
+                    job,
+                    geometry,
+                    job_class=job_class,
+                    smd_registry_row_sha256=registry_row_sha256,
+                    smd_payload_sha256=expected_payload_sha,
+                )
+                if manifest.get("exact_reuse_key", "") != expected_reuse_key:
+                    reasons.append("exact_reuse_key_mismatch")
+                    input_identity_mismatch = True
+        if input_identity_mismatch:
+            result["scientific_stop_required"] = "true"
     if not output_path.is_file() or output_path.is_symlink():
         reasons.append("output_missing")
         result["qc_reasons"] = ";".join(reasons)
@@ -494,6 +538,14 @@ def parse_results(
         row["solvent_id"]: row
         for row in read_csv_rows(spec_dir / "solvent_smd_registry.csv")
     }
+    registry_row_sha256 = {
+        solvent_id: csv_record_sha256(
+            spec_dir / "solvent_smd_registry.csv",
+            key_field="solvent_id",
+            key_value=solvent_id,
+        )
+        for solvent_id in solvent_by_id
+    }
     jobs: dict[str, dict[str, str]] = {}
     for row in read_csv_rows(spec_dir / "sp_job_manifest.csv"):
         jobs[row["job_id"]] = row
@@ -519,6 +571,9 @@ def parse_results(
                 geometry=geometry_by_key.get(manifest["geometry_key"]),
                 solvent=solvent,
                 repository_root=repository_root,
+                registry_row_sha256=registry_row_sha256.get(
+                    job["solvent_id"], ""
+                ),
             )
         )
     write_csv_deterministic(

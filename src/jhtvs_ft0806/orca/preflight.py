@@ -13,11 +13,12 @@ from typing import Mapping
 
 from jhtvs_ft0806.orca.decks import (
     THERMOCHEMISTRY_CONVENTION_ID,
+    build_exact_reuse_key,
     render_optfreq_deck,
     render_sp_deck,
 )
 from jhtvs_ft0806.orca.smd import smd_payload_sha256
-from jhtvs_ft0806.provenance import content_hash, sha256_file
+from jhtvs_ft0806.provenance import content_hash, csv_record_sha256, sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows
 from jhtvs_ft0806.spec_validation import validate_spec
 
@@ -91,7 +92,9 @@ def _audit_manifest_fields(
     *,
     job_class: str,
     geometry_key: str,
+    expected_smd_row_sha: str,
     expected_smd_sha: str,
+    expected_reuse_key: str,
     report: DeckAuditReport,
 ) -> None:
     expected = {
@@ -99,7 +102,9 @@ def _audit_manifest_fields(
         "state_id": job["state_id"],
         "solvent_id": job["solvent_id"],
         "geometry_key": geometry_key,
+        "smd_registry_row_sha256": expected_smd_row_sha,
         "smd_payload_sha256": expected_smd_sha,
+        "exact_reuse_key": expected_reuse_key,
         "workflow_revision": job["workflow_revision"],
         "method_id": job["method_id"],
         "thermochemistry_convention_id": (
@@ -157,6 +162,14 @@ def audit_decks(
         report=report,
     )
     registry_sha256 = sha256_file(spec_dir / "solvent_smd_registry.csv")
+    registry_row_sha256 = {
+        solvent_id: csv_record_sha256(
+            spec_dir / "solvent_smd_registry.csv",
+            key_field="solvent_id",
+            key_value=solvent_id,
+        )
+        for solvent_id in solvent_by_id
+    }
     logical_jobs = _logical_jobs(spec_dir)
     logical_by_id = {item[1]["job_id"]: item for item in logical_jobs}
 
@@ -205,6 +218,7 @@ def audit_decks(
             report.issues.append(f"{job_id}: deck manifest geometry SHA-256 mismatch")
 
         solvent = None
+        expected_smd_row_sha = ""
         expected_smd_sha = ""
         if job_class == "diagnostic_gas_sp":
             smd_mode_counts["gas"] += 1
@@ -214,13 +228,23 @@ def audit_decks(
                 report.issues.append(f"{job_id}: solvent is absent from SMD registry")
                 continue
             smd_mode_counts[solvent["orca_smd_mode"]] += 1
+            expected_smd_row_sha = registry_row_sha256[job["solvent_id"]]
             expected_smd_sha = smd_payload_sha256(solvent)
+        expected_reuse_key = build_exact_reuse_key(
+            job,
+            geometry,
+            job_class=job_class,
+            smd_registry_row_sha256=expected_smd_row_sha,
+            smd_payload_sha256=expected_smd_sha,
+        )
         _audit_manifest_fields(
             manifest,
             job,
             job_class=job_class,
             geometry_key=geometry_key,
+            expected_smd_row_sha=expected_smd_row_sha,
             expected_smd_sha=expected_smd_sha,
+            expected_reuse_key=expected_reuse_key,
             report=report,
         )
 
@@ -234,6 +258,7 @@ def audit_decks(
                 geometry_path,
                 solvent,
                 registry_sha256=registry_sha256,
+                registry_row_sha256=expected_smd_row_sha,
             )
         else:
             expected_text = render_sp_deck(
@@ -242,6 +267,7 @@ def audit_decks(
                 geometry_path,
                 solvent,
                 registry_sha256=registry_sha256,
+                registry_row_sha256=expected_smd_row_sha,
             )
 
         input_path = _resolve_path(manifest["input_path"], repository_root)

@@ -43,7 +43,13 @@ The pilot must parse ORCA's echoed fields and require:
 abs(observed - expected) <= max(5e-4, 5e-5 * abs(expected))
 ```
 
-A mismatch is a scientific stop before production submission.
+A mismatch is a scientific stop before production submission. For S007/S012,
+ORCA 6.1's echoed solvent label must be `CUSTOM`: this identifies execution of a
+user-defined descriptor set and is not the scientific medium identity. Their medium
+identity is the bound combination of `solvent_id`, approved self seed, exact registry-row
+SHA-256, nine-field echo, input/output hashes, method and workflow revision. Exact reuse
+uses those bound fields plus state and geometry identity; it never uses the display-only
+solvent label as a key.
 
 ## Resolved non-native and completed rows
 

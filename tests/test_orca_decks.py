@@ -7,13 +7,14 @@ import pytest
 
 from jhtvs_ft0806.orca.decks import (
     DeckGenerationError,
+    build_exact_reuse_key,
     build_decks,
     render_optfreq_deck,
     render_sp_deck,
 )
 from jhtvs_ft0806.orca.smd import CUSTOM_SMD_FIELDS, render_smd_block
 from jhtvs_ft0806.orca.preflight import audit_decks
-from jhtvs_ft0806.provenance import sha256_file
+from jhtvs_ft0806.provenance import csv_record_sha256, sha256_file
 from jhtvs_ft0806.schemas import read_csv_rows, write_csv_deterministic
 
 
@@ -189,6 +190,52 @@ def test_self_seed_name_is_read_from_the_registry_row() -> None:
     assert 'smdsolvent "REGISTRY_TEST"' in rendered
 
 
+def test_exact_reuse_key_binds_medium_row_payload_method_and_workflow() -> None:
+    job = {
+        "state_id": "FIX_Q0_M1",
+        "solvent_id": "S007",
+        "method_id": "method-v1",
+        "workflow_revision": "workflow-v1",
+    }
+    arguments = {
+        "job_class": "smd_energy_sp",
+        "smd_registry_row_sha256": "row-sha",
+        "smd_payload_sha256": "payload-sha",
+    }
+    reference = build_exact_reuse_key(job, _geometry(), **arguments)
+
+    for field, changed in {
+        "solvent_id": "S012",
+        "method_id": "method-v2",
+        "workflow_revision": "workflow-v2",
+    }.items():
+        changed_job = dict(job)
+        changed_job[field] = changed
+        assert build_exact_reuse_key(changed_job, _geometry(), **arguments) != reference
+    for field, changed in {
+        "smd_registry_row_sha256": "other-row-sha",
+        "smd_payload_sha256": "other-payload-sha",
+    }.items():
+        changed_arguments = dict(arguments)
+        changed_arguments[field] = changed
+        assert build_exact_reuse_key(job, _geometry(), **changed_arguments) != reference
+
+
+def test_registry_row_hash_is_exact_record_hash() -> None:
+    registry = SPEC_DIR / "solvent_smd_registry.csv"
+    digest = csv_record_sha256(
+        registry, key_field="solvent_id", key_value="S007"
+    )
+    record = next(
+        line for line in registry.read_bytes().splitlines(keepends=True)
+        if line.startswith(b"S007,")
+    )
+
+    import hashlib
+
+    assert digest == hashlib.sha256(record).hexdigest()
+
+
 def test_selected_deck_build_is_hash_bound_and_rejects_unknown_job(
     tmp_path: Path,
 ) -> None:
@@ -224,6 +271,8 @@ def test_selected_deck_build_is_hash_bound_and_rejects_unknown_job(
     assert summary.total == summary.ready == 1
     assert row["status"] == "ready"
     assert row["geometry_sha256"] == sha256_file(xyz_path)
+    assert row["smd_registry_row_sha256"] == ""
+    assert row["exact_reuse_key"]
     assert row["input_sha256"] == sha256_file(input_path)
     assert "# job_id: SP0001" in input_path.read_text(encoding="utf-8")
 
