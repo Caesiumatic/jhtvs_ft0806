@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "stage": "25_medium_smd_echo_pilot",
+  "medium_count": 25,
+  "clean_results": 25,
+  "echo_pass": 25,
+  "scientific_stops": 0,
+  "normal_termination_required": true,
+  "cpcm_dielectric_required": true,
+  "smd_cds_required": true,
+  "echo_tolerance": "abs(observed - expected) <= max(5e-4,5e-5*abs(expected))",
+  "results": {
+    "path": "data/resolved/smd_echo_completion_results.csv",
+    "sha256": "4c338a367067eb7ba8e3fe9afb20e8eb5d54234a00269b876a3c0f329acdbb65"
+  },
+  "manifest": {
+    "path": "data/resolved/smd_echo_completion_manifest.csv",
+    "sha256": "fed1ecc53ca07dd9517930eaf764bb5c1b3f2c5319cfc5b86b62ca473691a599"
+  },
+  "special_cases": {
+    "S007": {
+      "job_id": "SP0230",
+      "execution_mode": "custom_self_seed_registry_exact",
+      "self_seed": "DMSO",
+      "observed_solvent_label": "CUSTOM",
+      "echo_max_abs_delta": 0.0,
+      "qc_status": "clean"
+    },
+    "S012": {
+      "job_id": "SP0339",
+      "execution_mode": "custom_self_seed_registry_exact",
+      "self_seed": "Sulfolane",
+      "observed_solvent_label": "CUSTOM",
+      "echo_max_abs_delta": 0.0,
+      "qc_status": "clean"
+    }
+  },
+  "production_gate": "PASS",
+  "next_workflow_stage": "state_class_sp_pilot",
+  "superseded_diagnostics_excluded": [
+    "native_library_outputs_for_S007_S012",
+    "custom_no_seed_failures",
+    "previous_retry_outputs"
+  ]
+}
