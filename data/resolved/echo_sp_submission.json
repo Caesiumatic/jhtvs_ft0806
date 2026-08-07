@@ -1,0 +1,37 @@
+{
+  "array_task_count": 25,
+  "budget_scope": "first_round",
+  "deck_manifest_sha256": "8daf9943ebb65bd542179872d7f900a778d6934dab1da7319b1c772df78d0a54",
+  "environment": {
+    "openmpi": "4.1.8",
+    "orca_module": "orca/6.1.0-418",
+    "python": "3.11.15",
+    "rdkit": "2026.03.3"
+  },
+  "geometry_index_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
+  "git_commit": "5c1353b30fcdd66a7d1c17bddca50f7fa36ea2c9",
+  "input_bundle_sha256": "dcba989c06340ddfb6ffd7948c9918c9e7b2abfcae7f05790d514589513d7767",
+  "job_count": 25,
+  "max_concurrent": 8,
+  "maxcore_mb_per_rank": 3000,
+  "medium_count": 25,
+  "method_id": "T2_wB97X-D3_def2-TZVPD_SMD_energy_SP_v1",
+  "nprocs": 8,
+  "parallel_environment": "orte",
+  "planned_core_h": "43.50",
+  "preflight_report_sha256": "55c26a6ad846ea2a56278cdff6456c81e03a6698d12fceb66121272f58a1dd63",
+  "qsub_verification": "found suitable queue(s)",
+  "queue": "amd16smt",
+  "runner_sha256": "fabf1a60940a7e32f7c558e845eb1f271afb28a130aa3a6cc69dc887ec843aa1",
+  "scheduler_job_id": "423364",
+  "smd_mode_counts": {
+    "custom_smd": 11,
+    "native_orca_smd": 14
+  },
+  "smd_registry_sha256": "fd3a84bd53cae13941b6766e6d72cb287c2cb0a8ceb47c2a69e85fb22d9cd4bc",
+  "status": "submitted",
+  "submission_id": "20260807-echo-sp-v1",
+  "submission_sha256": "006c877493ea832edb13558afb54d5e42b564d9a96ec8ae1d9439c8043923c7e",
+  "submitted_at_utc": "2026-08-07T18:45:11.120126+00:00",
+  "task_table_sha256": "a839873571e38194a5a237387197a56063ddbb4395eca1e911dda455f6296bcb"
+}
