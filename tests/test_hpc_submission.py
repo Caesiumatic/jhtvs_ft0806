@@ -200,3 +200,6 @@ def test_orca_runner_pins_lop_modules_mpi_and_deck_resource_checks() -> None:
     assert 'grep -Fqx "%pal nprocs 8 end" "$INPUT"' in runner
     assert 'grep -Fqx "%maxcore 3000" "$INPUT"' in runner
     assert "ORCA TERMINATED NORMALLY" in runner
+    assert "LOGICAL_JOB_ID JOB_CLASS" in runner
+    assert '"${JOB_ID:-unknown}"' in runner
+    assert "read -r ARRAY_TASK SEQUENCE JOB_ID JOB_CLASS" not in runner

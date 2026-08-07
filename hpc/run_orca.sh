@@ -48,34 +48,34 @@ mapfile -t TASK_ROWS < <(awk -F '\t' -v task="$SGE_TASK_ID" 'NR > 1 && $1 == tas
 }
 
 for TASK_ROW in "${TASK_ROWS[@]}"; do
-  IFS=$'\t' read -r ARRAY_TASK SEQUENCE JOB_ID JOB_CLASS INPUT_REL INPUT_SHA \
+  IFS=$'\t' read -r ARRAY_TASK SEQUENCE LOGICAL_JOB_ID JOB_CLASS INPUT_REL INPUT_SHA \
     OUTPUT_REL NPROCS PLANNING_CORE_H WORKFLOW_REVISION METHOD_ID <<< "$TASK_ROW"
   [ "$ARRAY_TASK" = "$SGE_TASK_ID" ]
   [ "$NPROCS" = "8" ]
   case "$JOB_CLASS:$INPUT_REL" in
     diagnostic_gas_sp:runs/orca/sp/*/*.inp|smd_energy_sp:runs/orca/sp/*/*.inp) ;;
     optfreq:runs/orca/optfreq/*/*.inp) ;;
-    *) echo "unsafe ORCA input path for $JOB_ID: $INPUT_REL" >&2; exit 2 ;;
+    *) echo "unsafe ORCA input path for $LOGICAL_JOB_ID: $INPUT_REL" >&2; exit 2 ;;
   esac
   case "$OUTPUT_REL" in
     runs/orca/sp/*/*.out|runs/orca/optfreq/*/*.out) ;;
-    *) echo "unsafe ORCA output path for $JOB_ID: $OUTPUT_REL" >&2; exit 2 ;;
+    *) echo "unsafe ORCA output path for $LOGICAL_JOB_ID: $OUTPUT_REL" >&2; exit 2 ;;
   esac
   [ "$OUTPUT_REL" = "${INPUT_REL%.inp}.out" ] || {
-    echo "input/output identity mismatch for $JOB_ID" >&2
+    echo "input/output identity mismatch for $LOGICAL_JOB_ID" >&2
     exit 2
   }
   INPUT="$REPO_ROOT/$INPUT_REL"
   OUTPUT="$REPO_ROOT/$OUTPUT_REL"
   [ -f "$INPUT" ] && [ ! -L "$INPUT" ] || {
-    echo "missing or unsafe ORCA input for $JOB_ID" >&2
+    echo "missing or unsafe ORCA input for $LOGICAL_JOB_ID" >&2
     exit 2
   }
   [ "$(sha256_file "$INPUT")" = "$INPUT_SHA" ] || {
-    echo "input hash mismatch for $JOB_ID" >&2
+    echo "input hash mismatch for $LOGICAL_JOB_ID" >&2
     exit 2
   }
-  grep -Fqx "# job_id: $JOB_ID" "$INPUT"
+  grep -Fqx "# job_id: $LOGICAL_JOB_ID" "$INPUT"
   grep -Fqx "# workflow_revision: $WORKFLOW_REVISION" "$INPUT"
   grep -Fqx "# method_id: $METHOD_ID" "$INPUT"
   grep -Fqx "%pal nprocs 8 end" "$INPUT"
@@ -85,7 +85,7 @@ for TASK_ROW in "${TASK_ROWS[@]}"; do
     if grep -Fqx "# input_sha256: $INPUT_SHA" "$OUTPUT" \
         && grep -Fq "ORCA TERMINATED NORMALLY" "$OUTPUT" \
         && ! grep -Fq "ERROR !!!" "$OUTPUT"; then
-      echo "already complete: $JOB_ID"
+      echo "already complete: $LOGICAL_JOB_ID"
       continue
     fi
     echo "refusing existing incomplete or mismatched output: $OUTPUT" >&2
@@ -98,11 +98,11 @@ for TASK_ROW in "${TASK_ROWS[@]}"; do
     cd "$RUN_DIR"
     set -o noclobber
     {
-      printf '# job_id: %s\n' "$JOB_ID"
+      printf '# job_id: %s\n' "$LOGICAL_JOB_ID"
       printf '# input_sha256: %s\n' "$INPUT_SHA"
       printf '# workflow_revision: %s\n' "$WORKFLOW_REVISION"
       printf '# method_id: %s\n' "$METHOD_ID"
-      printf '# scheduler_job_id: %s\n' "${SGE_JOB_ID:-unknown}"
+      printf '# scheduler_job_id: %s\n' "${JOB_ID:-unknown}"
       printf '# scheduler_array_task: %s\n' "$SGE_TASK_ID"
       printf '# bundle_sequence: %s\n' "$SEQUENCE"
       printf '# planned_core_h: %s\n' "$PLANNING_CORE_H"
@@ -110,17 +110,17 @@ for TASK_ROW in "${TASK_ROWS[@]}"; do
     ORCA_STATUS=0
     "$ORCA" "$BASE.inp" >> "$BASE.out" || ORCA_STATUS=$?
     if [ "$ORCA_STATUS" -ne 0 ]; then
-      echo "ORCA process exited with status $ORCA_STATUS for $JOB_ID" >&2
+      echo "ORCA process exited with status $ORCA_STATUS for $LOGICAL_JOB_ID" >&2
       exit 2
     fi
     if grep -Fq "ERROR !!!" "$BASE.out"; then
-      echo "ORCA reported ERROR !!! for $JOB_ID" >&2
+      echo "ORCA reported ERROR !!! for $LOGICAL_JOB_ID" >&2
       exit 2
     fi
     if ! grep -Fq "ORCA TERMINATED NORMALLY" "$BASE.out"; then
-      echo "ORCA normal-termination footer is missing for $JOB_ID" >&2
+      echo "ORCA normal-termination footer is missing for $LOGICAL_JOB_ID" >&2
       exit 2
     fi
   )
-  echo "completed: $JOB_ID"
+  echo "completed: $LOGICAL_JOB_ID"
 done
