@@ -1,0 +1,30 @@
+{
+  "checks": {
+    "audited_jobs": 2,
+    "deck_manifest_sha256": "5e4c527b06b0c946e323cae1ba2cf98e44d3f4487a1e9001eed22431d6361a24",
+    "geometry_index_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
+    "input_bundle_sha256": "4a4e8bdeb08038fe3cc744a6f35c19892b9e6d3c05be136253c42711b935fb30",
+    "job_class_counts": {
+      "optfreq": 2
+    },
+    "maxcore_mb_per_rank": [
+      "3000"
+    ],
+    "method_counts": {
+      "T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_v4": 2
+    },
+    "nprocs": [
+      "8"
+    ],
+    "output_absence_required": true,
+    "planned_core_h": "49.64",
+    "selected_jobs": 2,
+    "smd_mode_counts": {
+      "custom_smd": 2
+    },
+    "smd_registry_sha256": "2d98f12b7af91524f569c997bafb0e96f3b2d5662ac2d31db41c8afd52a1fda7",
+    "spec_sha256": "fa50127778dcf2c5be9b4fa9d0ed905acb5d13229564164b70ce227b3f201a54"
+  },
+  "issues": [],
+  "status": "PASS"
+}
