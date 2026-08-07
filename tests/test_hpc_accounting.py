@@ -107,6 +107,17 @@ def test_parse_qacct_requires_array_task_records() -> None:
     assert records[1]["ru_wallclock"] == "90.5"
 
 
+def test_parse_qacct_normalizes_lop_killed_status_annotations() -> None:
+    text = QACCT_FIXTURE.read_text(encoding="utf-8")
+    text = text.replace("failed       0", "failed       100 : assumedly after job")
+    text = text.replace("exit_status  0", "exit_status  137                  (Killed)")
+
+    records = parse_qacct(text, scheduler_job_id="12345")
+
+    assert records[1]["failed"] == "100"
+    assert records[1]["exit_status"] == "137"
+
+
 def test_collect_accounting_uses_qacct_slots_wallclock_and_is_idempotent(
     tmp_path: Path,
 ) -> None:

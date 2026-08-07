@@ -44,6 +44,7 @@ _DURATION_RE = re.compile(
     r"(?:(?P<minutes>\d+(?:\.\d+)?)m)?"
     r"(?:(?P<seconds>\d+(?:\.\d+)?)s)?$"
 )
+_LEADING_INTEGER_RE = re.compile(r"^(?P<value>\d+)(?:\s|$)")
 
 
 class AccountingError(SubmissionError):
@@ -145,6 +146,13 @@ def _duration_seconds(value: str) -> Decimal:
     )
 
 
+def _leading_integer(value: str) -> int:
+    match = _LEADING_INTEGER_RE.match(value)
+    if match is None:
+        raise ValueError(f"invalid annotated integer: {value!r}")
+    return int(match.group("value"))
+
+
 def parse_qacct(text: str, *, scheduler_job_id: str) -> dict[int, dict[str, str]]:
     records: dict[int, dict[str, str]] = {}
     for block in _qacct_blocks(text):
@@ -160,8 +168,8 @@ def parse_qacct(text: str, *, scheduler_job_id: str) -> dict[int, dict[str, str]
             task_id = int(block["taskid"])
             slots = int(block["slots"])
             wallclock = _duration_seconds(block["ru_wallclock"])
-            int(block["failed"])
-            int(block["exit_status"])
+            failed = _leading_integer(block["failed"])
+            exit_status = _leading_integer(block["exit_status"])
         except (ValueError, ArithmeticError) as exc:
             raise AccountingError(
                 f"invalid numeric qacct record for {scheduler_job_id}: {block}"
@@ -174,6 +182,8 @@ def parse_qacct(text: str, *, scheduler_job_id: str) -> dict[int, dict[str, str]
             raise AccountingError(
                 f"duplicate qacct array task {scheduler_job_id}.{task_id}"
             )
+        block["failed"] = str(failed)
+        block["exit_status"] = str(exit_status)
         records[task_id] = block
     if not records:
         raise AccountingError(f"qacct contains no records for job {scheduler_job_id}")
