@@ -802,7 +802,12 @@ def resolve_geometries(
         raise GeometryResolutionError(
             f"sigma preoptimization file inspection failed: {preflight['issues']}"
         )
-    preflight_path = index_path.parent / "sigma_preopt_preflight.json"
+    preflight_name = (
+        "fullspace_sigma_preopt_preflight.json"
+        if include_fullspace_inference
+        else "sigma_preopt_preflight.json"
+    )
+    preflight_path = index_path.parent / preflight_name
     preflight_path.parent.mkdir(parents=True, exist_ok=True)
     preflight_path.write_text(
         json.dumps(preflight, ensure_ascii=False, sort_keys=True, indent=2) + "\n",

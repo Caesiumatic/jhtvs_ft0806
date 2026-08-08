@@ -1,0 +1,22 @@
+{
+  "status": "PREPARED",
+  "workflow_revision": "jhtvs-ft0806-fullspace-geometry-v1",
+  "geometry_request_count": 8100,
+  "tier1_resolved_count": 5600,
+  "sigma_preopt_pending_count": 2500,
+  "failed_count": 0,
+  "n_conformers": 100,
+  "tier1_source_run_id": "20260729-jhtvs-fullspace-tier1-v1",
+  "tier1_source_run_manifest_sha256": "768fcc0e22155777cbdec6e91cc7f72e09539f23ebc102b2949c9ea3a5003818",
+  "fullspace_state_registry_sha256": "8cab075ab020e4f63f0a0d5a7bda98cb038980517be8e6d6c2b30f9414f6d431",
+  "fullspace_reaction_registry_sha256": "44859ba062627b1d350cc87a6103085f1bd668b29398d8053bc6d3d0fe305344",
+  "solvent_smd_registry_sha256": "2d98f12b7af91524f569c997bafb0e96f3b2d5662ac2d31db41c8afd52a1fda7",
+  "sigma_coupling_topology_sha256": "81006564e712b536edc2253a89b74d557998a967bd9dcd0298d8055c57a432dd",
+  "geometry_index_sha256": "dfe5100ae6edad7909c5df14b0c5b2636a2c88aa50db6efd8312b4b145a1eeab",
+  "sigma_preopt_manifest_sha256": "332f514177a96e6a2a7da5ee7732774528cab80af427f5a2d0378b7e35b63bdb",
+  "sigma_preopt_array_sha256": "320ff870ad11630fb65474c0edeb5595504f9b8e6c44f1d4436c8eaebb7fa96b",
+  "sigma_preopt_launcher_sha256": "7eb2959ec965edad6ecab90446ac43f2b25756207a0af104da218af9d3f97bbd",
+  "preflight_sha256": "989d2e2b5b851cbe47951175d478355bdaa22ea72a1106018a288629be829d18",
+  "preflight_status": "PASS",
+  "submission_status": "NOT_SUBMITTED"
+}
