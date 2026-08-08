@@ -113,6 +113,44 @@ def _load_feature(
     return vector, base_energy
 
 
+def load_state_feature_index(
+    *, repository_root: Path, feature_index_path: Path
+) -> tuple[dict[tuple[str, str], StateFeature], int]:
+    """Load and hash-verify one content-addressed state-feature index."""
+
+    feature_rows = read_csv_rows(feature_index_path)
+    features: dict[tuple[str, str], StateFeature] = {}
+    feature_dimension = 0
+    for row in feature_rows:
+        key = (row["state_id"], row["solvent_id"])
+        if key in features:
+            raise DatasetError(f"duplicate feature state-medium key: {key}")
+        expected_base_energy = _float(row["E_base_MACE_eV"])
+        if expected_base_energy is None:
+            raise DatasetError(f"{key}: feature index baseline energy missing")
+        vector, base_energy = _load_feature(
+            _resolve(row["feature_path"], repository_root),
+            row["feature_sha256"],
+            expected_base_energy,
+        )
+        if feature_dimension == 0:
+            feature_dimension = int(vector.size)
+        elif vector.size != feature_dimension:
+            raise DatasetError("feature dimension drift")
+        features[key] = StateFeature(
+            state_id=row["state_id"],
+            solvent_id=row["solvent_id"],
+            coefficient=0,
+            geometry_hash=row["geometry_hash"],
+            feature_cache_key=row["feature_cache_key"],
+            feature_path=row["feature_path"],
+            feature_sha256=row["feature_sha256"],
+            base_energy_eV=base_energy,
+            vector=vector,
+        )
+    return features, feature_dimension
+
+
 def solvent_vectors(spec_dir: Path) -> tuple[dict[str, np.ndarray], dict[str, str]]:
     vectors: dict[str, np.ndarray] = {}
     hashes: dict[str, str] = {}
@@ -166,36 +204,10 @@ def build_reaction_dataset(
     """Build reaction examples without allowing val/test data into normalization."""
 
     vectors, _ = solvent_vectors(spec_dir)
-    feature_rows = read_csv_rows(feature_index_path)
-    features: dict[tuple[str, str], StateFeature] = {}
-    feature_dimension = 0
-    for row in feature_rows:
-        key = (row["state_id"], row["solvent_id"])
-        if key in features:
-            raise DatasetError(f"duplicate feature state-medium key: {key}")
-        expected_base_energy = _float(row["E_base_MACE_eV"])
-        if expected_base_energy is None:
-            raise DatasetError(f"{key}: feature index baseline energy missing")
-        vector, base_energy = _load_feature(
-            _resolve(row["feature_path"], repository_root),
-            row["feature_sha256"],
-            expected_base_energy,
-        )
-        if feature_dimension == 0:
-            feature_dimension = int(vector.size)
-        elif vector.size != feature_dimension:
-            raise DatasetError("feature dimension drift")
-        features[key] = StateFeature(
-            state_id=row["state_id"],
-            solvent_id=row["solvent_id"],
-            coefficient=0,
-            geometry_hash=row["geometry_hash"],
-            feature_cache_key=row["feature_cache_key"],
-            feature_path=row["feature_path"],
-            feature_sha256=row["feature_sha256"],
-            base_energy_eV=base_energy,
-            vector=vector,
-        )
+    features, feature_dimension = load_state_feature_index(
+        repository_root=repository_root,
+        feature_index_path=feature_index_path,
+    )
 
     sp_rows = read_csv_rows(reaction_sp_path)
     sp_keys = {(row["reaction_id"], row["solvent_id"]) for row in sp_rows}

@@ -317,6 +317,32 @@ def _run_evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_infer_fullspace(args: argparse.Namespace) -> int:
+    from jhtvs_ft0806.ml.inference import infer_fullspace
+
+    summary = infer_fullspace(
+        repository_root=_repository_root(),
+        spec_dir=args.spec_dir,
+        fullspace_geometry_index_path=args.geometry_index,
+        reaction_sp_path=args.reaction_sp,
+        reaction_final_path=args.reaction_final,
+        training_feature_index_path=args.training_feature_index,
+        fullspace_feature_index_path=args.fullspace_feature_index,
+        training_manifest_path=args.training_manifest,
+        validation_metrics_path=args.validation_metrics,
+        abstention_policy_path=args.abstention_policy,
+        reference_project_path=args.reference_project,
+        output_path=args.output,
+        device=args.device,
+        batch_size=args.batch_size,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 0 if summary.total_rows == 5300 else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -658,6 +684,83 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--batch-size", type=int, default=4)
     evaluate.set_defaults(handler=_run_evaluate)
 
+    inference = subparsers.add_parser(
+        "infer-fullspace",
+        help="run frozen five-member inference over all 5300 reaction-medium cells",
+    )
+    inference.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    inference.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "fullspace_geometry_index.csv",
+    )
+    inference.add_argument(
+        "--reaction-sp",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "reaction_sp_labels.csv",
+    )
+    inference.add_argument(
+        "--reaction-final",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "reaction_final_labels.csv",
+    )
+    inference.add_argument(
+        "--training-feature-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "base_feature_index.csv",
+    )
+    inference.add_argument(
+        "--fullspace-feature-index",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "fullspace_feature_index.csv",
+    )
+    inference.add_argument(
+        "--training-manifest",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "model_training_manifest.json",
+    )
+    inference.add_argument(
+        "--validation-metrics",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "model_metrics.json",
+    )
+    inference.add_argument(
+        "--abstention-policy",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "abstention_policy.json",
+    )
+    inference.add_argument(
+        "--reference-project",
+        type=Path,
+        default=_repository_root().parent / "20260707",
+    )
+    inference.add_argument(
+        "--output",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "fullspace_predictions.csv",
+    )
+    inference.add_argument("--device", default="cpu")
+    inference.add_argument("--batch-size", type=int, default=4)
+    inference.set_defaults(handler=_run_infer_fullspace)
+
     for command in COMMANDS[2:]:
         if command in {
             "build-decks",
@@ -670,6 +773,7 @@ def build_parser() -> argparse.ArgumentParser:
             "extract-base-features",
             "train",
             "evaluate",
+            "infer-fullspace",
         }:
             continue
         subparser = subparsers.add_parser(command)
