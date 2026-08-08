@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "executed_at": "2026-08-08T01:25:06-0500",
+  "cluster_host": "lop.scs.illinois.edu",
+  "execution_commit": "bc4ca40",
+  "state_id": "S010_Q0_M1",
+  "solvent_id": "S010",
+  "formal_charge": 0,
+  "multiplicity": 1,
+  "geometry_sha256": "c77a5be1cfca229f5f858be64206379b212aa421cfee78f9a0321bd9b4cc3c4a",
+  "checkpoint_name": "polar-1-l",
+  "checkpoint_sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+  "default_dtype": "float64",
+  "feature_schema_revision": "polar1l_rotation_invariants_v1",
+  "feature_dimension": 3095,
+  "immutable_base_energy_eV": "-2079.86610563452",
+  "feature_cache_key": "e31168fc9f494336cb4b6af970ba15056cf7074b6ec28eef4dc7b9f8a3010534",
+  "feature_sha256": "a4a6f7edc35c3dc0cf4c1bce08ebf2494cd8a9e4ed7420381b79a57750cc38a5",
+  "feature_index_sha256": "fe11c4f83491440be8809e134ff0df0117c701e617f79cd33dfe45fca29e6f73",
+  "baseline_index_sha256": "95cca0f917d67b756bc145984e1da57c6faa26422518d159a9f37de8be4d25c1",
+  "required_raw_outputs": {
+    "density_coefficients": [3, 4],
+    "dipole": [1, 3],
+    "electron_energy": [1],
+    "electrostatic_energy": [1],
+    "energy": [1],
+    "node_feats": [3, 13824],
+    "spin_charge_density": [3, 2, 4],
+    "spin_density": [3, 4]
+  }
+}
