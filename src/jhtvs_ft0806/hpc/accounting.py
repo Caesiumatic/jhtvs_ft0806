@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 import fcntl
+import json
 import os
 from pathlib import Path
 import re
@@ -392,6 +393,89 @@ def collect_accounting(
         failed_array_tasks=failed_array_tasks,
         actual_core_h=actual_core_h,
         ledger_status=ledger_status,
+    )
+
+
+def import_sigma_preopt_accounting(
+    *,
+    submission_id: str,
+    completion_path: Path,
+    accounting_path: Path,
+) -> AccountingSummary:
+    """Import a validated aggregate xTB array receipt into the common CPU budget."""
+
+    payload = json.loads(completion_path.read_text(encoding="utf-8"))
+    accounting = payload.get("accounting", {})
+    scheduler_job_id = str(payload.get("job_id", ""))
+    task_count = int(payload.get("task_count", 0))
+    scheduler_records = int(accounting.get("scheduler_records", 0))
+    failed_tasks = int(accounting.get("failed_tasks", -1))
+    normal_termination_tasks = int(payload.get("normal_termination_tasks", 0))
+    if (
+        payload.get("status") != "complete"
+        or payload.get("source_and_output_hash_check") != "PASS"
+        or not scheduler_job_id.isdigit()
+        or task_count <= 0
+        or scheduler_records != task_count
+        or failed_tasks != 0
+        or normal_termination_tasks != task_count
+    ):
+        raise AccountingError("sigma preoptimization completion is not clean and complete")
+    actual_core_h = Decimal(str(accounting["actual_core_hours"]))
+    if actual_core_h <= 0:
+        raise AccountingError("sigma preoptimization actual core-hours must be positive")
+    qacct_sha256 = str(accounting.get("qacct_sha256", ""))
+    if not re.fullmatch(r"[0-9a-f]{64}", qacct_sha256):
+        raise AccountingError("sigma preoptimization qacct SHA256 is invalid")
+    record = {
+        "record_id": f"{scheduler_job_id}.aggregate",
+        "submission_id": submission_id,
+        "scheduler_job_id": scheduler_job_id,
+        "array_task": "aggregate",
+        "slots": "1",
+        "wallclock_s": format(actual_core_h * Decimal("3600"), ".8f"),
+        "core_h": format(actual_core_h, ".8f"),
+        "exit_status": "0",
+        "failed": "0",
+        "logical_jobs": str(task_count),
+        "completed_logical_jobs": str(task_count),
+        "runner_status": "complete",
+        "qacct_path": str(accounting.get("qacct_path", "")),
+        "qacct_sha256": qacct_sha256,
+        "collected_at_utc": str(payload.get("completed_at", "")),
+    }
+    if not record["qacct_path"] or not record["collected_at_utc"]:
+        raise AccountingError("sigma preoptimization accounting provenance is incomplete")
+
+    lock_path = accounting_path.parent / ".submission.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        rows = read_csv_rows(accounting_path) if accounting_path.is_file() else []
+        existing = next(
+            (row for row in rows if row["record_id"] == record["record_id"]), None
+        )
+        if existing is not None and existing != record:
+            raise AccountingError(
+                f"accounting record changed for {record['record_id']}"
+            )
+        if existing is None:
+            rows.append(record)
+        write_csv_deterministic(
+            accounting_path,
+            ACCOUNTING_FIELDS,
+            rows,
+            sort_by=("submission_id", "array_task"),
+        )
+    return AccountingSummary(
+        submission_id=submission_id,
+        scheduler_job_id=scheduler_job_id,
+        array_tasks=scheduler_records,
+        logical_jobs=task_count,
+        completed_logical_jobs=task_count,
+        failed_array_tasks=0,
+        actual_core_h=actual_core_h,
+        ledger_status="complete",
     )
 
 

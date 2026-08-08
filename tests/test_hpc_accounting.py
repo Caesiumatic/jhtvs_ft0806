@@ -9,6 +9,7 @@ import pytest
 from jhtvs_ft0806.hpc.accounting import (
     AccountingError,
     collect_accounting,
+    import_sigma_preopt_accounting,
     parse_qacct,
     submission_status,
 )
@@ -225,3 +226,46 @@ def test_partial_qacct_requires_opt_in_and_accounts_started_tasks(
     assert summary.ledger_status == "failed"
     assert len(read_csv_rows(accounting)) == 1
     assert read_csv_rows(ledger)[0]["status"] == "failed"
+
+
+def test_import_sigma_preopt_accounting_is_complete_and_idempotent(
+    tmp_path: Path,
+) -> None:
+    completion = tmp_path / "completion.json"
+    completion.write_text(
+        """{
+  "status": "complete",
+  "job_id": "423357",
+  "task_count": 2,
+  "normal_termination_tasks": 2,
+  "source_and_output_hash_check": "PASS",
+  "completed_at": "2026-08-07T13:24:17-05:00",
+  "accounting": {
+    "actual_core_hours": "1.25000000",
+    "failed_tasks": 0,
+    "scheduler_records": 2,
+    "qacct_path": "runs/geometry/qacct_423357.txt",
+    "qacct_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}\n""",
+        encoding="utf-8",
+    )
+    accounting = tmp_path / "accounting.csv"
+
+    first = import_sigma_preopt_accounting(
+        submission_id="sigma-v1",
+        completion_path=completion,
+        accounting_path=accounting,
+    )
+    second = import_sigma_preopt_accounting(
+        submission_id="sigma-v1",
+        completion_path=completion,
+        accounting_path=accounting,
+    )
+    row = read_csv_rows(accounting)[0]
+
+    assert first.to_dict() == second.to_dict()
+    assert first.actual_core_h == Decimal("1.25000000")
+    assert row["record_id"] == "423357.aggregate"
+    assert row["wallclock_s"] == "4500.00000000"
+    assert row["completed_logical_jobs"] == "2"

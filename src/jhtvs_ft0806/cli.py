@@ -12,7 +12,11 @@ from typing import Sequence
 
 from jhtvs_ft0806 import __version__
 from jhtvs_ft0806.geometry.resolution import resolve_geometries
-from jhtvs_ft0806.hpc.accounting import collect_accounting, submission_status
+from jhtvs_ft0806.hpc.accounting import (
+    collect_accounting,
+    import_sigma_preopt_accounting,
+    submission_status,
+)
 from jhtvs_ft0806.hpc.submission import (
     execute_submission,
     prepare_submission,
@@ -36,6 +40,7 @@ COMMANDS = (
     "submit",
     "status",
     "collect-accounting",
+    "import-sigma-accounting",
     "parse-results",
     "assemble-labels",
     "extract-base-features",
@@ -216,6 +221,19 @@ def _run_collect_accounting(args: argparse.Namespace) -> int:
         + "\n"
     )
     return 0 if summary.ledger_status == "complete" else 1
+
+
+def _run_import_sigma_accounting(args: argparse.Namespace) -> int:
+    summary = import_sigma_preopt_accounting(
+        submission_id=args.submission_id,
+        completion_path=args.completion,
+        accounting_path=args.accounting,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 0
 
 
 def _run_parse_results(args: argparse.Namespace) -> int:
@@ -503,6 +521,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     accounting.set_defaults(handler=_run_collect_accounting)
 
+    sigma_accounting = subparsers.add_parser(
+        "import-sigma-accounting",
+        help="import a clean aggregate sigma-xTB receipt into the CPU budget",
+    )
+    sigma_accounting.add_argument("--submission-id", required=True)
+    sigma_accounting.add_argument(
+        "--completion",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "sigma_preopt_completion.json",
+    )
+    sigma_accounting.add_argument(
+        "--accounting",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "accounting.csv",
+    )
+    sigma_accounting.set_defaults(handler=_run_import_sigma_accounting)
+
     parse = subparsers.add_parser(
         "parse-results", help="parse ORCA outputs and retain raw values with QC status"
     )
@@ -768,6 +806,7 @@ def build_parser() -> argparse.ArgumentParser:
             "submit",
             "status",
             "collect-accounting",
+            "import-sigma-accounting",
             "parse-results",
             "assemble-labels",
             "extract-base-features",
