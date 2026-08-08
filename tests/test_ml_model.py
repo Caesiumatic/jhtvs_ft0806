@@ -164,7 +164,9 @@ def test_polar_lora_bias_instruction_inference_compatibility() -> None:
     from jhtvs_ft0806.ml.features import patch_incompatible_mace_lora_inference
 
     torch.manual_seed(11)
-    baseline = o3.Linear("2x0e", "2x0e", biases=True).double()
+    baseline = torch.nn.Sequential(
+        o3.Linear("2x0e", "2x0e", biases=True).double()
+    )
     adapted = copy.deepcopy(baseline)
     inputs = torch.randn(5, 2, dtype=torch.float64)
     immutable_output = baseline(inputs).detach().clone()
