@@ -249,6 +249,27 @@ def _run_assemble_labels(args: argparse.Namespace) -> int:
     return 1 if summary.scientific_stops else 0
 
 
+def _run_extract_base_features(args: argparse.Namespace) -> int:
+    from jhtvs_ft0806.ml.workflow import extract_base_features
+
+    summary = extract_base_features(
+        repository_root=_repository_root(),
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        cache_dir=args.cache_dir,
+        feature_index_path=args.feature_index,
+        baseline_output_path=args.baseline_output,
+        checkpoint=args.checkpoint,
+        device=args.device,
+        selected_state_ids=set(args.state_id) if args.state_id else None,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 1 if args.require_complete and summary.missing else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -472,6 +493,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     labels.set_defaults(handler=_run_assemble_labels)
 
+    features = subparsers.add_parser(
+        "extract-base-features",
+        help="extract content-addressed invariant polar-1-l features and baselines",
+    )
+    features.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    features.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    features.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=_repository_root() / "artifacts" / "base_features",
+    )
+    features.add_argument(
+        "--feature-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "base_feature_index.csv",
+    )
+    features.add_argument(
+        "--baseline-output",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "base_state_energies.csv",
+    )
+    features.add_argument("--checkpoint", default="polar-1-l")
+    features.add_argument("--device", default="cpu")
+    features.add_argument("--state-id", action="append")
+    features.add_argument("--require-complete", action="store_true")
+    features.set_defaults(handler=_run_extract_base_features)
+
     for command in COMMANDS[2:]:
         if command in {
             "build-decks",
@@ -481,6 +533,7 @@ def build_parser() -> argparse.ArgumentParser:
             "collect-accounting",
             "parse-results",
             "assemble-labels",
+            "extract-base-features",
         }:
             continue
         subparser = subparsers.add_parser(command)
