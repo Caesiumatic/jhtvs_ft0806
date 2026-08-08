@@ -282,6 +282,124 @@ def build_invariant_feature_record(
     )
 
 
+def build_torch_invariant_feature_vector(
+    outputs: Mapping[str, Any],
+    *,
+    layer_widths: Sequence[int],
+    even_scalar_indices: Sequence[Sequence[int]],
+    formal_charge: int,
+    multiplicity: int,
+    immutable_base_energy_eV: float | None = None,
+) -> Any:
+    """Build the same invariant vector with gradients preserved for LoRA."""
+
+    try:
+        import torch
+    except ImportError as exc:  # pragma: no cover - guarded by the ML extra
+        raise FeatureExtractionError("PyTorch is required for online LoRA features") from exc
+    missing = [name for name in REQUIRED_POLAR_OUTPUTS if outputs.get(name) is None]
+    if missing:
+        raise FeatureExtractionError(f"raw PolarMACE output missing: {missing}")
+
+    node = outputs["node_feats"]
+    if node.ndim != 2 or node.shape[0] == 0:
+        raise FeatureExtractionError(
+            f"node_feats must have shape (n_atoms, n_features), observed {tuple(node.shape)}"
+        )
+    if len(layer_widths) != len(even_scalar_indices) or not layer_widths:
+        raise FeatureExtractionError("invalid interaction-layer irrep plan")
+    if sum(int(width) for width in layer_widths) != int(node.shape[1]):
+        raise FeatureExtractionError(
+            "node feature width does not match checkpoint interaction irreps"
+        )
+    blocks: list[Any] = []
+    offset = 0
+    for layer_index, (width, indices) in enumerate(
+        zip(layer_widths, even_scalar_indices, strict=True)
+    ):
+        width = int(width)
+        selected = tuple(int(index) for index in indices)
+        if not selected or min(selected) < 0 or max(selected) >= width:
+            raise FeatureExtractionError(
+                f"invalid 0e channel indices for interaction {layer_index}"
+            )
+        layer = node[:, offset : offset + width]
+        offset += width
+        scalar = layer.index_select(
+            1, torch.as_tensor(selected, dtype=torch.long, device=node.device)
+        )
+        blocks.extend((scalar.sum(dim=0), scalar.mean(dim=0)))
+
+    density = outputs["density_coefficients"]
+    spin_density = outputs["spin_density"]
+    spin_channels = outputs["spin_charge_density"]
+    if spin_channels.ndim != 3 or int(spin_channels.shape[1]) != 2:
+        raise FeatureExtractionError(
+            "spin_charge_density must have shape (n_atoms, 2, n_multipoles)"
+        )
+    if not (
+        int(density.shape[0])
+        == int(spin_density.shape[0])
+        == int(spin_channels.shape[0])
+        == int(node.shape[0])
+    ):
+        raise FeatureExtractionError("PolarMACE atom-level output counts disagree")
+
+    def multipole_block(values: Any, *, name: str) -> Any:
+        if values.ndim != 2 or values.shape[0] == 0 or values.shape[1] < 4:
+            raise FeatureExtractionError(
+                f"{name} must have shape (n_atoms, >=4), observed {tuple(values.shape)}"
+            )
+        monopole = values[:, 0]
+        l1_norm = torch.linalg.vector_norm(values[:, 1:4], dim=1)
+        return torch.stack(
+            (monopole.sum(), monopole.mean(), l1_norm.sum(), l1_norm.mean())
+        )
+
+    for values, name in (
+        (density, "density"),
+        (spin_density, "spin_density"),
+        (spin_channels[:, 0, :], "spin_alpha"),
+        (spin_channels[:, 1, :], "spin_beta"),
+    ):
+        blocks.append(multipole_block(values, name=name))
+
+    dipole = outputs["dipole"].reshape(-1, 3)
+    energy = outputs["energy"].reshape(-1)
+    electrostatic = outputs["electrostatic_energy"].reshape(-1)
+    electron = outputs["electron_energy"].reshape(-1)
+    if (
+        int(dipole.shape[0]) != 1
+        or int(energy.numel()) != 1
+        or int(electrostatic.numel()) != 1
+        or int(electron.numel()) != 1
+    ):
+        raise FeatureExtractionError("online feature extraction accepts one graph at a time")
+    baseline_energy = (
+        energy
+        if immutable_base_energy_eV is None
+        else energy.new_tensor((float(immutable_base_energy_eV),))
+    )
+    constants = energy.new_tensor(
+        (float(density.shape[0]), float(formal_charge), float(multiplicity))
+    )
+    blocks.append(
+        torch.cat(
+            (
+                torch.linalg.vector_norm(dipole[0]).reshape(1),
+                baseline_energy,
+                electrostatic,
+                electron,
+                constants,
+            )
+        )
+    )
+    vector = torch.cat(blocks)
+    if vector.ndim != 1 or not bool(torch.isfinite(vector).all().detach().cpu()):
+        raise FeatureExtractionError("invalid online invariant feature vector")
+    return vector
+
+
 def checkpoint_irrep_plan(model: Any) -> tuple[tuple[int, ...], tuple[tuple[int, ...], ...]]:
     """Read interaction irreps from the loaded checkpoint and select exact 0e slices."""
 
@@ -385,13 +503,13 @@ class PolarMACEBackend:
             default_dtype="float64",
         )
 
-    def extract(
+    def build_graph(
         self,
         *,
         xyz_path: Path,
         formal_charge: int,
         multiplicity: int,
-    ) -> FeatureRecord:
+    ) -> Any:
         try:
             from ase.io import read as read_atoms
         except ImportError as exc:
@@ -420,14 +538,59 @@ class PolarMACEBackend:
             cutoff=self.cutoff,
             heads=self.available_heads,
         )
-        batch = self._batch_type.from_data_list([graph]).to(self._device)
+        return self._batch_type.from_data_list([graph]).to(self._device)
+
+    def forward_graph(self, batch: Any, *, training: bool) -> Mapping[str, Any]:
+        """Run the raw checkpoint without detaching its official outputs."""
+
+        return self.model(
+            batch.to_dict(),
+            training=training,
+            compute_force=False,
+            compute_stress=False,
+        )
+
+    def enable_lora(self, *, rank: int = 4, alpha: float = 1.0) -> None:
+        """Inject the official MACE adapters and leave only adapter weights trainable."""
+
+        from mace.modules.lora import inject_lora
+
+        inject_lora(self.model, rank=rank, alpha=alpha)
+        self.model.train()
+
+    def extract_tensor(
+        self,
+        *,
+        batch: Any,
+        formal_charge: int,
+        multiplicity: int,
+        training: bool,
+        immutable_base_energy_eV: float,
+    ) -> Any:
+        outputs = self.forward_graph(batch, training=training)
+        return build_torch_invariant_feature_vector(
+            outputs,
+            layer_widths=self.layer_widths,
+            even_scalar_indices=self.even_scalar_indices,
+            formal_charge=formal_charge,
+            multiplicity=multiplicity,
+            immutable_base_energy_eV=immutable_base_energy_eV,
+        )
+
+    def extract(
+        self,
+        *,
+        xyz_path: Path,
+        formal_charge: int,
+        multiplicity: int,
+    ) -> FeatureRecord:
+        batch = self.build_graph(
+            xyz_path=xyz_path,
+            formal_charge=formal_charge,
+            multiplicity=multiplicity,
+        )
         with self._torch.no_grad():
-            outputs = self.model(
-                batch.to_dict(),
-                training=False,
-                compute_force=False,
-                compute_stress=False,
-            )
+            outputs = self.forward_graph(batch, training=False)
         detached = {
             name: outputs[name].detach().cpu().numpy()
             for name in REQUIRED_POLAR_OUTPUTS

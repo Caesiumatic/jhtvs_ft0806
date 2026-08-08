@@ -33,6 +33,7 @@ class StateFeature:
     feature_cache_key: str
     feature_path: str
     feature_sha256: str
+    base_energy_eV: float
     vector: np.ndarray
 
 
@@ -95,14 +96,21 @@ def _resolve(path_text: str, repository_root: Path) -> Path:
     return path.resolve() if path.is_absolute() else (repository_root / path).resolve()
 
 
-def _load_feature(path: Path, expected_sha256: str) -> np.ndarray:
+def _load_feature(
+    path: Path, expected_sha256: str, expected_base_energy_eV: float
+) -> tuple[np.ndarray, float]:
     if not path.is_file() or sha256_file(path) != expected_sha256:
         raise DatasetError(f"feature cache hash mismatch: {path}")
     with np.load(path, allow_pickle=False) as archive:
         vector = np.asarray(archive["feature_vector"], dtype=np.float64)
+        base_energy = float(np.asarray(archive["base_energy_eV"]).reshape(()))
     if vector.ndim != 1 or vector.size == 0 or not np.all(np.isfinite(vector)):
         raise DatasetError(f"invalid feature vector: {path}")
-    return vector
+    if not math.isclose(
+        base_energy, expected_base_energy_eV, rel_tol=0.0, abs_tol=5e-12
+    ):
+        raise DatasetError(f"feature baseline energy drift: {path}")
+    return vector, base_energy
 
 
 def solvent_vectors(spec_dir: Path) -> tuple[dict[str, np.ndarray], dict[str, str]]:
@@ -165,8 +173,13 @@ def build_reaction_dataset(
         key = (row["state_id"], row["solvent_id"])
         if key in features:
             raise DatasetError(f"duplicate feature state-medium key: {key}")
-        vector = _load_feature(
-            _resolve(row["feature_path"], repository_root), row["feature_sha256"]
+        expected_base_energy = _float(row["E_base_MACE_eV"])
+        if expected_base_energy is None:
+            raise DatasetError(f"{key}: feature index baseline energy missing")
+        vector, base_energy = _load_feature(
+            _resolve(row["feature_path"], repository_root),
+            row["feature_sha256"],
+            expected_base_energy,
         )
         if feature_dimension == 0:
             feature_dimension = int(vector.size)
@@ -180,6 +193,7 @@ def build_reaction_dataset(
             feature_cache_key=row["feature_cache_key"],
             feature_path=row["feature_path"],
             feature_sha256=row["feature_sha256"],
+            base_energy_eV=base_energy,
             vector=vector,
         )
 
@@ -219,6 +233,7 @@ def build_reaction_dataset(
                     feature_cache_key=feature.feature_cache_key,
                     feature_path=feature.feature_path,
                     feature_sha256=feature.feature_sha256,
+                    base_energy_eV=feature.base_energy_eV,
                     vector=feature.vector,
                 )
             )

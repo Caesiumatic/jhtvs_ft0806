@@ -251,10 +251,15 @@ def _weighted_huber(
     weight: Any,
     *,
     scale: Any,
+    denominator_override: float | None = None,
 ) -> Any:
     torch_module = _require_torch()
     selected_weight = weight * mask.to(weight.dtype)
-    denominator = selected_weight.sum()
+    denominator = (
+        selected_weight.sum()
+        if denominator_override is None
+        else prediction.new_tensor(float(denominator_override))
+    )
     if float(denominator.detach().cpu()) == 0.0:
         return prediction.sum() * 0.0
     residual = (prediction - target) / scale
@@ -269,6 +274,7 @@ def reaction_loss(
     batch: ReactionBatch,
     *,
     target_normalization: Mapping[str, Any],
+    denominators: Mapping[str, float] | None = None,
 ) -> Mapping[str, Any]:
     """Apply the frozen masked reaction loss in normalized target units."""
 
@@ -286,12 +292,16 @@ def reaction_loss(
             float(target_normalization[name].std), dtype=dtype, device=device
         )
 
+    def denominator(name: str) -> float | None:
+        return None if denominators is None else float(denominators[name])
+
     redox_final = _weighted_huber(
         final_prediction,
         batch.final_target_eV,
         batch.final_mask & redox_mask,
         batch.row_weight,
         scale=scale("redox_final"),
+        denominator_override=denominator("redox_final"),
     )
     sigma_final = _weighted_huber(
         final_prediction,
@@ -299,6 +309,7 @@ def reaction_loss(
         batch.final_mask & sigma_mask,
         batch.row_weight,
         scale=scale("sigma_final"),
+        denominator_override=denominator("sigma_final"),
     )
     sp = _weighted_huber(
         sp_prediction,
@@ -306,6 +317,7 @@ def reaction_loss(
         batch.sp_mask,
         batch.row_weight,
         scale=scale("sp"),
+        denominator_override=denominator("sp"),
     )
     rt = _weighted_huber(
         rt_prediction,
@@ -313,6 +325,7 @@ def reaction_loss(
         batch.rt_mask,
         batch.row_weight,
         scale=scale("rt"),
+        denominator_override=denominator("rt"),
     )
     consistency_scale = torch_module.where(
         sigma_mask,
@@ -325,6 +338,7 @@ def reaction_loss(
         batch.final_mask & batch.sp_mask & batch.rt_mask,
         batch.row_weight,
         scale=consistency_scale,
+        denominator_override=denominator("consistency"),
     )
     total = (
         LOSS_WEIGHTS["redox_final"] * redox_final
@@ -341,6 +355,36 @@ def reaction_loss(
         "rt": rt,
         "consistency": consistency,
     }
+
+
+def loss_denominators(examples: Iterable[ReactionExample]) -> dict[str, float]:
+    """Return fixed split-level denominators so minibatching preserves parent weights."""
+
+    totals = {
+        "redox_final": 0.0,
+        "sigma_final": 0.0,
+        "sp": 0.0,
+        "rt": 0.0,
+        "consistency": 0.0,
+    }
+    for example in examples:
+        if example.final_mask:
+            target = (
+                "sigma_final"
+                if example.reaction_class == "sigma_dimerization"
+                else "redox_final"
+            )
+            totals[target] += example.row_weight
+        if example.sp_mask:
+            totals["sp"] += example.row_weight
+        if example.rt_mask:
+            totals["rt"] += example.row_weight
+        if example.final_mask and example.sp_mask and example.rt_mask:
+            totals["consistency"] += example.row_weight
+    missing = [name for name, value in totals.items() if value <= 0.0]
+    if missing:
+        raise ModelError(f"loss targets have zero effective weight: {missing}")
+    return totals
 
 
 def architecture_metadata() -> dict[str, Any]:

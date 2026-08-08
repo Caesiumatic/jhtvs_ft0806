@@ -28,7 +28,11 @@ def _feature_rows(tmp_path: Path) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for index, state_id in enumerate(("R0", "R1", "MPLUS", "DPLUS2", "V0", "V1")):
         path = tmp_path / f"{state_id}.npz"
-        np.savez(path, feature_vector=np.asarray([index, index + 1, index + 2.0]))
+        np.savez(
+            path,
+            feature_vector=np.asarray([index, index + 1, index + 2.0]),
+            base_energy_eV=np.asarray(float(index)),
+        )
         rows.append(
             {
                 "state_id": state_id,
@@ -37,6 +41,7 @@ def _feature_rows(tmp_path: Path) -> list[dict[str, object]]:
                 "feature_cache_key": chr(97 + index) * 64,
                 "feature_path": str(path),
                 "feature_sha256": sha256_file(path),
+                "E_base_MACE_eV": str(float(index)),
             }
         )
     return rows

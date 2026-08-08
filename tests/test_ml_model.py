@@ -17,6 +17,7 @@ from jhtvs_ft0806.ml.dataset import (  # noqa: E402
 from jhtvs_ft0806.ml.model import (  # noqa: E402
     SolventConditionedReactionModel,
     collate_reactions,
+    loss_denominators,
     reaction_loss,
 )
 
@@ -30,6 +31,7 @@ def _state(state_id: str, coefficient: int, vector: list[float]) -> StateFeature
         feature_cache_key="b" * 64,
         feature_path="feature.npz",
         feature_sha256="c" * 64,
+        base_energy_eV=-1.0,
         vector=np.asarray(vector, dtype=np.float64),
     )
 
@@ -152,3 +154,41 @@ def test_official_lora_gradients_and_immutable_baseline() -> None:
         for parameter in adapter_parameters
     )
     assert torch.allclose(baseline(inputs), immutable_output, atol=0.0, rtol=0.0)
+
+
+def test_fixed_denominators_make_minibatch_loss_additive() -> None:
+    examples = _examples()
+    bundle = _bundle(examples)
+    model = SolventConditionedReactionModel(state_feature_dim=3)
+    denominators = loss_denominators(examples)
+    full_batch = collate_reactions(
+        examples,
+        bundle=bundle,
+        spec_dir=Path(__file__).resolve().parents[1] / "spec",
+        device="cpu",
+    )
+    full = reaction_loss(
+        model(full_batch),
+        full_batch,
+        target_normalization=bundle.target_normalization,
+        denominators=denominators,
+    )
+    partials = []
+    for example in examples:
+        batch = collate_reactions(
+            (example,),
+            bundle=bundle,
+            spec_dir=Path(__file__).resolve().parents[1] / "spec",
+            device="cpu",
+        )
+        partials.append(
+            reaction_loss(
+                model(batch),
+                batch,
+                target_normalization=bundle.target_normalization,
+                denominators=denominators,
+            )
+        )
+    for name in ("total", "redox_final", "sigma_final", "sp", "rt", "consistency"):
+        observed = sum(part[name] for part in partials)
+        assert torch.allclose(observed, full[name], atol=1e-12, rtol=0.0)
