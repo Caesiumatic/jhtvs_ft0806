@@ -100,8 +100,14 @@ class GeometryResolutionSummary:
     sigma_resolved: int
 
     def to_dict(self) -> dict[str, int | str]:
+        if self.pending:
+            status = "INCOMPLETE"
+        elif self.failed:
+            status = "COMPLETE_WITH_QC_FAILURES"
+        else:
+            status = "PASS"
         return {
-            "status": "PASS" if self.failed == 0 and self.pending == 0 else "INCOMPLETE",
+            "status": status,
             "total": self.total,
             "resolved": self.resolved,
             "pending": self.pending,

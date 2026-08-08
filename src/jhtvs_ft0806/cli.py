@@ -144,6 +144,15 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
             "tier1_run_manifest_sha256": sha256_file(
                 args.tier1_run / "manifests" / "run_manifest.json"
             ),
+            "tier1_task_status_sha256": sha256_file(
+                args.tier1_run / "descriptors" / "task_status.csv"
+            ),
+            "tier1_completeness_sha256": sha256_file(
+                args.tier1_run / "descriptors" / "completeness.json"
+            ),
+            "tier1_final_execution_manifest_sha256": sha256_file(
+                args.tier1_run / "provenance" / "final_execution_manifest.json"
+            ),
             "fullspace_state_registry_sha256": sha256_file(
                 args.spec_dir / "fullspace_state_registry.csv"
             ),
@@ -168,7 +177,8 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
         summary.pending,
         summary.failed,
     )
-    if summary.failed or (args.require_complete and summary.pending):
+    calibration_failures = summary.failed and not args.include_fullspace_inference
+    if calibration_failures or (args.require_complete and summary.pending):
         return 1
     return 0
 

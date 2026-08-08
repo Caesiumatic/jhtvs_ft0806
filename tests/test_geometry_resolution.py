@@ -8,6 +8,7 @@ from rdkit import Chem
 
 from jhtvs_ft0806.geometry.resolution import (
     GeometryRequest,
+    GeometryResolutionSummary,
     geometry_requests,
     prepare_and_resolve_sigma_requests,
     resolve_tier1_requests,
@@ -22,6 +23,31 @@ from jhtvs_ft0806.schemas import write_csv_deterministic
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SPEC_DIR = REPOSITORY_ROOT / "spec"
+
+
+def test_geometry_completion_distinguishes_pending_from_qc_failures() -> None:
+    complete_with_failures = GeometryResolutionSummary(
+        total=8100,
+        resolved=8075,
+        pending=0,
+        failed=25,
+        tier1_resolved=5600,
+        sigma_resolved=2475,
+    )
+    pending = GeometryResolutionSummary(
+        total=8100,
+        resolved=8074,
+        pending=1,
+        failed=25,
+        tier1_resolved=5600,
+        sigma_resolved=2474,
+    )
+
+    assert (
+        complete_with_failures.to_dict()["status"]
+        == "COMPLETE_WITH_QC_FAILURES"
+    )
+    assert pending.to_dict()["status"] == "INCOMPLETE"
 
 
 def _xyz_for_smiles(smiles: str) -> str:
