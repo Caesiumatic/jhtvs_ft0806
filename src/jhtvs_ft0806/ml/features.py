@@ -12,6 +12,7 @@ import importlib.metadata
 import json
 import math
 from pathlib import Path
+from types import MethodType
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
@@ -42,6 +43,39 @@ REQUIRED_POLAR_OUTPUTS = (
 
 class FeatureExtractionError(RuntimeError):
     """Raised when the frozen feature contract cannot be satisfied."""
+
+
+def patch_incompatible_mace_lora_inference(module: Any) -> int:
+    """Keep official LoRA math usable for e3nn linears with bias instructions.
+
+    MACE 0.3.16's fused inference path assumes every ``o3.Linear`` instruction
+    has a two-dimensional ``path_shape``.  PolarMACE contains biased linears
+    whose bias instructions are one-dimensional.  The official gradient-enabled
+    path is valid for those layers, so use the same activation-space expression
+    under ``no_grad`` while preserving the injected adapter parameters exactly.
+    """
+
+    from mace.modules.lora import LoRAO3Linear
+
+    patched = 0
+
+    def activation_space_forward(wrapper: Any, values: Any) -> Any:
+        wrapper._cached_merged_weight = None  # pylint: disable=protected-access
+        return wrapper.base(values) + wrapper.scaling * wrapper.lora_B(
+            wrapper.lora_A(values)
+        )
+
+    for child in module.modules():
+        if not isinstance(child, LoRAO3Linear):
+            continue
+        if not any(
+            len(instruction.path_shape) != 2
+            for instruction in child.base.instructions
+        ):
+            continue
+        child.forward = MethodType(activation_space_forward, child)
+        patched += 1
+    return patched
 
 
 @dataclass(frozen=True, slots=True)
@@ -647,6 +681,9 @@ class PolarMACEBackend:
         from mace.modules.lora import inject_lora
 
         inject_lora(self.model, rank=rank, alpha=alpha)
+        self.lora_inference_compatibility_layers = (
+            patch_incompatible_mace_lora_inference(self.model)
+        )
         self.model.train()
 
     def extract_tensor(

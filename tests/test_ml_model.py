@@ -156,6 +156,31 @@ def test_official_lora_gradients_and_immutable_baseline() -> None:
     assert torch.allclose(baseline(inputs), immutable_output, atol=0.0, rtol=0.0)
 
 
+def test_polar_lora_bias_instruction_inference_compatibility() -> None:
+    pytest.importorskip("mace")
+    from e3nn import o3
+    from mace.modules.lora import inject_lora
+
+    from jhtvs_ft0806.ml.features import patch_incompatible_mace_lora_inference
+
+    torch.manual_seed(11)
+    baseline = o3.Linear("2x0e", "2x0e", biases=True).double()
+    adapted = copy.deepcopy(baseline)
+    inputs = torch.randn(5, 2, dtype=torch.float64)
+    immutable_output = baseline(inputs).detach().clone()
+    inject_lora(adapted, rank=4, alpha=1.0)
+    assert patch_incompatible_mace_lora_inference(adapted) == 1
+    with torch.no_grad():
+        observed = adapted(inputs)
+    assert torch.allclose(observed, immutable_output, atol=1e-12, rtol=0.0)
+    adapted(inputs).square().sum().backward()
+    assert any(
+        parameter.grad is not None and torch.any(parameter.grad != 0)
+        for name, parameter in adapted.named_parameters()
+        if "lora_A" in name or "lora_B" in name
+    )
+
+
 def test_fixed_denominators_make_minibatch_loss_additive() -> None:
     examples = _examples()
     bundle = _bundle(examples)
