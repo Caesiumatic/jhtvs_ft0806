@@ -1,0 +1,22 @@
+{
+  "baseline_path": "data/resolved/base_state_energies.csv",
+  "baseline_sha256": "fff37a527d1169f8eb8273577021fd6c397b3591ec85d9c5d84bc923667b528c",
+  "checkpoint_sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+  "extracted": 0,
+  "feature_dimension": 3095,
+  "feature_index_path": "data/resolved/base_feature_index.csv",
+  "feature_index_sha256": "ebe66560fa5cb9b51c3e1726e35669c0ef72b7bfe2e51bd902199c5c2fef4b87",
+  "feature_schema_revision": "polar1l_rotation_invariants_v1",
+  "input_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
+  "job_class": "mace_base_features",
+  "job_id": "MACEBASE-CALIBRATION",
+  "method_id": "MACE_POLAR_1_L_raw_invariant_base_v1",
+  "missing": 0,
+  "planning_core_h": "1.00",
+  "reused": 705,
+  "scheduler_array_task": "1",
+  "scheduler_job_id": "423452",
+  "status": "PASS",
+  "total": 705,
+  "workflow_revision": "jhtvs-ft0806-polar1l-base-features-v1"
+}
