@@ -304,21 +304,23 @@ class OnlineFeatureProvider:
         std = torch_module.as_tensor(
             self.bundle.feature_std, dtype=torch_module.float64, device=self.device
         )
-        online: list[Any] = []
+        states: list[Any] = []
+        rows: list[Mapping[str, str]] = []
         for example in examples:
             for state in example.states:
                 row = self.geometry_by_key[(state.state_id, state.solvent_id)]
-                vector = self.backend.extract_tensor(
-                    batch=self._graph(state),
-                    formal_charge=int(row["formal_charge"]),
-                    multiplicity=int(row["multiplicity"]),
-                    training=training,
-                    immutable_base_energy_eV=state.base_energy_eV,
-                )
-                if int(vector.numel()) != self.bundle.feature_dimension:
-                    raise TrainingError("online invariant feature dimension drift")
-                online.append((vector - mean) / std)
-        return replace(batch, state_features=torch_module.stack(online))
+                states.append(state)
+                rows.append(row)
+        vectors = self.backend.extract_tensor_batch(
+            graphs=tuple(self._graph(state) for state in states),
+            formal_charges=tuple(int(row["formal_charge"]) for row in rows),
+            multiplicities=tuple(int(row["multiplicity"]) for row in rows),
+            training=training,
+            immutable_base_energies_eV=tuple(state.base_energy_eV for state in states),
+        )
+        if vectors.ndim != 2 or int(vectors.shape[1]) != self.bundle.feature_dimension:
+            raise TrainingError("online invariant feature dimension drift")
+        return replace(batch, state_features=(vectors - mean) / std)
 
     def train(self) -> None:
         self.backend.model.train()

@@ -294,7 +294,46 @@ def build_torch_invariant_feature_vector(
     multiplicity: int,
     immutable_base_energy_eV: float | None = None,
 ) -> Any:
-    """Build the same invariant vector with gradients preserved for LoRA."""
+    """Build the same single-graph invariant vector with gradients preserved."""
+
+    try:
+        import torch
+    except ImportError as exc:  # pragma: no cover - guarded by the ML extra
+        raise FeatureExtractionError("PyTorch is required for online LoRA features") from exc
+    node = outputs.get("node_feats")
+    if node is None or node.ndim != 2 or int(node.shape[0]) == 0:
+        raise FeatureExtractionError("node_feats must contain one non-empty graph")
+    matrix = build_torch_invariant_feature_matrix(
+        outputs,
+        atom_graph_index=torch.zeros(
+            int(node.shape[0]), dtype=torch.long, device=node.device
+        ),
+        graph_count=1,
+        layer_widths=layer_widths,
+        even_scalar_indices=even_scalar_indices,
+        formal_charges=(formal_charge,),
+        multiplicities=(multiplicity,),
+        immutable_base_energies_eV=(
+            None
+            if immutable_base_energy_eV is None
+            else (immutable_base_energy_eV,)
+        ),
+    )
+    return matrix[0]
+
+
+def build_torch_invariant_feature_matrix(
+    outputs: Mapping[str, Any],
+    *,
+    atom_graph_index: Any,
+    graph_count: int,
+    layer_widths: Sequence[int],
+    even_scalar_indices: Sequence[Sequence[int]],
+    formal_charges: Sequence[int],
+    multiplicities: Sequence[int],
+    immutable_base_energies_eV: Sequence[float] | None = None,
+) -> Any:
+    """Pool a graph batch into the exact per-graph invariant feature vectors."""
 
     try:
         import torch
@@ -315,6 +354,23 @@ def build_torch_invariant_feature_vector(
         raise FeatureExtractionError(
             "node feature width does not match checkpoint interaction irreps"
         )
+    if graph_count <= 0 or len(formal_charges) != graph_count or len(multiplicities) != graph_count:
+        raise FeatureExtractionError("batched online feature identity count mismatch")
+    if atom_graph_index.ndim != 1 or int(atom_graph_index.numel()) != int(node.shape[0]):
+        raise FeatureExtractionError("atom-to-graph index shape mismatch")
+    if int(atom_graph_index.min()) < 0 or int(atom_graph_index.max()) >= graph_count:
+        raise FeatureExtractionError("atom-to-graph index is out of range")
+    counts = torch.bincount(atom_graph_index, minlength=graph_count).to(node.dtype)
+    if bool((counts <= 0).any().detach().cpu()):
+        raise FeatureExtractionError("batched online feature contains an empty graph")
+
+    def pool(values: Any) -> tuple[Any, Any]:
+        if values.ndim != 2 or int(values.shape[0]) != int(node.shape[0]):
+            raise FeatureExtractionError("atom-level batch pool shape mismatch")
+        sums = values.new_zeros((graph_count, int(values.shape[1])))
+        sums.index_add_(0, atom_graph_index, values)
+        return sums, sums / counts.unsqueeze(1)
+
     blocks: list[Any] = []
     offset = 0
     for layer_index, (width, indices) in enumerate(
@@ -331,7 +387,8 @@ def build_torch_invariant_feature_vector(
         scalar = layer.index_select(
             1, torch.as_tensor(selected, dtype=torch.long, device=node.device)
         )
-        blocks.extend((scalar.sum(dim=0), scalar.mean(dim=0)))
+        scalar_sum, scalar_mean = pool(scalar)
+        blocks.extend((scalar_sum, scalar_mean))
 
     density = outputs["density_coefficients"]
     spin_density = outputs["spin_density"]
@@ -355,8 +412,9 @@ def build_torch_invariant_feature_vector(
             )
         monopole = values[:, 0]
         l1_norm = torch.linalg.vector_norm(values[:, 1:4], dim=1)
+        sums, means = pool(torch.stack((monopole, l1_norm), dim=1))
         return torch.stack(
-            (monopole.sum(), monopole.mean(), l1_norm.sum(), l1_norm.mean())
+            (sums[:, 0], means[:, 0], sums[:, 1], means[:, 1]), dim=1
         )
 
     for values, name in (
@@ -371,36 +429,49 @@ def build_torch_invariant_feature_vector(
     energy = outputs["energy"].reshape(-1)
     electrostatic = outputs["electrostatic_energy"].reshape(-1)
     electron = outputs["electron_energy"].reshape(-1)
-    if (
-        int(dipole.shape[0]) != 1
-        or int(energy.numel()) != 1
-        or int(electrostatic.numel()) != 1
-        or int(electron.numel()) != 1
+    if any(
+        size != graph_count
+        for size in (
+            int(dipole.shape[0]),
+            int(energy.numel()),
+            int(electrostatic.numel()),
+            int(electron.numel()),
+        )
     ):
-        raise FeatureExtractionError("online feature extraction accepts one graph at a time")
+        raise FeatureExtractionError("graph-level PolarMACE batch output count mismatch")
     baseline_energy = (
         energy
-        if immutable_base_energy_eV is None
-        else energy.new_tensor((float(immutable_base_energy_eV),))
+        if immutable_base_energies_eV is None
+        else energy.new_tensor(tuple(float(value) for value in immutable_base_energies_eV))
     )
-    constants = energy.new_tensor(
-        (float(density.shape[0]), float(formal_charge), float(multiplicity))
+    if int(baseline_energy.numel()) != graph_count:
+        raise FeatureExtractionError("immutable baseline energy count mismatch")
+    constants = torch.stack(
+        (
+            counts,
+            energy.new_tensor(tuple(float(value) for value in formal_charges)),
+            energy.new_tensor(tuple(float(value) for value in multiplicities)),
+        ),
+        dim=1,
     )
     blocks.append(
         torch.cat(
             (
-                torch.linalg.vector_norm(dipole[0]).reshape(1),
-                baseline_energy,
-                electrostatic,
-                electron,
+                torch.linalg.vector_norm(dipole, dim=1).unsqueeze(1),
+                baseline_energy.unsqueeze(1),
+                electrostatic.unsqueeze(1),
+                electron.unsqueeze(1),
                 constants,
-            )
+            ),
+            dim=1,
         )
     )
-    vector = torch.cat(blocks)
-    if vector.ndim != 1 or not bool(torch.isfinite(vector).all().detach().cpu()):
-        raise FeatureExtractionError("invalid online invariant feature vector")
-    return vector
+    matrix = torch.cat(blocks, dim=1)
+    if matrix.ndim != 2 or int(matrix.shape[0]) != graph_count:
+        raise FeatureExtractionError("invalid online invariant feature matrix shape")
+    if not bool(torch.isfinite(matrix).all().detach().cpu()):
+        raise FeatureExtractionError("invalid online invariant feature matrix")
+    return matrix
 
 
 def checkpoint_irrep_plan(model: Any) -> tuple[tuple[int, ...], tuple[tuple[int, ...], ...]]:
@@ -559,6 +630,17 @@ class PolarMACEBackend:
             compute_stress=False,
         )
 
+    def batch_graphs(self, graphs: Sequence[Any]) -> Any:
+        if not graphs:
+            raise FeatureExtractionError("cannot batch an empty graph sequence")
+        data = []
+        for graph in graphs:
+            items = graph.to_data_list()
+            if len(items) != 1:
+                raise FeatureExtractionError("cached online graph is not a singleton batch")
+            data.append(items[0])
+        return self._batch_type.from_data_list(data).to(self._device)
+
     def enable_lora(self, *, rank: int = 4, alpha: float = 1.0) -> None:
         """Inject the official MACE adapters and leave only adapter weights trainable."""
 
@@ -584,6 +666,28 @@ class PolarMACEBackend:
             formal_charge=formal_charge,
             multiplicity=multiplicity,
             immutable_base_energy_eV=immutable_base_energy_eV,
+        )
+
+    def extract_tensor_batch(
+        self,
+        *,
+        graphs: Sequence[Any],
+        formal_charges: Sequence[int],
+        multiplicities: Sequence[int],
+        training: bool,
+        immutable_base_energies_eV: Sequence[float],
+    ) -> Any:
+        batch = self.batch_graphs(graphs)
+        outputs = self.forward_graph(batch, training=training)
+        return build_torch_invariant_feature_matrix(
+            outputs,
+            atom_graph_index=batch.batch,
+            graph_count=len(graphs),
+            layer_widths=self.layer_widths,
+            even_scalar_indices=self.even_scalar_indices,
+            formal_charges=formal_charges,
+            multiplicities=multiplicities,
+            immutable_base_energies_eV=immutable_base_energies_eV,
         )
 
     def extract(
