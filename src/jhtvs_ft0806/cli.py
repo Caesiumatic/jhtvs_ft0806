@@ -47,6 +47,7 @@ COMMANDS = (
     "extract-base-features",
     "submit-features",
     "submit-fullspace-sigma",
+    "submit-training",
     "train",
     "evaluate",
     "infer-fullspace",
@@ -419,6 +420,38 @@ def _run_submit_fullspace_sigma(args: argparse.Namespace) -> int:
                     args.run_root.resolve() / "sigma_preopt_array.tsv"
                 ),
             },
+        )
+        if args.execute
+        else plan.to_dict()
+    )
+    sys.stdout.write(json.dumps(result, sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+def _run_submit_training(args: argparse.Namespace) -> int:
+    from decimal import Decimal
+
+    from jhtvs_ft0806.hpc.model_submission import prepare_model_submission
+
+    plan = prepare_model_submission(
+        submission_id=args.submission_id,
+        spec_dir=args.spec_dir,
+        submissions_root=args.submissions_root,
+        accounting_path=args.accounting,
+        ledger_path=args.ledger,
+        runner_path=args.runner,
+        planning_core_h=Decimal(args.planning_core_h),
+        queue=args.queue,
+        budget_scope=args.budget_scope,
+    )
+    result = (
+        execute_submission(
+            plan=plan,
+            runner_path=args.runner,
+            spec_dir=args.spec_dir,
+            accounting_path=args.accounting,
+            ledger_path=args.ledger,
+            budget_scope=args.budget_scope,
         )
         if args.execute
         else plan.to_dict()
@@ -879,6 +912,42 @@ def build_parser() -> argparse.ArgumentParser:
     sigma_submit.add_argument("--execute", action="store_true")
     sigma_submit.set_defaults(handler=_run_submit_fullspace_sigma)
 
+    training_submit = subparsers.add_parser(
+        "submit-training",
+        help="prepare and optionally submit budgeted five-seed LoRA training",
+    )
+    training_submit.add_argument("--submission-id", required=True)
+    training_submit.add_argument("--planning-core-h", required=True)
+    training_submit.add_argument(
+        "--spec-dir", type=Path, default=_repository_root() / "spec"
+    )
+    training_submit.add_argument(
+        "--submissions-root",
+        type=Path,
+        default=_repository_root() / "runs" / "hpc" / "submissions",
+    )
+    training_submit.add_argument(
+        "--accounting",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "accounting.csv",
+    )
+    training_submit.add_argument(
+        "--ledger",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "submission_ledger.csv",
+    )
+    training_submit.add_argument(
+        "--runner",
+        type=Path,
+        default=_repository_root() / "hpc" / "run_model_training.sh",
+    )
+    training_submit.add_argument("--queue", default="amd16smt")
+    training_submit.add_argument(
+        "--budget-scope", choices=("first_round", "whole_project"), default="first_round"
+    )
+    training_submit.add_argument("--execute", action="store_true")
+    training_submit.set_defaults(handler=_run_submit_training)
+
     train = subparsers.add_parser(
         "train", help="train the five-seed frozen-head plus online-LoRA ensemble"
     )
@@ -1051,6 +1120,7 @@ def build_parser() -> argparse.ArgumentParser:
             "extract-base-features",
             "submit-features",
             "submit-fullspace-sigma",
+            "submit-training",
             "train",
             "evaluate",
             "infer-fullspace",

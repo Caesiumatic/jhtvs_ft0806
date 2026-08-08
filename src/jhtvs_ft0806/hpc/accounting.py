@@ -213,6 +213,19 @@ def _output_complete(task: Mapping[str, str], repository_root: Path) -> bool:
             and receipt.get("method_id") == task["method_id"]
             and receipt.get("missing") == 0
         )
+    if task["job_class"] == "mace_training":
+        try:
+            receipt = json.loads(output.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return False
+        return (
+            receipt.get("status") == "PASS"
+            and receipt.get("member_count") == 5
+            and receipt.get("job_id") == task["job_id"]
+            and receipt.get("input_sha256") == task["input_sha256"]
+            and receipt.get("workflow_revision") == task["workflow_revision"]
+            and receipt.get("method_id") == task["method_id"]
+        )
     if task["job_class"] == "sigma_preopt":
         try:
             rows = read_csv_rows(output)
