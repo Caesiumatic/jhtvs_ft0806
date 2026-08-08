@@ -30,6 +30,7 @@ from jhtvs_ft0806.orca.decks import build_decks
 from jhtvs_ft0806.orca.preflight import audit_decks
 from jhtvs_ft0806.orca.parser import parse_results
 from jhtvs_ft0806.provenance import sha256_file
+from jhtvs_ft0806.schemas import read_csv_rows
 from jhtvs_ft0806.spec_validation import validate_spec
 
 COMMANDS = (
@@ -301,7 +302,46 @@ def _run_parse_results(args: argparse.Namespace) -> int:
         json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
         + "\n"
     )
-    return 1 if summary.scientific_stops else 0
+    if args.completion_report is not None:
+        result_rows = read_csv_rows(args.output)
+        report = {
+            **summary.to_dict(),
+            "gate_status": (
+                "PASS"
+                if summary.clean == summary.total
+                and summary.flagged == 0
+                and summary.missing == 0
+                and summary.scientific_stops == 0
+                else "INCOMPLETE"
+            ),
+            "generated_at_utc": datetime.now(UTC).isoformat(),
+            "result_path": str(args.output.resolve()),
+            "result_sha256": sha256_file(args.output),
+            "deck_manifest_sha256": sha256_file(args.manifest),
+            "geometry_index_sha256": sha256_file(args.geometry_index),
+            "scientific_spec_sha256": sha256_file(
+                args.spec_dir / "01_SCIENTIFIC_SPEC.md"
+            ),
+            "solvent_smd_registry_sha256": sha256_file(
+                args.spec_dir / "solvent_smd_registry.csv"
+            ),
+            "orca_versions": sorted(
+                {row["orca_version"] for row in result_rows if row["orca_version"]}
+            ),
+            "output_sha256_count": sum(
+                bool(row["output_sha256"]) for row in result_rows
+            ),
+            "input_sha256_count": sum(bool(row["input_sha256"]) for row in result_rows),
+        }
+        args.completion_report.parent.mkdir(parents=True, exist_ok=True)
+        args.completion_report.write_text(
+            json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return 1 if (
+        summary.scientific_stops
+        or (args.require_clean and summary.clean != summary.total)
+    ) else 0
 
 
 def _run_assemble_labels(args: argparse.Namespace) -> int:
@@ -740,6 +780,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         default=_repository_root() / "data" / "resolved" / "state_results.csv",
+    )
+    parse.add_argument(
+        "--completion-report",
+        type=Path,
+        help="write a compact content-hashed parser gate report",
+    )
+    parse.add_argument(
+        "--require-clean",
+        action="store_true",
+        help="exit nonzero unless every selected result is clean",
     )
     parse.set_defaults(handler=_run_parse_results)
 

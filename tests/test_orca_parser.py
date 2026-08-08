@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
 
+from jhtvs_ft0806 import cli
 from jhtvs_ft0806.orca.parser import (
+    ParseSummary,
     STANDARD_STATE_1M_CORRECTION_EH,
     _audit_echo,
     parse_job_result,
@@ -379,3 +382,25 @@ def test_sp_parser_distinguishes_gas_and_smd_contracts(
     assert result["echo_qc"] == (
         "not_applicable" if solvent_id == "GAS" else "pass"
     )
+
+
+def test_parse_cli_require_clean_rejects_partial_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        cli,
+        "parse_results",
+        lambda **_kwargs: ParseSummary(
+            total=10, clean=9, flagged=0, missing=1, scientific_stops=0
+        ),
+    )
+    args = Namespace(
+        spec_dir=Path("spec"),
+        geometry_index=Path("geometry.csv"),
+        manifest=Path("manifest.csv"),
+        output=Path("results.csv"),
+        completion_report=None,
+        require_clean=True,
+    )
+
+    assert cli._run_parse_results(args) == 1
