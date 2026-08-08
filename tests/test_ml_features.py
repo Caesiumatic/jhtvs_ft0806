@@ -4,11 +4,14 @@ import csv
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from jhtvs_ft0806.ml.features import (
     CheckpointProvenance,
     EXPECTED_CHECKPOINT_SHA256,
+    FeatureExtractionError,
     FeatureRecord,
+    PolarMACEBackend,
     assert_rotation_invariant,
     build_invariant_feature_record,
     feature_cache_key,
@@ -107,6 +110,38 @@ def test_feature_record_keeps_required_global_scalars() -> None:
     assert by_name["atom_count"] == 2.0
     assert by_name["formal_charge"] == 1.0
     assert by_name["multiplicity"] == 2.0
+
+
+def test_online_batch_reuses_retained_atomic_data() -> None:
+    class FakeAssembledBatch:
+        def __init__(self, items: list[object]) -> None:
+            self.items = items
+            self.device = ""
+
+        def to(self, device: str) -> "FakeAssembledBatch":
+            self.device = device
+            return self
+
+    class FakeBatchType:
+        @staticmethod
+        def from_data_list(items: list[object]) -> FakeAssembledBatch:
+            return FakeAssembledBatch(items)
+
+    class CachedGraph:
+        def __init__(self, item: object | None = None) -> None:
+            if item is not None:
+                self._jhtvs_singleton_data = item
+
+    backend = PolarMACEBackend.__new__(PolarMACEBackend)
+    backend._batch_type = FakeBatchType
+    backend._device = "cpu"
+    first = object()
+    second = object()
+    observed = backend.batch_graphs((CachedGraph(first), CachedGraph(second)))
+    assert observed.items == [first, second]
+    assert observed.device == "cpu"
+    with pytest.raises(FeatureExtractionError, match="singleton AtomicData"):
+        backend.batch_graphs((CachedGraph(),))
 
 
 class _FakeBackend:

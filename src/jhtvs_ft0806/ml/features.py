@@ -652,7 +652,10 @@ class PolarMACEBackend:
             cutoff=self.cutoff,
             heads=self.available_heads,
         )
-        return self._batch_type.from_data_list([graph]).to(self._device)
+        graph = graph.to(self._device)
+        batch = self._batch_type.from_data_list([graph]).to(self._device)
+        batch._jhtvs_singleton_data = graph  # pylint: disable=protected-access
+        return batch
 
     def forward_graph(self, batch: Any, *, training: bool) -> Mapping[str, Any]:
         """Run the raw checkpoint without detaching its official outputs."""
@@ -669,10 +672,12 @@ class PolarMACEBackend:
             raise FeatureExtractionError("cannot batch an empty graph sequence")
         data = []
         for graph in graphs:
-            items = graph.to_data_list()
-            if len(items) != 1:
-                raise FeatureExtractionError("cached online graph is not a singleton batch")
-            data.append(items[0])
+            item = getattr(graph, "_jhtvs_singleton_data", None)
+            if item is None:
+                raise FeatureExtractionError(
+                    "cached online graph lacks its singleton AtomicData source"
+                )
+            data.append(item)
         return self._batch_type.from_data_list(data).to(self._device)
 
     def enable_lora(self, *, rank: int = 4, alpha: float = 1.0) -> None:
