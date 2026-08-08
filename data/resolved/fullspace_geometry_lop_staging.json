@@ -1,0 +1,16 @@
+{
+  "status": "STAGED_NOT_SUBMITTED",
+  "cluster_host": "lop.scs.illinois.edu",
+  "remote_commit": "0781251030ae2a1201b58bd8b5342ff5c1c2b8df",
+  "remote_run_root": "/home/shic4/jhtvs_ft0806/runs/geometry_fullspace",
+  "staged_at": "2026-08-08T01:17:53-0500",
+  "tier1_geometry_file_count": 5600,
+  "sigma_source_file_count": 100,
+  "sigma_task_count": 2500,
+  "geometry_index_sha256": "dfe5100ae6edad7909c5df14b0c5b2636a2c88aa50db6efd8312b4b145a1eeab",
+  "preflight_sha256": "989d2e2b5b851cbe47951175d478355bdaa22ea72a1106018a288629be829d18",
+  "sigma_preopt_manifest_sha256": "332f514177a96e6a2a7da5ee7732774528cab80af427f5a2d0378b7e35b63bdb",
+  "sigma_preopt_array_sha256": "320ff870ad11630fb65474c0edeb5595504f9b8e6c44f1d4436c8eaebb7fa96b",
+  "remote_sample_source_hash_audit": "PASS",
+  "submission_status": "NOT_SUBMITTED"
+}
