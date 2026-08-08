@@ -1,0 +1,51 @@
+{
+  "environment_id": "lop-jhtvs-ft0806-cpu-v1",
+  "graph_electrostatics_source_commit": "0e21d5546c482d08388a08eb4d948e833227ce47",
+  "mace_source_commit": "4d2da09413ac1407f37cdbb6b81fa28e4c15655e",
+  "packages": {
+    "ase": {
+      "module_sha256": "92ce3cc614521afe055e962ccb4254e8fbf342f3ef86111fa4abc0b017a9963e",
+      "version": "3.29.0"
+    },
+    "e3nn": {
+      "module_sha256": "ab028ec222fd63edd5b2973d0f51d736204d5c43d44b7f0386415a2fb82759b2",
+      "version": "0.4.4"
+    },
+    "graph_longrange": {
+      "module_sha256": "079b233934150a3eee30444ce2408e09895ec4dd958ec60a822f870fa1284b99",
+      "version": "0.4.0"
+    },
+    "h5py": {
+      "module_sha256": "d4a46803087247cef67ee34a4d98d797be2f55b1f9230bc5f8a1fa358f8d1b87",
+      "version": "3.16.0"
+    },
+    "mace-torch": {
+      "module_sha256": "e552c116b7d2c653f98b01f5c4fd599997f19f669a32bc6bf16396dd9f79365b",
+      "version": "0.3.16"
+    },
+    "matscipy": {
+      "module_sha256": "10362f894a8111820415aac3b4a9b613d0299cdb81d7bc508fcf3df917d521d5",
+      "version": "1.2.0"
+    },
+    "numpy": {
+      "module_sha256": "92a46f791e453926d3292af2582b89995a289475f0eaaea71a949823200b838a",
+      "version": "2.4.6"
+    },
+    "scipy": {
+      "module_sha256": "185913aa107512fafd5cf89dfd452a8719b45a6eba833e2dcee2cbfd18b4bbe5",
+      "version": "1.15.2"
+    },
+    "torch": {
+      "module_sha256": "5a190666c3853aa236c4d48ed64e2d4bbcd23bd32c21e64c0867646a6852e43f",
+      "version": "2.6.0"
+    }
+  },
+  "platform": "Linux-3.10.0-693.5.2.el7.x86_64-x86_64-with-glibc2.17",
+  "python_version": "3.11.15",
+  "resolved_on": "2026-08-08",
+  "smoke_test": {
+    "command": "pytest -q",
+    "passed": 72,
+    "warnings": 1
+  }
+}
