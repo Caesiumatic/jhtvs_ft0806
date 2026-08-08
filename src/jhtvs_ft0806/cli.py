@@ -294,6 +294,29 @@ def _run_train(args: argparse.Namespace) -> int:
     return 0 if summary.member_count == 5 else 1
 
 
+def _run_evaluate(args: argparse.Namespace) -> int:
+    from jhtvs_ft0806.ml.evaluation import evaluate_ensemble
+
+    summary = evaluate_ensemble(
+        repository_root=_repository_root(),
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        reaction_sp_path=args.reaction_sp,
+        reaction_final_path=args.reaction_final,
+        feature_index_path=args.feature_index,
+        training_manifest_path=args.training_manifest,
+        prediction_output_path=args.prediction_output,
+        metrics_output_path=args.metrics_output,
+        device=args.device,
+        batch_size=args.batch_size,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -592,6 +615,49 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--online-batch-size", type=int, default=4)
     train.set_defaults(handler=_run_train)
 
+    evaluate = subparsers.add_parser(
+        "evaluate", help="open frozen val/test labels and evaluate the five-member ensemble"
+    )
+    evaluate.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    evaluate.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    evaluate.add_argument(
+        "--reaction-sp",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "reaction_sp_labels.csv",
+    )
+    evaluate.add_argument(
+        "--reaction-final",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "reaction_final_labels.csv",
+    )
+    evaluate.add_argument(
+        "--feature-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "base_feature_index.csv",
+    )
+    evaluate.add_argument(
+        "--training-manifest",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "model_training_manifest.json",
+    )
+    evaluate.add_argument(
+        "--prediction-output",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "evaluation_predictions.csv",
+    )
+    evaluate.add_argument(
+        "--metrics-output",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "model_metrics.json",
+    )
+    evaluate.add_argument("--device", default="cpu")
+    evaluate.add_argument("--batch-size", type=int, default=4)
+    evaluate.set_defaults(handler=_run_evaluate)
+
     for command in COMMANDS[2:]:
         if command in {
             "build-decks",
@@ -603,6 +669,7 @@ def build_parser() -> argparse.ArgumentParser:
             "assemble-labels",
             "extract-base-features",
             "train",
+            "evaluate",
         }:
             continue
         subparser = subparsers.add_parser(command)
