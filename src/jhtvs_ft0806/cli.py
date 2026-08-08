@@ -298,15 +298,26 @@ def _run_submit_features(args: argparse.Namespace) -> int:
 
     from jhtvs_ft0806.hpc.feature_submission import prepare_feature_submission
 
+    geometry_index = args.geometry_index or (
+        _repository_root()
+        / "data"
+        / "resolved"
+        / (
+            "fullspace_geometry_index.csv"
+            if args.dataset_kind == "fullspace"
+            else "geometry_index.csv"
+        )
+    )
     plan = prepare_feature_submission(
         submission_id=args.submission_id,
         spec_dir=args.spec_dir,
-        geometry_index_path=args.geometry_index,
+        geometry_index_path=geometry_index,
         submissions_root=args.submissions_root,
         accounting_path=args.accounting,
         ledger_path=args.ledger,
         runner_path=args.runner,
         planning_core_h=Decimal(args.planning_core_h),
+        dataset_kind=args.dataset_kind,
         queue=args.queue,
         budget_scope=args.budget_scope,
     )
@@ -729,11 +740,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     feature_submit.add_argument("--submission-id", required=True)
     feature_submit.add_argument("--planning-core-h", required=True)
+    feature_submit.add_argument(
+        "--dataset-kind",
+        choices=("calibration", "fullspace"),
+        default="calibration",
+    )
     feature_submit.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
     feature_submit.add_argument(
         "--geometry-index",
         type=Path,
-        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
     )
     feature_submit.add_argument(
         "--submissions-root",

@@ -25,8 +25,33 @@ from jhtvs_ft0806.spec_validation import validate_spec
 
 
 FEATURE_WORKFLOW_REVISION = "jhtvs-ft0806-polar1l-base-features-v1"
+FULLSPACE_FEATURE_WORKFLOW_REVISION = (
+    "jhtvs-ft0806-polar1l-fullspace-base-features-v1"
+)
 FEATURE_METHOD_ID = "MACE_POLAR_1_L_raw_invariant_base_v1"
 FEATURE_JOB_ID = "MACEBASE-CALIBRATION"
+FULLSPACE_FEATURE_JOB_ID = "MACEBASE-FULLSPACE"
+
+FEATURE_DATASETS = {
+    "calibration": {
+        "job_id": FEATURE_JOB_ID,
+        "expected_rows": 705,
+        "geometry_path": "data/resolved/geometry_index.csv",
+        "feature_index_path": "data/resolved/base_feature_index.csv",
+        "baseline_path": "data/resolved/base_state_energies.csv",
+        "workflow_revision": FEATURE_WORKFLOW_REVISION,
+        "nprocs": 1,
+    },
+    "fullspace": {
+        "job_id": FULLSPACE_FEATURE_JOB_ID,
+        "expected_rows": 8100,
+        "geometry_path": "data/resolved/fullspace_geometry_index.csv",
+        "feature_index_path": "data/resolved/fullspace_feature_index.csv",
+        "baseline_path": "data/resolved/fullspace_base_state_energies.csv",
+        "workflow_revision": FULLSPACE_FEATURE_WORKFLOW_REVISION,
+        "nprocs": 8,
+    },
+}
 
 
 def _relative(path: Path, root: Path) -> str:
@@ -81,6 +106,7 @@ def prepare_feature_submission(
     ledger_path: Path,
     runner_path: Path,
     planning_core_h: Decimal,
+    dataset_kind: str = "calibration",
     queue: str = "amd16smt",
     parallel_environment: str = "orte",
     budget_scope: str = "first_round",
@@ -89,6 +115,10 @@ def prepare_feature_submission(
         raise SubmissionError("invalid feature submission ID")
     if planning_core_h <= 0:
         raise SubmissionError("feature planning core-hours must be positive")
+    try:
+        dataset = FEATURE_DATASETS[dataset_kind]
+    except KeyError as exc:
+        raise SubmissionError(f"unsupported feature dataset: {dataset_kind}") from exc
     spec_dir = spec_dir.resolve()
     repository_root = spec_dir.parent
     geometry_index_path = geometry_index_path.resolve()
@@ -100,9 +130,10 @@ def prepare_feature_submission(
         raise SubmissionError("feature runner is missing or unsafe")
     geometry_rows = read_csv_rows(geometry_index_path)
     resolved = [row for row in geometry_rows if row["status"] == "resolved"]
-    if len(geometry_rows) != 705 or len(resolved) != 705:
+    expected_rows = int(dataset["expected_rows"])
+    if len(geometry_rows) != expected_rows or len(resolved) != expected_rows:
         raise SubmissionError(
-            f"calibration feature extraction requires 705 resolved geometries, "
+            f"{dataset_kind} feature extraction requires {expected_rows} resolved geometries, "
             f"found {len(resolved)}/{len(geometry_rows)}"
         )
     keys = {(row["state_id"], row["solvent_id"]) for row in resolved}
@@ -113,8 +144,13 @@ def prepare_feature_submission(
     preflight_path = submission_dir / "preflight.json"
     plan_path = submission_dir / "submission_plan.json"
     completion_path = submission_dir / "feature_completion.json"
-    feature_index_path = repository_root / "data" / "resolved" / "base_feature_index.csv"
-    baseline_path = repository_root / "data" / "resolved" / "base_state_energies.csv"
+    geometry_relative = _relative(geometry_index_path, repository_root)
+    if geometry_relative != dataset["geometry_path"]:
+        raise SubmissionError(
+            f"{dataset_kind} geometry index path drift: {geometry_relative}"
+        )
+    feature_index_path = repository_root / str(dataset["feature_index_path"])
+    baseline_path = repository_root / str(dataset["baseline_path"])
     if completion_path.exists() or feature_index_path.exists() or baseline_path.exists():
         raise SubmissionError("feature production outputs already exist; reconcile before submission")
 
@@ -122,20 +158,21 @@ def prepare_feature_submission(
     task = {
         "array_task": "1",
         "sequence": "1",
-        "job_id": FEATURE_JOB_ID,
+        "job_id": str(dataset["job_id"]),
         "job_class": "mace_base_features",
         "input_path": _relative(geometry_index_path, repository_root),
         "input_sha256": geometry_sha,
         "output_path": _relative(completion_path, repository_root),
-        "nprocs": "1",
+        "nprocs": str(dataset["nprocs"]),
         "planning_core_h": str(planning_core_h),
-        "workflow_revision": FEATURE_WORKFLOW_REVISION,
+        "workflow_revision": str(dataset["workflow_revision"]),
         "method_id": FEATURE_METHOD_ID,
     }
     _write_exact(task_table_path, _task_text(task))
     preflight = {
         "status": "PASS",
-        "job_id": FEATURE_JOB_ID,
+        "dataset_kind": dataset_kind,
+        "job_id": str(dataset["job_id"]),
         "resolved_geometry_rows": len(resolved),
         "geometry_index_sha256": geometry_sha,
         "checkpoint_name": EXPECTED_CHECKPOINT_NAME,
@@ -145,6 +182,9 @@ def prepare_feature_submission(
         "runner_sha256": sha256_file(runner_path),
         "task_table_sha256": sha256_file(task_table_path),
         "planning_core_h": str(planning_core_h),
+        "feature_index_path": str(dataset["feature_index_path"]),
+        "baseline_path": str(dataset["baseline_path"]),
+        "nprocs": int(dataset["nprocs"]),
         "outputs_absent": True,
     }
     _write_exact(
@@ -171,7 +211,7 @@ def prepare_feature_submission(
         "budget": budget.to_dict(),
         "queue": queue,
         "parallel_environment": parallel_environment,
-        "nprocs": 1,
+        "nprocs": int(dataset["nprocs"]),
         "max_concurrent": 1,
     }
     submission_sha = content_hash(plan_payload)
@@ -186,7 +226,7 @@ def prepare_feature_submission(
         + "\n",
     )
     active = _active_job_ids(ledger_path, repository_root)
-    if FEATURE_JOB_ID in active:
+    if str(dataset["job_id"]) in active:
         ledger_matches = [
             row
             for row in read_csv_rows(ledger_path)
@@ -212,6 +252,6 @@ def prepare_feature_submission(
         budget=budget,
         queue=queue,
         parallel_environment=parallel_environment,
-        nprocs=1,
+        nprocs=int(dataset["nprocs"]),
         max_concurrent=1,
     )

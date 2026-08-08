@@ -19,12 +19,35 @@ TASK_ROW="$(awk -F '\t' -v task="$SGE_TASK_ID" 'NR > 1 && $1 == task' "$TASK_FIL
 IFS=$'\t' read -r ARRAY_TASK SEQUENCE LOGICAL_JOB_ID JOB_CLASS INPUT_REL INPUT_SHA \
   OUTPUT_REL NPROCS PLANNING_CORE_H WORKFLOW_REVISION METHOD_ID <<< "$TASK_ROW"
 [ "$ARRAY_TASK" = "1" ] && [ "$SEQUENCE" = "1" ]
-[ "$LOGICAL_JOB_ID" = "MACEBASE-CALIBRATION" ]
 [ "$JOB_CLASS" = "mace_base_features" ]
-[ "$NPROCS" = "1" ]
-[ "$WORKFLOW_REVISION" = "jhtvs-ft0806-polar1l-base-features-v1" ]
 [ "$METHOD_ID" = "MACE_POLAR_1_L_raw_invariant_base_v1" ]
-[ "$INPUT_REL" = "data/resolved/geometry_index.csv" ]
+
+case "$LOGICAL_JOB_ID" in
+  MACEBASE-CALIBRATION)
+    EXPECTED_ROWS=705
+    EXPECTED_INPUT_REL="data/resolved/geometry_index.csv"
+    FEATURE_INDEX_REL="data/resolved/base_feature_index.csv"
+    BASELINE_REL="data/resolved/base_state_energies.csv"
+    EXPECTED_NPROCS=1
+    EXPECTED_WORKFLOW_REVISION="jhtvs-ft0806-polar1l-base-features-v1"
+    ;;
+  MACEBASE-FULLSPACE)
+    EXPECTED_ROWS=8100
+    EXPECTED_INPUT_REL="data/resolved/fullspace_geometry_index.csv"
+    FEATURE_INDEX_REL="data/resolved/fullspace_feature_index.csv"
+    BASELINE_REL="data/resolved/fullspace_base_state_energies.csv"
+    EXPECTED_NPROCS=8
+    EXPECTED_WORKFLOW_REVISION="jhtvs-ft0806-polar1l-fullspace-base-features-v1"
+    ;;
+  *)
+    echo "unsupported feature dataset job: $LOGICAL_JOB_ID" >&2
+    exit 1
+    ;;
+esac
+[ "$INPUT_REL" = "$EXPECTED_INPUT_REL" ]
+[ "$NPROCS" = "$EXPECTED_NPROCS" ]
+[ "${NSLOTS:-1}" = "$EXPECTED_NPROCS" ]
+[ "$WORKFLOW_REVISION" = "$EXPECTED_WORKFLOW_REVISION" ]
 
 INPUT="$REPO_ROOT/$INPUT_REL"
 OUTPUT="$REPO_ROOT/$OUTPUT_REL"
@@ -40,6 +63,11 @@ conda activate jhtvs-ft0806
 set -u
 cd "$REPO_ROOT"
 
+export OMP_NUM_THREADS="$NPROCS"
+export MKL_NUM_THREADS="$NPROCS"
+export OPENBLAS_NUM_THREADS="$NPROCS"
+export NUMEXPR_NUM_THREADS="$NPROCS"
+
 CHECKPOINT="$HOME/.cache/mace/MACEPOLAR1Lmodel"
 [ -f "$CHECKPOINT" ]
 [ "$(sha256sum "$CHECKPOINT" | awk '{print $1}')" = \
@@ -49,14 +77,17 @@ SUMMARY="${OUTPUT}.summary.tmp"
 PYTHONPATH=src python -m jhtvs_ft0806.cli extract-base-features \
   --geometry-index "$INPUT" \
   --cache-dir artifacts/base_features \
-  --feature-index data/resolved/base_feature_index.csv \
-  --baseline-output data/resolved/base_state_energies.csv \
+  --feature-index "$FEATURE_INDEX_REL" \
+  --baseline-output "$BASELINE_REL" \
   --checkpoint polar-1-l \
   --device cpu \
   --require-complete > "$SUMMARY"
 
 OUTPUT="$OUTPUT" SUMMARY="$SUMMARY" INPUT_SHA="$INPUT_SHA" \
-  PLANNING_CORE_H="$PLANNING_CORE_H" python - <<'PY'
+  PLANNING_CORE_H="$PLANNING_CORE_H" EXPECTED_ROWS="$EXPECTED_ROWS" \
+  LOGICAL_JOB_ID="$LOGICAL_JOB_ID" FEATURE_INDEX_REL="$FEATURE_INDEX_REL" \
+  BASELINE_REL="$BASELINE_REL" WORKFLOW_REVISION="$WORKFLOW_REVISION" \
+  METHOD_ID="$METHOD_ID" python - <<'PY'
 import hashlib
 import json
 import os
@@ -70,24 +101,24 @@ if json_start < 0:
 summary, remainder_index = json.JSONDecoder().raw_decode(summary_text[json_start:])
 if summary_text[json_start + remainder_index :].strip():
     raise SystemExit("feature extraction summary has unexpected trailing output")
-if summary.get("status") != "PASS" or summary.get("total") != 705:
+if summary.get("status") != "PASS" or summary.get("total") != int(os.environ["EXPECTED_ROWS"]):
     raise SystemExit("feature extraction summary is incomplete")
 root = Path.cwd()
-feature_index = root / "data/resolved/base_feature_index.csv"
-baseline = root / "data/resolved/base_state_energies.csv"
+feature_index = root / os.environ["FEATURE_INDEX_REL"]
+baseline = root / os.environ["BASELINE_REL"]
 sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
 receipt = {
     **summary,
-    "job_id": "MACEBASE-CALIBRATION",
+    "job_id": os.environ["LOGICAL_JOB_ID"],
     "job_class": "mace_base_features",
     "input_sha256": os.environ["INPUT_SHA"],
-    "feature_index_path": "data/resolved/base_feature_index.csv",
+    "feature_index_path": os.environ["FEATURE_INDEX_REL"],
     "feature_index_sha256": sha(feature_index),
-    "baseline_path": "data/resolved/base_state_energies.csv",
+    "baseline_path": os.environ["BASELINE_REL"],
     "baseline_sha256": sha(baseline),
     "planning_core_h": os.environ["PLANNING_CORE_H"],
-    "workflow_revision": "jhtvs-ft0806-polar1l-base-features-v1",
-    "method_id": "MACE_POLAR_1_L_raw_invariant_base_v1",
+    "workflow_revision": os.environ["WORKFLOW_REVISION"],
+    "method_id": os.environ["METHOD_ID"],
     "scheduler_job_id": os.environ.get("JOB_ID", "unknown"),
     "scheduler_array_task": os.environ.get("SGE_TASK_ID", "unknown"),
 }
