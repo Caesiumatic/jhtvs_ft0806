@@ -24,7 +24,7 @@ IFS=$'\t' read -r ARRAY_TASK SEQUENCE LOGICAL_JOB_ID JOB_CLASS INPUT_REL INPUT_S
 
 case "$LOGICAL_JOB_ID" in
   MACEBASE-CALIBRATION)
-    EXPECTED_ROWS=705
+    EXPECTED_GEOMETRY_ROWS=705
     EXPECTED_INPUT_REL="data/resolved/geometry_index.csv"
     FEATURE_INDEX_REL="data/resolved/base_feature_index.csv"
     BASELINE_REL="data/resolved/base_state_energies.csv"
@@ -32,7 +32,7 @@ case "$LOGICAL_JOB_ID" in
     EXPECTED_WORKFLOW_REVISION="jhtvs-ft0806-polar1l-base-features-v1"
     ;;
   MACEBASE-FULLSPACE)
-    EXPECTED_ROWS=8100
+    EXPECTED_GEOMETRY_ROWS=8100
     EXPECTED_INPUT_REL="data/resolved/fullspace_geometry_index.csv"
     FEATURE_INDEX_REL="data/resolved/fullspace_feature_index.csv"
     BASELINE_REL="data/resolved/fullspace_base_state_energies.csv"
@@ -84,11 +84,13 @@ PYTHONPATH=src python -m jhtvs_ft0806.cli extract-base-features \
   --require-complete > "$SUMMARY"
 
 OUTPUT="$OUTPUT" SUMMARY="$SUMMARY" INPUT_SHA="$INPUT_SHA" \
-  PLANNING_CORE_H="$PLANNING_CORE_H" EXPECTED_ROWS="$EXPECTED_ROWS" \
+  PLANNING_CORE_H="$PLANNING_CORE_H" EXPECTED_GEOMETRY_ROWS="$EXPECTED_GEOMETRY_ROWS" \
+  INPUT="$INPUT" \
   LOGICAL_JOB_ID="$LOGICAL_JOB_ID" FEATURE_INDEX_REL="$FEATURE_INDEX_REL" \
   BASELINE_REL="$BASELINE_REL" WORKFLOW_REVISION="$WORKFLOW_REVISION" \
   METHOD_ID="$METHOD_ID" python - <<'PY'
 import hashlib
+import csv
 import json
 import os
 from pathlib import Path
@@ -101,7 +103,19 @@ if json_start < 0:
 summary, remainder_index = json.JSONDecoder().raw_decode(summary_text[json_start:])
 if summary_text[json_start + remainder_index :].strip():
     raise SystemExit("feature extraction summary has unexpected trailing output")
-if summary.get("status") != "PASS" or summary.get("total") != int(os.environ["EXPECTED_ROWS"]):
+with Path(os.environ["INPUT"]).open(encoding="utf-8", newline="") as handle:
+    geometry_rows = list(csv.DictReader(handle))
+status_counts = {}
+for row in geometry_rows:
+    status = row["status"]
+    status_counts[status] = status_counts.get(status, 0) + 1
+expected_geometry_rows = int(os.environ["EXPECTED_GEOMETRY_ROWS"])
+if len(geometry_rows) != expected_geometry_rows:
+    raise SystemExit("feature geometry index row count drift")
+resolved_rows = status_counts.get("resolved", 0)
+if set(status_counts) - {"resolved", "failed"}:
+    raise SystemExit("feature geometry index contains unresolved pending statuses")
+if summary.get("status") != "PASS" or summary.get("total") != resolved_rows:
     raise SystemExit("feature extraction summary is incomplete")
 root = Path.cwd()
 feature_index = root / os.environ["FEATURE_INDEX_REL"]
@@ -109,6 +123,9 @@ baseline = root / os.environ["BASELINE_REL"]
 sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
 receipt = {
     **summary,
+    "geometry_rows": len(geometry_rows),
+    "resolved_geometry_rows": resolved_rows,
+    "failed_geometry_rows": status_counts.get("failed", 0),
     "job_id": os.environ["LOGICAL_JOB_ID"],
     "job_class": "mace_base_features",
     "input_sha256": os.environ["INPUT_SHA"],

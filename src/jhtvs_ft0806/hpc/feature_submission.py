@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from collections import Counter
 from decimal import Decimal
 import json
 from pathlib import Path
@@ -130,11 +131,23 @@ def prepare_feature_submission(
         raise SubmissionError("feature runner is missing or unsafe")
     geometry_rows = read_csv_rows(geometry_index_path)
     resolved = [row for row in geometry_rows if row["status"] == "resolved"]
+    status_counts = Counter(row["status"] for row in geometry_rows)
     expected_rows = int(dataset["expected_rows"])
-    if len(geometry_rows) != expected_rows or len(resolved) != expected_rows:
+    if len(geometry_rows) != expected_rows:
         raise SubmissionError(
-            f"{dataset_kind} feature extraction requires {expected_rows} resolved geometries, "
-            f"found {len(resolved)}/{len(geometry_rows)}"
+            f"{dataset_kind} feature extraction requires {expected_rows} geometry rows, "
+            f"found {len(geometry_rows)}"
+        )
+    if dataset_kind == "calibration" and len(resolved) != expected_rows:
+        raise SubmissionError(
+            f"calibration feature extraction requires {expected_rows} resolved geometries, "
+            f"found {len(resolved)}"
+        )
+    unexpected_statuses = set(status_counts) - {"resolved", "failed"}
+    if dataset_kind == "fullspace" and unexpected_statuses:
+        raise SubmissionError(
+            "fullspace feature extraction requires every geometry to be resolved or "
+            f"QC-failed; observed statuses {sorted(unexpected_statuses)}"
         )
     keys = {(row["state_id"], row["solvent_id"]) for row in resolved}
     if len(keys) != len(resolved):
@@ -173,7 +186,9 @@ def prepare_feature_submission(
         "status": "PASS",
         "dataset_kind": dataset_kind,
         "job_id": str(dataset["job_id"]),
+        "geometry_rows": len(geometry_rows),
         "resolved_geometry_rows": len(resolved),
+        "failed_geometry_rows": status_counts["failed"],
         "geometry_index_sha256": geometry_sha,
         "checkpoint_name": EXPECTED_CHECKPOINT_NAME,
         "checkpoint_sha256": EXPECTED_CHECKPOINT_SHA256,

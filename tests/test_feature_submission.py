@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from decimal import Decimal
+import json
 from pathlib import Path
 import shutil
 
@@ -97,6 +98,9 @@ def test_fullspace_feature_submission_uses_8100_rows_and_eight_slots(
         }
         for index in range(8100)
     ]
+    rows[-1]["status"] = "failed"
+    rows[-1]["xyz_path"] = ""
+    rows[-1]["xyz_sha256"] = ""
     geometry_index = (
         repository / "data" / "resolved" / "fullspace_geometry_index.csv"
     )
@@ -126,3 +130,7 @@ def test_fullspace_feature_submission_uses_8100_rows_and_eight_slots(
     assert task["nprocs"] == "8"
     assert task["input_path"] == "data/resolved/fullspace_geometry_index.csv"
     assert task["output_path"].endswith("/feature_completion.json")
+    preflight = json.loads(plan.preflight_report_path.read_text(encoding="utf-8"))
+    assert preflight["geometry_rows"] == 8100
+    assert preflight["resolved_geometry_rows"] == 8099
+    assert preflight["failed_geometry_rows"] == 1
