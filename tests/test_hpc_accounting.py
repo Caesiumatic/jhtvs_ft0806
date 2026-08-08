@@ -174,6 +174,58 @@ def test_collect_accounting_accepts_lop_duration_suffixes(
     )
 
 
+def test_collect_accounting_accepts_complete_sigma_tsv_output(
+    tmp_path: Path,
+) -> None:
+    root, ledger, accounting, output = _accounting_fixture(tmp_path)
+    optimized = output.with_name("xtbopt.xyz")
+    optimized.write_text("1\nfixture\nH 0 0 0\n", encoding="utf-8")
+    output = output.with_name("task_status.tsv")
+    output.write_text(
+        "task_id\tsource_xyz_sha256\toptimized_xyz_sha256\t"
+        "topology_sha256\tcharge\tuhf\tepsilon\n"
+        f"sigma-preopt-D001-S001\tfixture-input-sha\t{sha256_file(optimized)}\t"
+        "fixture-topology-sha\t2\t0\t35.688\n",
+        encoding="utf-8",
+    )
+    task_table = root / "runs" / "hpc" / "submissions" / "fixture" / "tasks.tsv"
+    with task_table.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    rows[0].update(
+        {
+            "job_id": "sigma-preopt-D001-S001",
+            "job_class": "sigma_preopt",
+            "output_path": str(output.relative_to(root)),
+            "nprocs": "1",
+        }
+    )
+    with task_table.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=rows[0], delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+    ledger_rows = read_csv_rows(ledger)
+    ledger_rows[0]["nprocs"] = "1"
+    ledger_rows[0]["task_table_sha256"] = sha256_file(task_table)
+    write_csv_deterministic(ledger, LEDGER_FIELDS, ledger_rows)
+    qacct = tmp_path / "qacct_sigma.txt"
+    qacct.write_text(
+        QACCT_FIXTURE.read_text(encoding="utf-8").replace("slots        8", "slots        1"),
+        encoding="utf-8",
+    )
+
+    summary = collect_accounting(
+        submission_id="fixture",
+        repository_root=root,
+        ledger_path=ledger,
+        accounting_path=accounting,
+        qacct_file=qacct,
+    )
+
+    assert summary.logical_jobs == 1
+    assert summary.completed_logical_jobs == 1
+    assert summary.ledger_status == "complete"
+
+
 def test_partial_qacct_requires_opt_in_and_accounts_started_tasks(
     tmp_path: Path,
 ) -> None:

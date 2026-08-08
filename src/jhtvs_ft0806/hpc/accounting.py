@@ -228,15 +228,32 @@ def _output_complete(task: Mapping[str, str], repository_root: Path) -> bool:
         )
     if task["job_class"] == "sigma_preopt":
         try:
-            rows = read_csv_rows(output)
-        except (OSError, ValueError):
+            with output.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle, delimiter="\t")
+                if tuple(reader.fieldnames or ()) != (
+                    "task_id",
+                    "source_xyz_sha256",
+                    "optimized_xyz_sha256",
+                    "topology_sha256",
+                    "charge",
+                    "uhf",
+                    "epsilon",
+                ):
+                    return False
+                rows = list(reader)
+            optimized = output.with_name("xtbopt.xyz")
+        except OSError:
             return False
         return (
             len(rows) == 1
+            and None not in rows[0]
             and rows[0].get("task_id") == task["job_id"]
             and rows[0].get("source_xyz_sha256") == task["input_sha256"]
             and rows[0].get("charge") == "2"
             and rows[0].get("uhf") == "0"
+            and optimized.is_file()
+            and not optimized.is_symlink()
+            and sha256_file(optimized) == rows[0].get("optimized_xyz_sha256")
         )
     text = output.read_text(encoding="utf-8", errors="replace")
     return (
