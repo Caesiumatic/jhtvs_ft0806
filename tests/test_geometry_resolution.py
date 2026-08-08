@@ -44,6 +44,17 @@ def test_manifest_geometry_requests_have_frozen_unique_coverage() -> None:
     assert len({request.geometry_key for request in requests}) == len(requests)
 
 
+def test_fullspace_geometry_requests_cover_all_inference_state_medium_cells() -> None:
+    requests = geometry_requests(SPEC_DIR, include_fullspace_inference=True)
+
+    assert len(requests) == 8100
+    assert sum(not request.is_sigma for request in requests) == 5600
+    assert sum(request.is_sigma for request in requests) == 2500
+    assert len({request.state_id for request in requests}) == 372
+    assert len({request.solvent_id for request in requests}) == 25
+    assert len({request.geometry_key for request in requests}) == len(requests)
+
+
 def test_tier1_resolution_requires_clean_same_run_hash_and_composition(
     tmp_path: Path,
 ) -> None:

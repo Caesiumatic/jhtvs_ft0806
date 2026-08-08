@@ -99,6 +99,7 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
         run_dir=args.run_dir,
         index_path=args.index,
         n_conformers=args.n_conformers,
+        include_fullspace_inference=args.include_fullspace_inference,
     )
     sys.stdout.write(json.dumps(summary.to_dict(), sort_keys=True, indent=2) + "\n")
     logging.getLogger(__name__).info(
@@ -319,6 +320,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
     )
     resolve.add_argument("--n-conformers", type=int, default=100)
+    resolve.add_argument(
+        "--include-fullspace-inference",
+        action="store_true",
+        help="resolve all 8100 state-medium graphs required for 5300-row inference",
+    )
     resolve.add_argument("--require-complete", action="store_true")
     resolve.set_defaults(handler=_run_resolve_geometries)
 

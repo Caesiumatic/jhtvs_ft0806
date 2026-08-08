@@ -112,33 +112,92 @@ class GeometryResolutionSummary:
         }
 
 
-def geometry_requests(spec_dir: Path) -> list[GeometryRequest]:
+def geometry_requests(
+    spec_dir: Path, *, include_fullspace_inference: bool = False
+) -> list[GeometryRequest]:
     grouped: dict[str, dict[str, object]] = {}
-    for row in read_csv_rows(spec_dir / "sp_job_manifest.csv"):
-        solvent_id = (
-            row["paired_solvent_id"]
-            if row["job_class"] == "diagnostic_gas_sp"
-            else row["solvent_id"]
-        )
+
+    def add(
+        *,
+        geometry_key: str,
+        state_id: str,
+        solvent_id: str,
+        formal_charge: int,
+        multiplicity: int,
+        geometry_source: str,
+        required_by: str,
+    ) -> None:
         identity = (
-            row["state_id"],
+            state_id,
             solvent_id,
-            int(row["formal_charge"]),
-            int(row["multiplicity"]),
-            row["geometry_source"],
+            formal_charge,
+            multiplicity,
+            geometry_source,
         )
-        current = grouped.get(row["geometry_key"])
+        current = grouped.get(geometry_key)
         if current is None:
-            grouped[row["geometry_key"]] = {
-                "identity": identity,
-                "job_ids": [row["job_id"]],
-            }
+            grouped[geometry_key] = {"identity": identity, "job_ids": [required_by]}
         else:
             if current["identity"] != identity:
                 raise GeometryResolutionError(
-                    f"geometry key {row['geometry_key']} has inconsistent manifest identity"
+                    f"geometry key {geometry_key} has inconsistent identity"
                 )
-            current["job_ids"].append(row["job_id"])  # type: ignore[union-attr]
+            current["job_ids"].append(required_by)  # type: ignore[union-attr]
+
+    if include_fullspace_inference:
+        states = {
+            row["state_id"]: row
+            for row in read_csv_rows(spec_dir / "fullspace_state_registry.csv")
+        }
+        solvent_ids = tuple(
+            row["solvent_id"]
+            for row in read_csv_rows(spec_dir / "solvent_smd_registry.csv")
+        )
+        for reaction in read_csv_rows(spec_dir / "fullspace_reaction_registry.csv"):
+            policy = reaction["solvent_policy"]
+            if policy == "all project media at inference":
+                assigned = solvent_ids
+            elif policy.startswith("self only (") and policy.endswith(")"):
+                assigned = (policy.removeprefix("self only (").removesuffix(")"),)
+            else:
+                raise GeometryResolutionError(
+                    f"{reaction['reaction_id']}: unsupported inference solvent policy {policy}"
+                )
+            for state_id in reaction["stoichiometry"].split(";"):
+                state_id = state_id.rsplit(":", 1)[0]
+                state = states.get(state_id)
+                if state is None:
+                    raise GeometryResolutionError(
+                        f"{reaction['reaction_id']}: unknown state {state_id}"
+                    )
+                for solvent_id in assigned:
+                    add(
+                        geometry_key=state["reference_geometry_key"].format(
+                            solvent_id=solvent_id
+                        ),
+                        state_id=state_id,
+                        solvent_id=solvent_id,
+                        formal_charge=int(state["formal_charge"]),
+                        multiplicity=int(state["multiplicity"]),
+                        geometry_source=state["reference_geometry_protocol"],
+                        required_by=reaction["reaction_id"],
+                    )
+    else:
+        for row in read_csv_rows(spec_dir / "sp_job_manifest.csv"):
+            solvent_id = (
+                row["paired_solvent_id"]
+                if row["job_class"] == "diagnostic_gas_sp"
+                else row["solvent_id"]
+            )
+            add(
+                geometry_key=row["geometry_key"],
+                state_id=row["state_id"],
+                solvent_id=solvent_id,
+                formal_charge=int(row["formal_charge"]),
+                multiplicity=int(row["multiplicity"]),
+                geometry_source=row["geometry_source"],
+                required_by=row["job_id"],
+            )
     return [
         GeometryRequest(
             geometry_key=key,
@@ -190,6 +249,7 @@ def resolve_tier1_requests(
     spec_dir: Path,
     tier1_run: Path,
     run_dir: Path,
+    require_clean: bool = True,
 ) -> list[dict[str, object]]:
     states = {
         row["state_id"]: row
@@ -225,6 +285,38 @@ def resolve_tier1_requests(
     repository_root = spec_dir.parent
     results: list[dict[str, object]] = []
 
+    def failed_row(
+        request: GeometryRequest,
+        *,
+        reason: str,
+        task: dict[str, str] | None = None,
+        status: dict[str, str] | None = None,
+    ) -> dict[str, object]:
+        return {
+            "geometry_key": request.geometry_key,
+            "state_id": request.state_id,
+            "solvent_id": request.solvent_id,
+            "formal_charge": request.formal_charge,
+            "multiplicity": request.multiplicity,
+            "status": "failed",
+            "xyz_path": "",
+            "xyz_sha256": "",
+            "source_kind": "tier1_same_run_redox",
+            "source_run_id": run_id,
+            "source_task_id": "" if task is None else task.get("task_id", ""),
+            "source_xyz_sha256": "" if status is None else status.get("optimized_xyz_sha256", ""),
+            "source_output_sha256": "" if status is None else status.get("output_sha256", ""),
+            "source_qc_status": "missing" if status is None else status.get("qc_status", "failed"),
+            "connectivity_status": "missing" if status is None else status.get("geometry_ok", "false"),
+            "bonds_broken": "" if status is None else status.get("bonds_broken", ""),
+            "bonds_formed": "" if status is None else status.get("bonds_formed", ""),
+            "monomer_source_sha256": "" if status is None else status.get("source_sha256", ""),
+            "topology_sha256": "",
+            "preopt_method_id": "Tier1_GFN2-xTB_default_opt_ddCOSMO",
+            "preopt_epsilon": "" if task is None else task.get("epsilon_r", ""),
+            "reason": reason,
+        }
+
     for request in requests:
         if request.is_sigma:
             continue
@@ -242,15 +334,21 @@ def resolve_tier1_requests(
         )
         candidates = tasks_by_identity.get(identity, [])
         if len(candidates) != 1:
-            raise GeometryResolutionError(
-                f"{request.geometry_key}: expected one same-run Tier-1 task, found {len(candidates)}"
+            reason = (
+                f"expected one same-run Tier-1 task, found {len(candidates)}"
             )
+            if require_clean:
+                raise GeometryResolutionError(f"{request.geometry_key}: {reason}")
+            results.append(failed_row(request, reason=reason))
+            continue
         task = candidates[0]
         status = status_by_task.get(task["task_id"])
         if status is None:
-            raise GeometryResolutionError(
-                f"{request.geometry_key}: Tier-1 task status is missing"
-            )
+            reason = "Tier-1 task status is missing"
+            if require_clean:
+                raise GeometryResolutionError(f"{request.geometry_key}: {reason}")
+            results.append(failed_row(request, reason=reason, task=task))
+            continue
         if status["run_id"] != run_id:
             raise GeometryResolutionError(
                 f"{request.geometry_key}: task belongs to {status['run_id']}, expected {run_id}"
@@ -262,29 +360,64 @@ def resolve_tier1_requests(
             and status["input_hash_ok"] == "true"
         )
         if not qc_ok:
-            raise GeometryResolutionError(
-                f"{request.geometry_key}: Tier-1 task is not clean: "
-                f"status={status['status']} reason={status['reason']}"
+            reason = (
+                f"Tier-1 task is not clean: status={status['status']} "
+                f"reason={status['reason']}"
             )
+            if require_clean:
+                raise GeometryResolutionError(f"{request.geometry_key}: {reason}")
+            results.append(
+                failed_row(request, reason=reason, task=task, status=status)
+            )
+            continue
         source = tier1_run / status["output_dir"] / "xtbopt.xyz"
-        source_symbols = Counter(atom.symbol for atom in read_xyz(source))
-        expected_symbols = Counter(
-            atom.GetSymbol()
-            for atom in Chem.AddHs(
-                molecule_from_smiles(state["smiles_or_generator"])
-            ).GetAtoms()
-        )
-        if source_symbols != expected_symbols:
-            raise GeometryResolutionError(
-                f"{request.geometry_key}: Tier-1 XYZ composition {source_symbols} "
-                f"differs from registered state {expected_symbols}"
+        try:
+            source_symbols = Counter(atom.symbol for atom in read_xyz(source))
+            expected_symbols = Counter(
+                atom.GetSymbol()
+                for atom in Chem.AddHs(
+                    molecule_from_smiles(state["smiles_or_generator"])
+                ).GetAtoms()
             )
+        except (OSError, ValueError) as exc:
+            if require_clean:
+                raise GeometryResolutionError(
+                    f"{request.geometry_key}: Tier-1 XYZ cannot be read: {exc}"
+                ) from exc
+            results.append(
+                failed_row(
+                    request,
+                    reason=f"Tier-1 XYZ cannot be read: {exc}",
+                    task=task,
+                    status=status,
+                )
+            )
+            continue
+        if source_symbols != expected_symbols:
+            reason = (
+                f"Tier-1 XYZ composition {source_symbols} differs from registered "
+                f"state {expected_symbols}"
+            )
+            if require_clean:
+                raise GeometryResolutionError(f"{request.geometry_key}: {reason}")
+            results.append(
+                failed_row(request, reason=reason, task=task, status=status)
+            )
+            continue
         destination = (
             run_dir / "resolved" / "tier1" / request.state_id / f"{request.solvent_id}.xyz"
         )
-        copied_sha = _copy_hashed(
-            source, destination, status["optimized_xyz_sha256"]
-        )
+        try:
+            copied_sha = _copy_hashed(
+                source, destination, status["optimized_xyz_sha256"]
+            )
+        except GeometryResolutionError as exc:
+            if require_clean:
+                raise
+            results.append(
+                failed_row(request, reason=str(exc), task=task, status=status)
+            )
+            continue
         results.append(
             {
                 "geometry_key": request.geometry_key,
@@ -518,7 +651,11 @@ def prepare_and_resolve_sigma_requests(
 
 
 def validate_sigma_preopt_files(
-    *, spec_dir: Path, run_dir: Path, launcher_path: Path
+    *,
+    spec_dir: Path,
+    run_dir: Path,
+    launcher_path: Path,
+    include_fullspace_inference: bool = False,
 ) -> dict[str, object]:
     """Inspect the exact xTB task files that will be submitted to Lop."""
 
@@ -527,7 +664,9 @@ def validate_sigma_preopt_files(
     rows = read_csv_rows(manifest_path)
     request_by_key = {
         request.geometry_key: request
-        for request in geometry_requests(spec_dir)
+        for request in geometry_requests(
+            spec_dir, include_fullspace_inference=include_fullspace_inference
+        )
         if request.is_sigma
     }
     topology_by_state = {
@@ -597,9 +736,13 @@ def validate_sigma_preopt_files(
     if actual_array_rows != expected_array_rows:
         issues.append("sigma_preopt_array.tsv differs from the inspected manifest")
     if set(request_by_key) != {row["geometry_key"] for row in rows}:
-        issues.append("sigma preoptimization manifest does not cover the 122 unique sigma keys")
-    if len(rows) != 122:
-        issues.append(f"expected 122 sigma preoptimization rows, found {len(rows)}")
+        issues.append(
+            "sigma preoptimization manifest does not cover every requested sigma key"
+        )
+    if len(rows) != len(request_by_key):
+        issues.append(
+            f"expected {len(request_by_key)} sigma preoptimization rows, found {len(rows)}"
+        )
     if not launcher_path.is_file():
         issues.append(f"missing Lop launcher: {launcher_path}")
 
@@ -631,10 +774,17 @@ def resolve_geometries(
     run_dir: Path,
     index_path: Path,
     n_conformers: int = N_CONFORMERS,
+    include_fullspace_inference: bool = False,
 ) -> GeometryResolutionSummary:
-    requests = geometry_requests(spec_dir)
+    requests = geometry_requests(
+        spec_dir, include_fullspace_inference=include_fullspace_inference
+    )
     tier1_rows = resolve_tier1_requests(
-        requests, spec_dir=spec_dir, tier1_run=tier1_run, run_dir=run_dir
+        requests,
+        spec_dir=spec_dir,
+        tier1_run=tier1_run,
+        run_dir=run_dir,
+        require_clean=not include_fullspace_inference,
     )
     sigma_rows, _manifest = prepare_and_resolve_sigma_requests(
         requests,
@@ -646,6 +796,7 @@ def resolve_geometries(
         spec_dir=spec_dir,
         run_dir=run_dir,
         launcher_path=spec_dir.parent / "hpc" / "run_sigma_preopt.sh",
+        include_fullspace_inference=include_fullspace_inference,
     )
     if preflight["status"] != "PASS":
         raise GeometryResolutionError(
@@ -674,7 +825,7 @@ def resolve_geometries(
         resolved=statuses["resolved"],
         pending=statuses["pending"],
         failed=statuses["failed"],
-        tier1_resolved=len(tier1_rows),
+        tier1_resolved=sum(row["status"] == "resolved" for row in tier1_rows),
         sigma_resolved=sum(
             row["status"] == "resolved" for row in sigma_rows
         ),
