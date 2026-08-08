@@ -7,6 +7,7 @@ import numpy as np
 
 from jhtvs_ft0806.ml.features import (
     CheckpointProvenance,
+    EXPECTED_CHECKPOINT_SHA256,
     FeatureRecord,
     assert_rotation_invariant,
     build_invariant_feature_record,
@@ -54,6 +55,9 @@ def _record(outputs: dict[str, np.ndarray] | None = None) -> FeatureRecord:
 
 
 def test_feature_cache_key_covers_frozen_identity() -> None:
+    assert EXPECTED_CHECKPOINT_SHA256 == (
+        "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b"
+    )
     key = feature_cache_key(
         checkpoint_sha256="a" * 64,
         geometry_sha256="b" * 64,

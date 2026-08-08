@@ -1,5 +1,11 @@
 {
   "environment_id": "lop-jhtvs-ft0806-cpu-v1",
+  "foundation_checkpoint": {
+    "byte_size": 129808715,
+    "name": "polar-1-l",
+    "sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+    "source_url": "https://github.com/ACEsuit/mace-foundations/releases/download/mace_polar_1/MACE-POLAR-1-L.model"
+  },
   "graph_electrostatics_source_commit": "0e21d5546c482d08388a08eb4d948e833227ce47",
   "mace_source_commit": "4d2da09413ac1407f37cdbb6b81fa28e4c15655e",
   "packages": {
@@ -43,6 +49,12 @@
   "platform": "Linux-3.10.0-693.5.2.el7.x86_64-x86_64-with-glibc2.17",
   "python_version": "3.11.15",
   "resolved_on": "2026-08-08",
+  "spin_input_semantics": {
+    "project_field": "multiplicity",
+    "raw_model_field": "total_spin",
+    "verified_mapping": "total_spin = multiplicity = 2S + 1",
+    "verification": "mace 0.3.16 modules/extensions.py uses total_spin - 1 for the spin-channel population difference"
+  },
   "smoke_test": {
     "command": "pytest -q",
     "passed": 72,

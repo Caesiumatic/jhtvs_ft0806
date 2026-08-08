@@ -25,6 +25,9 @@ EXPECTED_MACE_SOURCE_COMMIT = "4d2da09413ac1407f37cdbb6b81fa28e4c15655e"
 EXPECTED_GRAPH_ELECTROSTATICS_VERSION = "0.4.0"
 EXPECTED_GRAPH_ELECTROSTATICS_COMMIT = "0e21d5546c482d08388a08eb4d948e833227ce47"
 EXPECTED_CHECKPOINT_NAME = "polar-1-l"
+EXPECTED_CHECKPOINT_SHA256 = (
+    "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b"
+)
 REQUIRED_POLAR_OUTPUTS = (
     "energy",
     "node_feats",
@@ -470,6 +473,12 @@ class PolarMACEBackend:
 
         torch.set_default_dtype(torch.float64)
         checkpoint_path = Path(download_mace_polar_checkpoint(checkpoint)).resolve()
+        checkpoint_sha256 = sha256_file(checkpoint_path)
+        if checkpoint_sha256 != EXPECTED_CHECKPOINT_SHA256:
+            raise FeatureExtractionError(
+                "polar-1-l checkpoint hash drift: "
+                f"expected {EXPECTED_CHECKPOINT_SHA256}, observed {checkpoint_sha256}"
+            )
         model = mace_polar(
             model=str(checkpoint_path),
             device=device,
@@ -491,7 +500,7 @@ class PolarMACEBackend:
         self.provenance = CheckpointProvenance(
             checkpoint_name=checkpoint,
             checkpoint_path=str(checkpoint_path),
-            checkpoint_sha256=sha256_file(checkpoint_path),
+            checkpoint_sha256=checkpoint_sha256,
             mace_version=mace_version,
             mace_source_commit=EXPECTED_MACE_SOURCE_COMMIT,
             mace_package_sha256=sha256_file(Path(mace.__file__).resolve()),
