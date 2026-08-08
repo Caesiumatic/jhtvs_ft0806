@@ -111,6 +111,55 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
         reuse_existing_sigma_inputs=args.reuse_existing_sigma_inputs,
     )
     sys.stdout.write(json.dumps(summary.to_dict(), sort_keys=True, indent=2) + "\n")
+    if args.summary_report is not None:
+        preflight_name = (
+            "fullspace_sigma_preopt_preflight.json"
+            if args.include_fullspace_inference
+            else "sigma_preopt_preflight.json"
+        )
+        report = {
+            **summary.to_dict(),
+            "workflow_revision": (
+                "jhtvs-ft0806-fullspace-geometry-v1"
+                if args.include_fullspace_inference
+                else "jhtvs-ft0806-calibration-geometry-v1"
+            ),
+            "generated_at_utc": datetime.now(UTC).isoformat(),
+            "include_fullspace_inference": args.include_fullspace_inference,
+            "reuse_existing_sigma_inputs": args.reuse_existing_sigma_inputs,
+            "n_conformers": args.n_conformers,
+            "geometry_index_path": str(args.index.resolve()),
+            "geometry_index_sha256": sha256_file(args.index),
+            "sigma_preopt_manifest_sha256": sha256_file(
+                args.run_dir / "sigma_preopt_manifest.csv"
+            ),
+            "sigma_preopt_array_sha256": sha256_file(
+                args.run_dir / "sigma_preopt_array.tsv"
+            ),
+            "sigma_preopt_preflight_sha256": sha256_file(
+                args.index.parent / preflight_name
+            ),
+            "tier1_run_manifest_sha256": sha256_file(
+                args.tier1_run / "manifests" / "run_manifest.json"
+            ),
+            "fullspace_state_registry_sha256": sha256_file(
+                args.spec_dir / "fullspace_state_registry.csv"
+            ),
+            "fullspace_reaction_registry_sha256": sha256_file(
+                args.spec_dir / "fullspace_reaction_registry.csv"
+            ),
+            "solvent_smd_registry_sha256": sha256_file(
+                args.spec_dir / "solvent_smd_registry.csv"
+            ),
+            "sigma_coupling_topology_sha256": sha256_file(
+                args.spec_dir / "sigma_coupling_topology.csv"
+            ),
+        }
+        args.summary_report.parent.mkdir(parents=True, exist_ok=True)
+        args.summary_report.write_text(
+            json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
     logging.getLogger(__name__).info(
         "geometry resolution: %d resolved, %d pending, %d failed",
         summary.resolved,
@@ -485,6 +534,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--reuse-existing-sigma-inputs",
         action="store_true",
         help="collect/QC existing sigma xTB outputs without rebuilding raw conformers",
+    )
+    resolve.add_argument(
+        "--summary-report",
+        type=Path,
+        help="write a compact content-hashed preparation or completion report",
     )
     resolve.add_argument("--require-complete", action="store_true")
     resolve.set_defaults(handler=_run_resolve_geometries)
