@@ -134,3 +134,6 @@ def test_fullspace_feature_submission_uses_8100_rows_and_eight_slots(
     assert preflight["geometry_rows"] == 8100
     assert preflight["resolved_geometry_rows"] == 8099
     assert preflight["failed_geometry_rows"] == 1
+    runner_text = runner.read_text(encoding="utf-8")
+    assert '[ "${NSLOTS:-1}" = "1" ]' not in runner_text
+    assert '[ "${NSLOTS:-1}" = "$EXPECTED_NPROCS" ]' in runner_text

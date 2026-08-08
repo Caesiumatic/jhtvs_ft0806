@@ -10,7 +10,6 @@ set -euo pipefail
 
 REPO_ROOT="${SGE_O_WORKDIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
-[ "${NSLOTS:-1}" = "1" ]
 [ -f "$TASK_FILE" ] && [ ! -L "$TASK_FILE" ]
 [ "$(sha256sum "$TASK_FILE" | awk '{print $1}')" = "$TASK_FILE_SHA256" ]
 
