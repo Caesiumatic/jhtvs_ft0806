@@ -215,7 +215,7 @@ def prepare_feature_submission(
     )
     plan_payload = {
         "submission_id": submission_id,
-        "job_ids": [FEATURE_JOB_ID],
+        "job_ids": [str(dataset["job_id"])],
         "job_count": 1,
         "array_task_count": 1,
         "planned_core_h": str(planning_core_h),

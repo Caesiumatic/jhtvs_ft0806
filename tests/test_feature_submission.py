@@ -131,9 +131,11 @@ def test_fullspace_feature_submission_uses_8100_rows_and_eight_slots(
     assert task["input_path"] == "data/resolved/fullspace_geometry_index.csv"
     assert task["output_path"].endswith("/feature_completion.json")
     preflight = json.loads(plan.preflight_report_path.read_text(encoding="utf-8"))
+    submission_plan = json.loads(plan.plan_path.read_text(encoding="utf-8"))
     assert preflight["geometry_rows"] == 8100
     assert preflight["resolved_geometry_rows"] == 8099
     assert preflight["failed_geometry_rows"] == 1
+    assert submission_plan["job_ids"] == ["MACEBASE-FULLSPACE"]
     runner_text = runner.read_text(encoding="utf-8")
     assert '[ "${NSLOTS:-1}" = "1" ]' not in runner_text
     assert '[ "${NSLOTS:-1}" = "$EXPECTED_NPROCS" ]' in runner_text
