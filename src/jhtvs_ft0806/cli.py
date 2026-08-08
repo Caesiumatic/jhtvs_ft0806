@@ -44,6 +44,7 @@ COMMANDS = (
     "parse-results",
     "assemble-labels",
     "extract-base-features",
+    "submit-features",
     "train",
     "evaluate",
     "infer-fullspace",
@@ -287,6 +288,39 @@ def _run_extract_base_features(args: argparse.Namespace) -> int:
         + "\n"
     )
     return 1 if args.require_complete and summary.missing else 0
+
+
+def _run_submit_features(args: argparse.Namespace) -> int:
+    from decimal import Decimal
+
+    from jhtvs_ft0806.hpc.feature_submission import prepare_feature_submission
+
+    plan = prepare_feature_submission(
+        submission_id=args.submission_id,
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        submissions_root=args.submissions_root,
+        accounting_path=args.accounting,
+        ledger_path=args.ledger,
+        runner_path=args.runner,
+        planning_core_h=Decimal(args.planning_core_h),
+        queue=args.queue,
+        budget_scope=args.budget_scope,
+    )
+    result = (
+        execute_submission(
+            plan=plan,
+            runner_path=args.runner,
+            spec_dir=args.spec_dir,
+            accounting_path=args.accounting,
+            ledger_path=args.ledger,
+            budget_scope=args.budget_scope,
+        )
+        if args.execute
+        else plan.to_dict()
+    )
+    sys.stdout.write(json.dumps(result, sort_keys=True, indent=2) + "\n")
+    return 0
 
 
 def _run_train(args: argparse.Namespace) -> int:
@@ -640,6 +674,45 @@ def build_parser() -> argparse.ArgumentParser:
     features.add_argument("--require-complete", action="store_true")
     features.set_defaults(handler=_run_extract_base_features)
 
+    feature_submit = subparsers.add_parser(
+        "submit-features",
+        help="prepare and optionally submit frozen PolarMACE base features",
+    )
+    feature_submit.add_argument("--submission-id", required=True)
+    feature_submit.add_argument("--planning-core-h", required=True)
+    feature_submit.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    feature_submit.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    feature_submit.add_argument(
+        "--submissions-root",
+        type=Path,
+        default=_repository_root() / "runs" / "hpc" / "submissions",
+    )
+    feature_submit.add_argument(
+        "--accounting",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "accounting.csv",
+    )
+    feature_submit.add_argument(
+        "--ledger",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "submission_ledger.csv",
+    )
+    feature_submit.add_argument(
+        "--runner",
+        type=Path,
+        default=_repository_root() / "hpc" / "run_feature_extraction.sh",
+    )
+    feature_submit.add_argument("--queue", default="amd16smt")
+    feature_submit.add_argument(
+        "--budget-scope", choices=("first_round", "whole_project"), default="first_round"
+    )
+    feature_submit.add_argument("--execute", action="store_true")
+    feature_submit.set_defaults(handler=_run_submit_features)
+
     train = subparsers.add_parser(
         "train", help="train the five-seed frozen-head plus online-LoRA ensemble"
     )
@@ -810,6 +883,7 @@ def build_parser() -> argparse.ArgumentParser:
             "parse-results",
             "assemble-labels",
             "extract-base-features",
+            "submit-features",
             "train",
             "evaluate",
             "infer-fullspace",

@@ -200,6 +200,19 @@ def _output_complete(task: Mapping[str, str], repository_root: Path) -> bool:
     output = _resolve_repository_path(task["output_path"], repository_root)
     if not output.is_file() or output.is_symlink():
         return False
+    if task["job_class"] == "mace_base_features":
+        try:
+            receipt = json.loads(output.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return False
+        return (
+            receipt.get("status") == "PASS"
+            and receipt.get("job_id") == task["job_id"]
+            and receipt.get("input_sha256") == task["input_sha256"]
+            and receipt.get("workflow_revision") == task["workflow_revision"]
+            and receipt.get("method_id") == task["method_id"]
+            and receipt.get("missing") == 0
+        )
     text = output.read_text(encoding="utf-8", errors="replace")
     return (
         f"# job_id: {task['job_id']}\n" in text
