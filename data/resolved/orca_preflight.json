@@ -1,9 +1,9 @@
 {
   "checks": {
     "audited_jobs": 815,
-    "deck_manifest_sha256": "8daf9943ebb65bd542179872d7f900a778d6934dab1da7319b1c772df78d0a54",
+    "deck_manifest_sha256": "1ba7fd6df85c2ed6f0ef82822c91c8a564767091117fd033c7444ea103a03e2c",
     "geometry_index_sha256": "c2a14e7174f16c3c0faf8f7473715a2e23f9b6635c2d39b17b99e9c0d3cb74ad",
-    "input_bundle_sha256": "e23cfb1ed4a0b803735a8ec89926ccedad43e47ba0c1c5f884befe6389e90a0a",
+    "input_bundle_sha256": "216b1124c5401a26dcd3e821a9e164615b316cd19d855d3d10f300b68a3009d3",
     "job_class_counts": {
       "diagnostic_gas_sp": 30,
       "optfreq": 80,
@@ -24,11 +24,11 @@
     "planned_core_h": "3890.50",
     "selected_jobs": 815,
     "smd_mode_counts": {
-      "custom_smd": 376,
+      "custom_smd": 444,
       "gas": 30,
-      "native_orca_smd": 409
+      "native_orca_smd": 341
     },
-    "smd_registry_sha256": "fd3a84bd53cae13941b6766e6d72cb287c2cb0a8ceb47c2a69e85fb22d9cd4bc",
+    "smd_registry_sha256": "2d98f12b7af91524f569c997bafb0e96f3b2d5662ac2d31db41c8afd52a1fda7",
     "spec_sha256": "fa50127778dcf2c5be9b4fa9d0ed905acb5d13229564164b70ce227b3f201a54"
   },
   "issues": [],
