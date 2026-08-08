@@ -119,6 +119,9 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
             if args.include_fullspace_inference
             else "sigma_preopt_preflight.json"
         )
+        tier1_final_manifest = (
+            args.tier1_run / "provenance" / "final_execution_manifest.json"
+        )
         report = {
             **summary.to_dict(),
             "workflow_revision": (
@@ -150,8 +153,10 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
             "tier1_completeness_sha256": sha256_file(
                 args.tier1_run / "descriptors" / "completeness.json"
             ),
-            "tier1_final_execution_manifest_sha256": sha256_file(
-                args.tier1_run / "provenance" / "final_execution_manifest.json"
+            "tier1_final_execution_manifest_sha256": (
+                sha256_file(tier1_final_manifest)
+                if tier1_final_manifest.is_file()
+                else ""
             ),
             "fullspace_state_registry_sha256": sha256_file(
                 args.spec_dir / "fullspace_state_registry.csv"
