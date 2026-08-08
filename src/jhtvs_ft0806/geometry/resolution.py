@@ -795,7 +795,13 @@ def resolve_geometries(
     preflight = validate_sigma_preopt_files(
         spec_dir=spec_dir,
         run_dir=run_dir,
-        launcher_path=spec_dir.parent / "hpc" / "run_sigma_preopt.sh",
+        launcher_path=spec_dir.parent
+        / "hpc"
+        / (
+            "run_sigma_preopt_budgeted.sh"
+            if include_fullspace_inference
+            else "run_sigma_preopt.sh"
+        ),
         include_fullspace_inference=include_fullspace_inference,
     )
     if preflight["status"] != "PASS":

@@ -587,6 +587,7 @@ def execute_submission(
     accounting_path: Path,
     ledger_path: Path,
     budget_scope: str = "first_round",
+    extra_environment: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
     repository_root = runner_path.resolve().parent.parent
     receipt_path = plan.submission_dir / "qsub_receipt.json"
@@ -637,6 +638,18 @@ def execute_submission(
         job_name = "jft_" + re.sub(
             r"[^A-Za-z0-9_]", "_", plan.submission_id
         )[:60]
+        environment = {
+            "TASK_FILE": str(plan.task_table_path),
+            "TASK_FILE_SHA256": plan.task_table_sha256,
+            **(extra_environment or {}),
+        }
+        if any(
+            not re.fullmatch(r"[A-Z][A-Z0-9_]*", key)
+            or not value
+            or "," in value
+            for key, value in environment.items()
+        ):
+            raise SubmissionError("invalid qsub environment override")
         command = [
             "qsub",
             "-terse",
@@ -657,7 +670,7 @@ def execute_submission(
             "-q",
             plan.queue,
             "-v",
-            f"TASK_FILE={plan.task_table_path},TASK_FILE_SHA256={plan.task_table_sha256}",
+            ",".join(f"{key}={value}" for key, value in sorted(environment.items())),
             str(runner_path.resolve()),
         ]
         intent = {

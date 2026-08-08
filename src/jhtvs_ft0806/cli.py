@@ -29,6 +29,7 @@ from jhtvs_ft0806.labels.assembly import (
 from jhtvs_ft0806.orca.decks import build_decks
 from jhtvs_ft0806.orca.preflight import audit_decks
 from jhtvs_ft0806.orca.parser import parse_results
+from jhtvs_ft0806.provenance import sha256_file
 from jhtvs_ft0806.spec_validation import validate_spec
 
 COMMANDS = (
@@ -45,6 +46,7 @@ COMMANDS = (
     "assemble-labels",
     "extract-base-features",
     "submit-features",
+    "submit-fullspace-sigma",
     "train",
     "evaluate",
     "infer-fullspace",
@@ -315,6 +317,47 @@ def _run_submit_features(args: argparse.Namespace) -> int:
             accounting_path=args.accounting,
             ledger_path=args.ledger,
             budget_scope=args.budget_scope,
+        )
+        if args.execute
+        else plan.to_dict()
+    )
+    sys.stdout.write(json.dumps(result, sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+def _run_submit_fullspace_sigma(args: argparse.Namespace) -> int:
+    from decimal import Decimal
+
+    from jhtvs_ft0806.hpc.sigma_submission import prepare_sigma_submission
+
+    plan = prepare_sigma_submission(
+        submission_id=args.submission_id,
+        spec_dir=args.spec_dir,
+        run_root=args.run_root,
+        preflight_path=args.preflight,
+        submissions_root=args.submissions_root,
+        accounting_path=args.accounting,
+        ledger_path=args.ledger,
+        runner_path=args.runner,
+        planning_core_h=Decimal(args.planning_core_h),
+        queue=args.queue,
+        max_concurrent=args.max_concurrent,
+        budget_scope=args.budget_scope,
+    )
+    result = (
+        execute_submission(
+            plan=plan,
+            runner_path=args.runner,
+            spec_dir=args.spec_dir,
+            accounting_path=args.accounting,
+            ledger_path=args.ledger,
+            budget_scope=args.budget_scope,
+            extra_environment={
+                "RUN_ROOT": str(args.run_root.resolve()),
+                "ARRAY_SHA256": sha256_file(
+                    args.run_root.resolve() / "sigma_preopt_array.tsv"
+                ),
+            },
         )
         if args.execute
         else plan.to_dict()
@@ -713,6 +756,54 @@ def build_parser() -> argparse.ArgumentParser:
     feature_submit.add_argument("--execute", action="store_true")
     feature_submit.set_defaults(handler=_run_submit_features)
 
+    sigma_submit = subparsers.add_parser(
+        "submit-fullspace-sigma",
+        help="prepare and optionally submit 2500 budgeted full-space sigma xTB jobs",
+    )
+    sigma_submit.add_argument("--submission-id", required=True)
+    sigma_submit.add_argument("--planning-core-h", required=True)
+    sigma_submit.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    sigma_submit.add_argument(
+        "--run-root",
+        type=Path,
+        default=_repository_root() / "runs" / "geometry_fullspace",
+    )
+    sigma_submit.add_argument(
+        "--preflight",
+        type=Path,
+        default=_repository_root()
+        / "data"
+        / "resolved"
+        / "fullspace_sigma_preopt_preflight.json",
+    )
+    sigma_submit.add_argument(
+        "--submissions-root",
+        type=Path,
+        default=_repository_root() / "runs" / "hpc" / "submissions",
+    )
+    sigma_submit.add_argument(
+        "--accounting",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "accounting.csv",
+    )
+    sigma_submit.add_argument(
+        "--ledger",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "submission_ledger.csv",
+    )
+    sigma_submit.add_argument(
+        "--runner",
+        type=Path,
+        default=_repository_root() / "hpc" / "run_sigma_preopt_budgeted.sh",
+    )
+    sigma_submit.add_argument("--queue", default="amd16smt")
+    sigma_submit.add_argument("--max-concurrent", type=int, default=20)
+    sigma_submit.add_argument(
+        "--budget-scope", choices=("first_round", "whole_project"), default="first_round"
+    )
+    sigma_submit.add_argument("--execute", action="store_true")
+    sigma_submit.set_defaults(handler=_run_submit_fullspace_sigma)
+
     train = subparsers.add_parser(
         "train", help="train the five-seed frozen-head plus online-LoRA ensemble"
     )
@@ -884,6 +975,7 @@ def build_parser() -> argparse.ArgumentParser:
             "assemble-labels",
             "extract-base-features",
             "submit-features",
+            "submit-fullspace-sigma",
             "train",
             "evaluate",
             "infer-fullspace",

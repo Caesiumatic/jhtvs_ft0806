@@ -213,6 +213,18 @@ def _output_complete(task: Mapping[str, str], repository_root: Path) -> bool:
             and receipt.get("method_id") == task["method_id"]
             and receipt.get("missing") == 0
         )
+    if task["job_class"] == "sigma_preopt":
+        try:
+            rows = read_csv_rows(output)
+        except (OSError, ValueError):
+            return False
+        return (
+            len(rows) == 1
+            and rows[0].get("task_id") == task["job_id"]
+            and rows[0].get("source_xyz_sha256") == task["input_sha256"]
+            and rows[0].get("charge") == "2"
+            and rows[0].get("uhf") == "0"
+        )
     text = output.read_text(encoding="utf-8", errors="replace")
     return (
         f"# job_id: {task['job_id']}\n" in text
