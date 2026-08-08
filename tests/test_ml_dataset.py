@@ -26,12 +26,13 @@ def _write(path: Path, rows: list[dict[str, object]]) -> None:
 
 def _feature_rows(tmp_path: Path) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
+    base_energies = (0.0, 2.0, 2.0, 3.0, 4.0, 5.0)
     for index, state_id in enumerate(("R0", "R1", "MPLUS", "DPLUS2", "V0", "V1")):
         path = tmp_path / f"{state_id}.npz"
         np.savez(
             path,
             feature_vector=np.asarray([index, index + 1, index + 2.0]),
-            base_energy_eV=np.asarray(float(index)),
+            base_energy_eV=np.asarray(base_energies[index]),
         )
         rows.append(
             {
@@ -41,7 +42,7 @@ def _feature_rows(tmp_path: Path) -> list[dict[str, object]]:
                 "feature_cache_key": chr(97 + index) * 64,
                 "feature_path": str(path),
                 "feature_sha256": sha256_file(path),
-                "E_base_MACE_eV": str(float(index)),
+                "E_base_MACE_eV": str(base_energies[index]),
             }
         )
     return rows
@@ -88,7 +89,7 @@ def test_dataset_uses_train_only_normalization_and_frozen_masks(tmp_path: Path) 
                 "solvent_id": "S001",
                 "split": "val",
                 "stoichiometry": "V0:-1;V1:+1",
-                "deltaE_base_MACE_rxn_eV": "99.0",
+                "deltaE_base_MACE_rxn_eV": "1.0",
                 "sp_residual_eV": "999.0",
                 "qc_status": "clean",
             },

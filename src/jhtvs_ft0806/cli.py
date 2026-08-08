@@ -270,6 +270,29 @@ def _run_extract_base_features(args: argparse.Namespace) -> int:
     return 1 if args.require_complete and summary.missing else 0
 
 
+def _run_train(args: argparse.Namespace) -> int:
+    from jhtvs_ft0806.ml.training import train_ensemble
+
+    summary = train_ensemble(
+        repository_root=_repository_root(),
+        spec_dir=args.spec_dir,
+        geometry_index_path=args.geometry_index,
+        reaction_sp_path=args.reaction_sp,
+        reaction_final_path=args.reaction_final,
+        feature_index_path=args.feature_index,
+        artifact_dir=args.artifact_dir,
+        manifest_path=args.manifest,
+        device=args.device,
+        max_lora_epochs=args.max_lora_epochs,
+        online_batch_size=args.online_batch_size,
+    )
+    sys.stdout.write(
+        json.dumps(summary.to_dict(), ensure_ascii=False, sort_keys=True, indent=2)
+        + "\n"
+    )
+    return 0 if summary.member_count == 5 else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="jhtvs-ft0806")
     parser.add_argument("--version", action="version", version=__version__)
@@ -524,6 +547,45 @@ def build_parser() -> argparse.ArgumentParser:
     features.add_argument("--require-complete", action="store_true")
     features.set_defaults(handler=_run_extract_base_features)
 
+    train = subparsers.add_parser(
+        "train", help="train the five-seed frozen-head plus online-LoRA ensemble"
+    )
+    train.add_argument("--spec-dir", type=Path, default=_repository_root() / "spec")
+    train.add_argument(
+        "--geometry-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "geometry_index.csv",
+    )
+    train.add_argument(
+        "--reaction-sp",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "reaction_sp_labels.csv",
+    )
+    train.add_argument(
+        "--reaction-final",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "reaction_final_labels.csv",
+    )
+    train.add_argument(
+        "--feature-index",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "base_feature_index.csv",
+    )
+    train.add_argument(
+        "--artifact-dir",
+        type=Path,
+        default=_repository_root() / "artifacts" / "models",
+    )
+    train.add_argument(
+        "--manifest",
+        type=Path,
+        default=_repository_root() / "data" / "resolved" / "model_training_manifest.json",
+    )
+    train.add_argument("--device", default="cpu")
+    train.add_argument("--max-lora-epochs", type=int, default=300)
+    train.add_argument("--online-batch-size", type=int, default=4)
+    train.set_defaults(handler=_run_train)
+
     for command in COMMANDS[2:]:
         if command in {
             "build-decks",
@@ -534,6 +596,7 @@ def build_parser() -> argparse.ArgumentParser:
             "parse-results",
             "assemble-labels",
             "extract-base-features",
+            "train",
         }:
             continue
         subparser = subparsers.add_parser(command)

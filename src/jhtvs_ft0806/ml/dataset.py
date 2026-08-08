@@ -240,6 +240,16 @@ def build_reaction_dataset(
         baseline = _float(sp["deltaE_base_MACE_rxn_eV"])
         if baseline is None:
             raise DatasetError(f"{sp['reaction_id']}: immutable MACE baseline missing")
+        state_baseline = sum(
+            state.coefficient * state.base_energy_eV for state in terms
+        )
+        if not math.isclose(
+            baseline, state_baseline, rel_tol=0.0, abs_tol=5e-10
+        ):
+            raise DatasetError(
+                f"{sp['reaction_id']}/{sp['solvent_id']}: reaction baseline differs "
+                "from the immutable state-energy aggregation"
+            )
         final = final_by_key.get((sp["reaction_id"], sp["solvent_id"]))
         sp_value = _float(sp["sp_residual_eV"])
         sp_mask = sp["qc_status"] == "clean" and sp_value is not None
@@ -327,9 +337,19 @@ def build_reaction_dataset(
             "solvent_id": example.solvent_id,
             "split": example.split,
             "state_cache_keys": [state.feature_cache_key for state in example.states],
+            "stoichiometric_coefficients": [
+                state.coefficient for state in example.states
+            ],
+            "immutable_baseline_eV": example.deltaE_base_MACE_rxn_eV,
+            "sp_residual_eV": example.sp_residual_eV,
+            "rt_correction_eV": example.rt_correction_eV,
+            "final_residual_eV": example.final_residual_eV,
             "sp_mask": example.sp_mask,
             "rt_mask": example.rt_mask,
             "final_mask": example.final_mask,
+            "row_weight": example.row_weight,
+            "qc_status_sp": example.qc_status_sp,
+            "qc_status_final": example.qc_status_final,
         }
         for example in examples
     ]
