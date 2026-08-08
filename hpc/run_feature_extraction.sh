@@ -63,7 +63,13 @@ import os
 from pathlib import Path
 
 summary_path = Path(os.environ["SUMMARY"])
-summary = json.loads(summary_path.read_text())
+summary_text = summary_path.read_text()
+json_start = summary_text.find("{")
+if json_start < 0:
+    raise SystemExit("feature extraction summary has no JSON payload")
+summary, remainder_index = json.JSONDecoder().raw_decode(summary_text[json_start:])
+if summary_text[json_start + remainder_index :].strip():
+    raise SystemExit("feature extraction summary has unexpected trailing output")
 if summary.get("status") != "PASS" or summary.get("total") != 705:
     raise SystemExit("feature extraction summary is incomplete")
 root = Path.cwd()
