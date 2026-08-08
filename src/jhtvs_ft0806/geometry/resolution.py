@@ -13,7 +13,6 @@ from rdkit import Chem
 
 from jhtvs_ft0806.geometry.sigma import (
     N_CONFORMERS,
-    SigmaComplex,
     SigmaTopology,
     build_sigma_complex,
     load_sigma_topologies,
@@ -479,6 +478,7 @@ def prepare_and_resolve_sigma_requests(
     spec_dir: Path,
     run_dir: Path,
     n_conformers: int = N_CONFORMERS,
+    reuse_existing_inputs: bool = False,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     topology_by_state = {
         topology.sigma_state_id: topology
@@ -490,7 +490,7 @@ def prepare_and_resolve_sigma_requests(
     }
     monomer_sha256 = sha256_file(spec_dir / "source_fullspace_monomers.csv")
     repository_root = spec_dir.parent
-    built_by_state: dict[str, SigmaComplex] = {}
+    prepared_states: set[str] = set()
     manifest: list[dict[str, object]] = []
     results: list[dict[str, object]] = []
 
@@ -503,14 +503,18 @@ def prepare_and_resolve_sigma_requests(
             raise GeometryResolutionError(
                 f"{request.geometry_key}: sigma topology or solvent row is missing"
             )
-        sigma = built_by_state.get(request.state_id)
-        if sigma is None:
-            sigma = build_sigma_complex(topology, n_conformers=n_conformers)
-            built_by_state[request.state_id] = sigma
-            raw_path = _sigma_raw_path(run_dir, request.state_id)
-            raw_path.parent.mkdir(parents=True, exist_ok=True)
-            raw_path.write_text(sigma.xyz_text(), encoding="utf-8")
         raw_path = _sigma_raw_path(run_dir, request.state_id)
+        if request.state_id not in prepared_states:
+            if reuse_existing_inputs:
+                if not raw_path.is_file():
+                    raise GeometryResolutionError(
+                        f"{request.geometry_key}: reusable sigma input is missing: {raw_path}"
+                    )
+            else:
+                sigma = build_sigma_complex(topology, n_conformers=n_conformers)
+                raw_path.parent.mkdir(parents=True, exist_ok=True)
+                raw_path.write_text(sigma.xyz_text(), encoding="utf-8")
+            prepared_states.add(request.state_id)
         raw_sha256 = sha256_file(raw_path)
         output_dir = _sigma_output_dir(
             run_dir, request.state_id, request.solvent_id
@@ -775,6 +779,7 @@ def resolve_geometries(
     index_path: Path,
     n_conformers: int = N_CONFORMERS,
     include_fullspace_inference: bool = False,
+    reuse_existing_sigma_inputs: bool = False,
 ) -> GeometryResolutionSummary:
     requests = geometry_requests(
         spec_dir, include_fullspace_inference=include_fullspace_inference
@@ -791,6 +796,7 @@ def resolve_geometries(
         spec_dir=spec_dir,
         run_dir=run_dir,
         n_conformers=n_conformers,
+        reuse_existing_inputs=reuse_existing_sigma_inputs,
     )
     preflight = validate_sigma_preopt_files(
         spec_dir=spec_dir,

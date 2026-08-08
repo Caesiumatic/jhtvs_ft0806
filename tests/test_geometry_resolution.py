@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from rdkit import Chem
 
 from jhtvs_ft0806.geometry.resolution import (
@@ -175,6 +176,38 @@ def test_sigma_preopt_manifest_uses_frozen_charge_spin_epsilon_and_indices(
     )
     assert (tmp_path / str(manifest[0]["source_xyz"])).is_file()
     assert len((tmp_path / "sigma_preopt_array.tsv").read_text().splitlines()) == 1
+
+
+def test_sigma_collection_reuses_existing_raw_input_without_rebuilding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = next(
+        request
+        for request in geometry_requests(SPEC_DIR)
+        if request.state_id == "D001_QP2_M1" and request.solvent_id == "S001"
+    )
+    _rows, original_manifest = prepare_and_resolve_sigma_requests(
+        [request], spec_dir=SPEC_DIR, run_dir=tmp_path, n_conformers=2
+    )
+    raw_path = tmp_path / str(original_manifest[0]["source_xyz"])
+    original_sha = sha256_file(raw_path)
+
+    def fail_if_rebuilt(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("sigma input was rebuilt during collection")
+
+    monkeypatch.setattr(
+        "jhtvs_ft0806.geometry.resolution.build_sigma_complex", fail_if_rebuilt
+    )
+    rows, collected_manifest = prepare_and_resolve_sigma_requests(
+        [request],
+        spec_dir=SPEC_DIR,
+        run_dir=tmp_path,
+        reuse_existing_inputs=True,
+    )
+
+    assert rows[0]["status"] == "pending"
+    assert sha256_file(raw_path) == original_sha
+    assert collected_manifest == original_manifest
 
 
 def test_sigma_connectivity_qc_uses_authored_graph_and_detects_broken_junction(

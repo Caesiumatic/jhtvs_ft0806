@@ -108,6 +108,7 @@ def _run_resolve_geometries(args: argparse.Namespace) -> int:
         index_path=args.index,
         n_conformers=args.n_conformers,
         include_fullspace_inference=args.include_fullspace_inference,
+        reuse_existing_sigma_inputs=args.reuse_existing_sigma_inputs,
     )
     sys.stdout.write(json.dumps(summary.to_dict(), sort_keys=True, indent=2) + "\n")
     logging.getLogger(__name__).info(
@@ -468,6 +469,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--include-fullspace-inference",
         action="store_true",
         help="resolve all 8100 state-medium graphs required for 5300-row inference",
+    )
+    resolve.add_argument(
+        "--reuse-existing-sigma-inputs",
+        action="store_true",
+        help="collect/QC existing sigma xTB outputs without rebuilding raw conformers",
     )
     resolve.add_argument("--require-complete", action="store_true")
     resolve.set_defaults(handler=_run_resolve_geometries)
