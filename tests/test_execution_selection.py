@@ -151,3 +151,25 @@ def test_remaining_production_sp_wave_excludes_all_exact_reuse_jobs() -> None:
         (Decimal(row["planning_core_h"]) for row in rows if row["job_id"] in selected),
         Decimal("0"),
     ) == Decimal("1535.44")
+
+
+def test_remaining_production_optfreq_wave_excludes_pilot_tuple() -> None:
+    selected = selected_ids_from_file(
+        ROOT / "config" / "production_optfreq_remaining_job_ids.txt"
+    )
+    pilot = selected_ids_from_file(
+        ROOT / "config" / "optfreq_reaction_pilot_job_ids.txt"
+    )
+    rows = read_csv_rows(ROOT / "spec" / "optfreq_job_manifest.csv")
+    all_ids = {row["job_id"] for row in rows}
+
+    assert pilot == {"OF040", "OF041"}
+    assert selected == all_ids - pilot
+    assert len(selected) == 78
+    assert {
+        row["method_id"] for row in rows if row["job_id"] in selected
+    } == {"T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_v4"}
+    assert sum(
+        (Decimal(row["planning_core_h"]) for row in rows if row["job_id"] in selected),
+        Decimal("0"),
+    ) == Decimal("2239.56")
