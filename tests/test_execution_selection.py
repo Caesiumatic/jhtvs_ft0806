@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 
 from jhtvs_ft0806.hpc.submission import selected_ids_from_file
@@ -125,3 +126,28 @@ def test_optfreq_pilot_is_one_complete_s007_reaction_tuple() -> None:
         for row in selected_rows
     )
     assert sum(float(row["planning_core_h"]) for row in selected_rows) == 49.64
+
+
+def test_remaining_production_sp_wave_excludes_all_exact_reuse_jobs() -> None:
+    selected = selected_ids_from_file(
+        ROOT / "config" / "production_sp_remaining_job_ids.txt"
+    )
+    echo = selected_ids_from_file(ROOT / "config" / "echo_sp_pilot_job_ids.txt")
+    pilot = selected_ids_from_file(
+        ROOT / "config" / "state_class_sp_pilot_job_ids.txt"
+    )
+    rows = read_csv_rows(ROOT / "spec" / "sp_job_manifest.csv")
+    all_ids = {row["job_id"] for row in rows}
+
+    assert len(echo) == 25
+    assert len(pilot) == 10
+    assert not echo & pilot
+    assert selected == all_ids - echo - pilot
+    assert len(selected) == 700
+    assert Counter(
+        row["job_class"] for row in rows if row["job_id"] in selected
+    ) == Counter({"smd_energy_sp": 670, "diagnostic_gas_sp": 30})
+    assert sum(
+        (Decimal(row["planning_core_h"]) for row in rows if row["job_id"] in selected),
+        Decimal("0"),
+    ) == Decimal("1535.44")
