@@ -147,6 +147,31 @@ def test_collect_accounting_uses_qacct_slots_wallclock_and_is_idempotent(
     assert read_csv_rows(ledger)[0]["status"] == "complete"
     status = submission_status(repository_root=root, ledger_path=ledger)
     assert status["logical_job_counts"] == {"complete": 1}
+    assert status["missing_task_tables"] == 0
+    assert status["submission_details"][0]["task_table_available"] is True
+
+
+def test_submission_status_reports_cluster_local_task_tables_as_unavailable(
+    tmp_path: Path,
+) -> None:
+    root, ledger, _, _ = _accounting_fixture(tmp_path)
+    task_table = root / "runs" / "hpc" / "submissions" / "fixture" / "tasks.tsv"
+    task_table.unlink()
+
+    status = submission_status(repository_root=root, ledger_path=ledger)
+
+    assert status["status"] == "PARTIAL"
+    assert status["missing_task_tables"] == 1
+    assert status["logical_job_counts"] == {"unavailable_local": 1}
+    assert status["submission_details"] == [
+        {
+            "submission_id": "fixture",
+            "scheduler_job_id": "12345",
+            "ledger_status": "submitted",
+            "task_table_available": False,
+            "logical_job_counts": {"unavailable_local": 1},
+        }
+    ]
 
 
 def test_collect_accounting_accepts_lop_duration_suffixes(

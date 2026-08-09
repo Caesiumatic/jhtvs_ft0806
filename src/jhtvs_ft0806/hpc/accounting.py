@@ -543,12 +543,25 @@ def submission_status(
     ledger_rows = read_csv_rows(ledger_path)
     job_counts: Counter[str] = Counter()
     submissions: list[dict[str, object]] = []
+    missing_task_tables = 0
     for ledger_row in ledger_rows:
         task_table_path = _resolve_repository_path(
             ledger_row["task_table_path"], repository_root
         )
         if not task_table_path.is_file():
-            raise AccountingError(f"missing task table: {task_table_path}")
+            unavailable_jobs = int(ledger_row["job_count"])
+            missing_task_tables += 1
+            job_counts["unavailable_local"] += unavailable_jobs
+            submissions.append(
+                {
+                    "submission_id": ledger_row["submission_id"],
+                    "scheduler_job_id": ledger_row["scheduler_job_id"],
+                    "ledger_status": ledger_row["status"],
+                    "task_table_available": False,
+                    "logical_job_counts": {"unavailable_local": unavailable_jobs},
+                }
+            )
+            continue
         if sha256_file(task_table_path) != ledger_row["task_table_sha256"]:
             raise AccountingError(f"task table hash mismatch: {task_table_path}")
         local_counts: Counter[str] = Counter()
@@ -568,12 +581,14 @@ def submission_status(
                 "submission_id": ledger_row["submission_id"],
                 "scheduler_job_id": ledger_row["scheduler_job_id"],
                 "ledger_status": ledger_row["status"],
+                "task_table_available": True,
                 "logical_job_counts": dict(sorted(local_counts.items())),
             }
         )
     return {
-        "status": "PASS",
+        "status": "PARTIAL" if missing_task_tables else "PASS",
         "submissions": len(ledger_rows),
+        "missing_task_tables": missing_task_tables,
         "logical_job_counts": dict(sorted(job_counts.items())),
         "submission_details": submissions,
     }
