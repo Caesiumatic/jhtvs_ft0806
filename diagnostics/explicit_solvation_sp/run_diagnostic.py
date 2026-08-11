@@ -161,6 +161,11 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     )
 
 
+def _write_generated_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
 def _source_rows() -> dict[str, dict[str, str]]:
     rows = read_csv_rows(SOURCE_PROVENANCE_PATH)
     by_name = {row["name"]: row for row in rows}
@@ -997,7 +1002,7 @@ def _write_report(summary: list[dict[str, Any]], qc: Mapping[str, Any]) -> None:
             "",
         ]
     )
-    _write_exact(DIAGNOSTIC_ROOT / "REPORT.md", "\n".join(lines))
+    _write_generated_text(DIAGNOSTIC_ROOT / "REPORT.md", "\n".join(lines))
 
 
 def prepare(*, source_root: Path | None, packmol: str) -> dict[str, Any]:

@@ -74,6 +74,26 @@ def test_gap_preserves_decimal_raw_energy_arithmetic() -> None:
     assert DIAGNOSTIC._gap(energies) == Decimal("7.26730100996")  # noqa: SLF001
 
 
+def test_report_can_be_regenerated(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(DIAGNOSTIC, "DIAGNOSTIC_ROOT", tmp_path)
+    summary = [
+        {
+            "system": "example",
+            "deltaE_ORCA_R5_eV": "1.000000000000",
+            "deltaE_MACE_R5_eV": "1.100000000000",
+            "MACE_minus_ORCA_R5_eV": "0.100000000000",
+            "deltaE_MACE_R50_eV": "0.900000000000",
+            "MACE_R50_minus_R5_eV": "-0.200000000000",
+        }
+    ]
+
+    DIAGNOSTIC._write_report(summary, {"status": "PASS"})  # noqa: SLF001
+    summary[0]["deltaE_MACE_R5_eV"] = "1.200000000000"
+    DIAGNOSTIC._write_report(summary, {"status": "PASS"})  # noqa: SLF001
+
+    assert "1.200000000000" in (tmp_path / "REPORT.md").read_text(encoding="utf-8")
+
+
 def test_orca_runner_accepts_only_the_isolated_diagnostic_path_extension() -> None:
     runner = (REPOSITORY_ROOT / "hpc" / "run_orca.sh").read_text(encoding="utf-8")
 
