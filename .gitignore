@@ -16,5 +16,8 @@ diagnostics/explicit_solvation_sp/orca/jobs/**/*.out
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.gbw
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.tmp
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.densities
+diagnostics/explicit_solvation_sp/orca/jobs/**/*.densitiesinfo
+diagnostics/explicit_solvation_sp/orca/jobs/**/*.bibtex
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.property.txt
+diagnostics/explicit_solvation_sp/orca/scheduler_logs/
 diagnostics/explicit_solvation_sp/mace/sge*.log

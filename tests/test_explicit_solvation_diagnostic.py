@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+from decimal import Decimal
 from pathlib import Path
 
 from jhtvs_ft0806.geometry.xyz import XYZAtom
@@ -62,6 +63,15 @@ def test_minimum_distance_ignores_intramolecular_contacts() -> None:
     )
 
     assert observed == 2.3
+
+
+def test_gap_preserves_decimal_raw_energy_arithmetic() -> None:
+    energies = {
+        0: Decimal("-145621.8922604527"),
+        1: Decimal("-145614.62495944274"),
+    }
+
+    assert DIAGNOSTIC._gap(energies) == Decimal("7.26730100996")  # noqa: SLF001
 
 
 def test_orca_runner_accepts_only_the_isolated_diagnostic_path_extension() -> None:

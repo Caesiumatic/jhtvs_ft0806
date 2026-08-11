@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict
 from datetime import UTC, datetime
+from decimal import Decimal
 import json
 import math
 import os
@@ -38,6 +39,7 @@ WORKFLOW_REVISION = "jhtvs-ft0806-explicit-solvation-sp-v1"
 ORCA_METHOD_ID = "T2_wB97M-V_def2-TZVPD_explicit_cluster_gas_SPE_v1"
 MACE_METHOD_ID = "MACE_POLAR_1_L_explicit_cluster_SPE_v1"
 PACKMOL_SUCCESS = "Success!"
+HARTREE_TO_EV_DECIMAL = Decimal(str(HARTREE_TO_EV))
 
 CLUSTER_FIELDS = (
     "system",
@@ -645,11 +647,15 @@ def run_mace(*, checkpoint: str, device: str) -> dict[str, Any]:
                     "status": "clean",
                 }
             )
+    checkpoint_provenance = asdict(backend.provenance)
+    checkpoint_provenance["checkpoint_path"] = Path(
+        checkpoint_provenance["checkpoint_path"]
+    ).name
     payload = {
         "status": "PASS",
         "workflow_revision": WORKFLOW_REVISION,
         "method_id": MACE_METHOD_ID,
-        "checkpoint": asdict(backend.provenance),
+        "checkpoint": checkpoint_provenance,
         "execution": {
             "completed_at_utc": datetime.now(UTC).isoformat(),
             "hostname": platform.node(),
@@ -744,7 +750,7 @@ def _parse_orca_results() -> list[dict[str, Any]]:
     return parsed
 
 
-def _gap(energies: Mapping[int, float]) -> float:
+def _gap(energies: Mapping[int, Decimal]) -> Decimal:
     if set(energies) != {0, 1}:
         raise DiagnosticError(f"charge-state energy pair incomplete: {sorted(energies)}")
     return energies[1] - energies[0]
@@ -752,15 +758,17 @@ def _gap(energies: Mapping[int, float]) -> float:
 
 def collect_results() -> dict[str, Any]:
     orca_results = _parse_orca_results()
-    mace_payload = json.loads(MACE_RESULTS_PATH.read_text(encoding="utf-8"))
+    mace_payload = json.loads(
+        MACE_RESULTS_PATH.read_text(encoding="utf-8"), parse_float=Decimal
+    )
     if mace_payload.get("status") != "PASS":
         raise DiagnosticError("MACE result status is not PASS")
 
     comparison: list[dict[str, Any]] = []
-    orca_groups: dict[str, dict[int, float]] = {}
+    orca_groups: dict[str, dict[int, Decimal]] = {}
     for row in orca_results:
-        energy_eh = float(row["final_energy_Eh"])
-        energy_ev = energy_eh * HARTREE_TO_EV
+        energy_eh = Decimal(row["final_energy_Eh"])
+        energy_ev = energy_eh * HARTREE_TO_EV_DECIMAL
         orca_groups.setdefault(row["system"], {})[int(row["formal_charge"])] = energy_ev
         comparison.append(
             {
@@ -779,10 +787,10 @@ def collect_results() -> dict[str, Any]:
                 "deltaE_vertical_eV": "",
             }
         )
-    mace_groups: dict[tuple[str, int], dict[int, float]] = {}
+    mace_groups: dict[tuple[str, int], dict[int, Decimal]] = {}
     for row in mace_payload["results"]:
         key = (row["system"], int(row["n_solvent"]))
-        energy_ev = float(row["energy_raw"])
+        energy_ev = Decimal(row["energy_raw"])
         mace_groups.setdefault(key, {})[int(row["formal_charge"])] = energy_ev
         comparison.append(
             {
@@ -801,7 +809,7 @@ def collect_results() -> dict[str, Any]:
                 "deltaE_vertical_eV": "",
             }
         )
-    gaps: dict[tuple[str, str, int], float] = {}
+    gaps: dict[tuple[str, str, int], Decimal] = {}
     for system, values in orca_groups.items():
         gaps[(system, "ORCA_6.1_wB97M-V_def2-TZVPD", 5)] = _gap(values)
     for (system, n_solvent), values in mace_groups.items():
@@ -932,21 +940,15 @@ def validate_complete(
     if len(summary) != 2 or len(comparison) != 12:
         issues.append("comparison row count mismatch")
     for row in summary:
-        orca = float(row["deltaE_ORCA_R5_eV"])
-        mace5 = float(row["deltaE_MACE_R5_eV"])
-        mace50 = float(row["deltaE_MACE_R50_eV"])
-        if not math.isclose(
-            float(row["MACE_minus_ORCA_R5_eV"]),
-            mace5 - orca,
-            rel_tol=0.0,
-            abs_tol=2e-12,
+        orca = Decimal(row["deltaE_ORCA_R5_eV"])
+        mace5 = Decimal(row["deltaE_MACE_R5_eV"])
+        mace50 = Decimal(row["deltaE_MACE_R50_eV"])
+        if abs(Decimal(row["MACE_minus_ORCA_R5_eV"]) - (mace5 - orca)) > Decimal(
+            "2e-12"
         ):
             issues.append(f"matched-model arithmetic mismatch: {row['system']}")
-        if not math.isclose(
-            float(row["MACE_R50_minus_R5_eV"]),
-            mace50 - mace5,
-            rel_tol=0.0,
-            abs_tol=2e-12,
+        if abs(Decimal(row["MACE_R50_minus_R5_eV"]) - (mace50 - mace5)) > Decimal(
+            "2e-12"
         ):
             issues.append(f"size-shift arithmetic mismatch: {row['system']}")
     report = {

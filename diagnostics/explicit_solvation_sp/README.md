@@ -43,4 +43,4 @@ On Lop, the prepared ORCA task table is submitted with the repository `hpc/run_o
 PYTHONPATH=src python diagnostics/explicit_solvation_sp/run_diagnostic.py collect
 ```
 
-`cluster_manifest.csv`, `orca/job_manifest.csv`, `comparison.csv`, `summary.csv`, `qc.json`, and `REPORT.md` are the acceptance artifacts. Large ORCA outputs and scratch files remain untracked; `orca/raw_results.json` retains their stable paths, SHA-256 values, raw Hartree energies, and QC.
+`cluster_manifest.csv`, `orca/job_manifest.csv`, `comparison.csv`, `summary.csv`, `qc.json`, `execution_status.json`, and `REPORT.md` are the acceptance artifacts. Large ORCA outputs and scratch files remain untracked; `orca/raw_results.json` retains their stable paths, SHA-256 values, raw Hartree energies, and QC. MACE provenance records the checkpoint filename and SHA-256 without embedding a host-specific cache path.
