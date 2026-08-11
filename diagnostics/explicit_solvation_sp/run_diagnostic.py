@@ -875,7 +875,18 @@ def validate_prepared() -> dict[str, Any]:
             )
             if not all(marker in text for marker in required):
                 issues.append(f"ORCA method/resource marker missing: {row['job_id']}")
-            if any(token.lower() in text.lower() for token in ("smd", "cpcm", " opt", " freq")):
+            lower = text.lower()
+            method_lines = [line.lower().split() for line in text.splitlines() if line.startswith("!")]
+            contains_continuum = any(
+                marker in lower
+                for marker in ("%cpcm", "smdsolvent", "! smd(", "! cpcm(")
+            )
+            contains_non_spe_task = any(
+                token in {"opt", "freq"}
+                for tokens in method_lines
+                for token in tokens
+            )
+            if contains_continuum or contains_non_spe_task:
                 issues.append(f"ORCA deck is not gas SPE: {row['job_id']}")
     report = {
         "status": "PASS" if not issues else "FAIL",

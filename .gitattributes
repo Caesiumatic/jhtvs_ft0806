@@ -1,2 +1,4 @@
 /AGENTS.md -text
 /spec/** -text
+/diagnostics/explicit_solvation_sp/clusters/*.xyz -whitespace
+/diagnostics/explicit_solvation_sp/packmol/*.log -whitespace

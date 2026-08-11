@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "cluster_count": 4,
+    "cluster_statuses": [
+      "clean"
+    ],
+    "orca_job_count": 4
+  },
+  "issues": [],
+  "status": "PASS",
+  "workflow_revision": "jhtvs-ft0806-explicit-solvation-sp-v1"
+}

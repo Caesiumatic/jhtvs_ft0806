@@ -1,0 +1,150 @@
+
+################################################################################
+
+ PACKMOL - Packing optimization for the automated generation of
+ starting configurations for molecular dynamics simulations.
+ 
+                                                             Version 21.2.3 
+
+################################################################################
+
+  Packmol must be run with: packmol < inputfile.inp 
+
+  Userguide at: http://m3g.iqm.unicamp.br/packmol 
+
+  Reading input file... (Control-C aborts)
+  Types of coordinate files specified: xyz
+  Seed for random number generator:       814205
+  Output file: clusters/dmso_dichloromethane_R5.xyz
+  Reading coordinate file: source_geometries/dmso.xyz
+  Reading coordinate file: source_geometries/dichloromethane.xyz
+  Number of independent structures:            2
+  The structures are: 
+  Structure            1 :tier2-directive-jojo-v4; ORCA geometry archive(          10  atoms)
+  Structure            2 :tier2-directive-jojo-v4; ORCA geometry archive(           5  atoms)
+  Maximum number of GENCAN loops for all molecule packing:          400
+  Distance tolerance:    2.0000000000000000     
+  Number of molecules of type            1 :            1
+  Number of molecules of type            2 :            5
+  Total number of restrictions:            2
+  Total number of atoms:           35
+  Molecule tier2-directive-jojo-v4; ORCA geometry archive(           1 ) will be fixed.
+  Total number of molecules:            6
+  Number of fixed molecules:            1
+  Number of free molecules:            5
+  Number of variables:           30
+  Total number of fixed atoms:           10
+  Maximum internal distance of type            1 :    2.9360942384554867     
+  All atoms must be within these coordinates: 
+   x: [   -1000.0000000000000      ,    1000.0000000000000       ] 
+   y: [   -1000.0000000000000      ,    1000.0000000000000       ] 
+   z: [   -1000.0000000000000      ,    1000.0000000000000       ] 
+  If the system is larger than this, increase the sidemax parameter. 
+
+################################################################################
+
+  Building initial approximation ... 
+
+################################################################################
+
+  Adjusting initial point to fit the constraints 
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+  Molecules of type:            2
+
+  Packing:|0                                                        100%|
+          |*********************
+
+  Restraint-only function value:    0.0000000000000000     
+  Maximum violation of the restraints:    0.0000000000000000     
+
+--------------------------------------------------------------------------------
+
+  Rescaling maximum and minimum coordinates... 
+  Minimum and maximum coordinates after constraint fitting: 
+   x: [   -5.7884723630043524      ,    5.7706635815562581       ] 
+   y: [   -5.7959778127263375      ,    5.7168889108525311       ] 
+   z: [   -5.7663754923505541      ,    5.7105962226961706       ] 
+  Computing size of patches... 
+  Number of cells in each direction and cell sides: 
+   x:            7  cells of size    2.2798765635086586     
+   y:            7  cells of size    2.2732666747969814     
+   z:            7  cells of size    2.2681388164352465     
+  Cell-system length:   15.95914  15.91287  15.87697
+  Add fixed molecules to permanent arrays... 
+  Reseting center of mass... 
+
+--------------------------------------------------------------------------------
+
+  Setting initial trial coordinates ... 
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+  Molecules of type:            2
+  Adjusting random positions to fit the constraints. 
+  Packing:|0                                                        100%|
+          |***
+  Restraint-only function value:    0.0000000000000000     
+  Maximum violation of the restraints:    0.0000000000000000     
+
+################################################################################
+
+  Objective function at initial point:    0.0000000000000000     
+
+################################################################################
+
+  Packing molecules of type:            2
+
+################################################################################
+
+
+  Initial approximation is a solution. Nothing to do. 
+
+  Current point written to file: clusters/dmso_dichloromethane_R5.xyz
+--------------------------------------------------------------------------------
+  Packing solved for molecules of type           2
+  Objective function value:    1.4961308677061263E-002
+  Maximum violation of target distance:    0.0000000000000000     
+  Max. constraint violation:    0.0000000000000000     
+--------------------------------------------------------------------------------
+
+################################################################################
+
+  Packing all molecules together 
+
+################################################################################
+
+
+  Initial approximation is a solution. Nothing to do. 
+
+  Solution written to file: clusters/dmso_dichloromethane_R5.xyz
+
+################################################################################
+
+                                 Success! 
+              Final objective function value: .14961E-01
+              Maximum violation of target distance:   0.000000
+              Maximum violation of the constraints: .00000E+00
+
+--------------------------------------------------------------------------------
+
+              Please cite this work if Packmol was useful: 
+
+           L. Martinez, R. Andrade, E. G. Birgin, J. M. Martinez, 
+         PACKMOL: A package for building initial configurations for
+                   molecular dynamics simulations. 
+        Journal of Computational Chemistry, 30(13) pp. 2157-2164, 2009.
+                  https://doi.org/10.1002/jcc.21224
+
+################################################################################
+
+   Running time:    8.34000297E-04  seconds. 
+
+--------------------------------------------------------------------------------
+
+

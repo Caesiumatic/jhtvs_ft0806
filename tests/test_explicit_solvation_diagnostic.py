@@ -72,3 +72,14 @@ def test_orca_runner_accepts_only_the_isolated_diagnostic_path_extension() -> No
         in runner
     )
     assert "diagnostics/explicit_solvation_sp/orca/jobs/*/*.out" in runner
+
+
+def test_prepared_artifacts_pass_method_geometry_and_cluster_qc() -> None:
+    if not DIAGNOSTIC.CLUSTER_MANIFEST_PATH.is_file():
+        return
+
+    report = DIAGNOSTIC.validate_prepared()
+
+    assert report["status"] == "PASS"
+    assert report["checks"]["cluster_count"] == 4
+    assert report["checks"]["orca_job_count"] == 4
