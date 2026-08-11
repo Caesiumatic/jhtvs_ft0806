@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/thiophene_acetonitrile_R5.xyz
+seed 814105
+
+structure source_geometries/thiophene.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/acetonitrile.xyz
+  number 5
+  inside box -5.650 -5.650 -5.650 5.650 5.650 5.650
+end structure

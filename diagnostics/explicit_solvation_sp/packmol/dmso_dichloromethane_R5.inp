@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/dmso_dichloromethane_R5.xyz
+seed 814205
+
+structure source_geometries/dmso.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/dichloromethane.xyz
+  number 5
+  inside box -5.800 -5.800 -5.800 5.800 5.800 5.800
+end structure

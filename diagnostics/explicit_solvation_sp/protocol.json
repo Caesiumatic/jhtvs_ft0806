@@ -1,0 +1,59 @@
+{
+  "schema": "jhtvs-ft0806-explicit-solvation-sp-v1",
+  "purpose": "fixed-geometry vertical oxidation SPE diagnostic",
+  "packmol": {
+    "tolerance_angstrom": 2.0,
+    "region": "centered cubic all-atom containment box",
+    "density_basis": {
+      "acetonitrile_molecular_volume_A3": 86.73,
+      "dichloromethane_molecular_volume_A3": 106.36,
+      "thiophene_effective_volume_A3": 132.9,
+      "dmso_effective_volume_A3": 118.5,
+      "box_rule": "cube-root of liquid molecular volumes plus one solvent molecular span"
+    }
+  },
+  "systems": [
+    {
+      "system": "thiophene_acetonitrile",
+      "solute": "thiophene",
+      "solvent": "acetonitrile",
+      "clusters": [
+        {"n_solvent": 5, "box_side_A": 11.3, "seed": 814105},
+        {"n_solvent": 50, "box_side_A": 19.5, "seed": 814150}
+      ]
+    },
+    {
+      "system": "dmso_dichloromethane",
+      "solute": "dmso",
+      "solvent": "dichloromethane",
+      "clusters": [
+        {"n_solvent": 5, "box_side_A": 11.6, "seed": 814205},
+        {"n_solvent": 50, "box_side_A": 20.5, "seed": 814250}
+      ]
+    }
+  ],
+  "states": [
+    {"formal_charge": 0, "multiplicity": 1},
+    {"formal_charge": 1, "multiplicity": 2}
+  ],
+  "orca": {
+    "version": "6.1",
+    "functional": "wB97M-V",
+    "basis": "def2-TZVPD",
+    "aux_basis": "def2/J",
+    "approximation": "RIJCOSX",
+    "scf": "TightSCF",
+    "grid": "DEFGRID3",
+    "task": "SPE",
+    "continuum": "none",
+    "nprocs": 8,
+    "maxcore_mb_per_rank": 3000,
+    "cluster_sizes": [5]
+  },
+  "mace": {
+    "checkpoint": "polar-1-l",
+    "checkpoint_sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+    "dtype": "float64",
+    "cluster_sizes": [5, 50]
+  }
+}
