@@ -1,0 +1,13 @@
+system,solute,solvent,n_solvent,geometry_sha256,method,charge,multiplicity,energy_raw,energy_unit,energy_eV,normal_termination,deltaE_vertical_eV
+dmso_dichloromethane,dmso,dichloromethane,5,c25507a61338a9eb4b8fa35eabf87e46582ee57a08ca2fdab9b16a89bf806f56,MACE-POLAR-1-L,0,1,-145621.892260453,eV,-145621.892260453,true,7.267301009960
+dmso_dichloromethane,dmso,dichloromethane,5,c25507a61338a9eb4b8fa35eabf87e46582ee57a08ca2fdab9b16a89bf806f56,MACE-POLAR-1-L,1,2,-145614.624959443,eV,-145614.624959443,true,7.267301009960
+dmso_dichloromethane,dmso,dichloromethane,5,c25507a61338a9eb4b8fa35eabf87e46582ee57a08ca2fdab9b16a89bf806f56,ORCA_6.1_wB97M-V_def2-TZVPD,0,1,-5351.50397071868,Hartree,-145621.841544164,true,7.230239663196
+dmso_dichloromethane,dmso,dichloromethane,5,c25507a61338a9eb4b8fa35eabf87e46582ee57a08ca2fdab9b16a89bf806f56,ORCA_6.1_wB97M-V_def2-TZVPD,1,2,-5351.23826431189,Hartree,-145614.611304501,true,7.230239663196
+dmso_dichloromethane,dmso,dichloromethane,50,084c3ebbec3b05e83a3efa8b822edd0f333a1b15737c648e7fe53bcc455aabc7,MACE-POLAR-1-L,0,1,-1320718.73561868,eV,-1320718.73561868,true,6.745707843700
+dmso_dichloromethane,dmso,dichloromethane,50,084c3ebbec3b05e83a3efa8b822edd0f333a1b15737c648e7fe53bcc455aabc7,MACE-POLAR-1-L,1,2,-1320711.98991084,eV,-1320711.98991084,true,6.745707843700
+thiophene_acetonitrile,thiophene,acetonitrile,5,9df46bb2595056ab52aa1e16aa964d34eb490a7df00a4a07831f37fd79c69223,MACE-POLAR-1-L,0,1,-33109.6634268647,eV,-33109.6634268647,true,8.945357926881
+thiophene_acetonitrile,thiophene,acetonitrile,5,9df46bb2595056ab52aa1e16aa964d34eb490a7df00a4a07831f37fd79c69223,MACE-POLAR-1-L,1,2,-33100.7180689378,eV,-33100.7180689378,true,8.945357926881
+thiophene_acetonitrile,thiophene,acetonitrile,5,9df46bb2595056ab52aa1e16aa964d34eb490a7df00a4a07831f37fd79c69223,ORCA_6.1_wB97M-V_def2-TZVPD,0,1,-1216.75928994555,Hartree,-33109.7070071025,true,9.027045754867
+thiophene_acetonitrile,thiophene,acetonitrile,5,9df46bb2595056ab52aa1e16aa964d34eb490a7df00a4a07831f37fd79c69223,ORCA_6.1_wB97M-V_def2-TZVPD,1,2,-1216.42755213281,Hartree,-33100.6799613476,true,9.027045754867
+thiophene_acetonitrile,thiophene,acetonitrile,50,f7d35c7e6f98b89db15811587ccc97489d741551e281974925caffa34c72af7d,MACE-POLAR-1-L,0,1,-195661.584790371,eV,-195661.584790371,true,8.215760186560
+thiophene_acetonitrile,thiophene,acetonitrile,50,f7d35c7e6f98b89db15811587ccc97489d741551e281974925caffa34c72af7d,MACE-POLAR-1-L,1,2,-195653.369030184,eV,-195653.369030184,true,8.215760186560

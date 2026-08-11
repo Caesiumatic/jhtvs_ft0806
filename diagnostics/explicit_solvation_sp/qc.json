@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "comparison_rows": 12,
+    "mace_states": 8,
+    "orca_normal_terminations": 4,
+    "summary_rows": 2
+  },
+  "issues": [],
+  "prepared_qc": "PASS",
+  "status": "PASS",
+  "workflow_revision": "jhtvs-ft0806-explicit-solvation-sp-v1"
+}

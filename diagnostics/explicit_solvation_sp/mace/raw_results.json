@@ -1,0 +1,386 @@
+{
+  "checkpoint": {
+    "checkpoint_name": "polar-1-l",
+    "checkpoint_path": "MACEPOLAR1Lmodel",
+    "checkpoint_sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+    "default_dtype": "float64",
+    "graph_electrostatics_commit": "0e21d5546c482d08388a08eb4d948e833227ce47",
+    "graph_electrostatics_package_sha256": "079b233934150a3eee30444ce2408e09895ec4dd958ec60a822f870fa1284b99",
+    "graph_electrostatics_version": "0.4.0",
+    "mace_package_sha256": "e552c116b7d2c653f98b01f5c4fd599997f19f669a32bc6bf16396dd9f79365b",
+    "mace_source_commit": "4d2da09413ac1407f37cdbb6b81fa28e4c15655e",
+    "mace_version": "0.3.16"
+  },
+  "execution": {
+    "completed_at_utc": "2026-08-11T05:19:11.644075+00:00",
+    "device": "cpu",
+    "hostname": "compute-0-3.local",
+    "python": "3.11.15",
+    "scheduler_job_id": "423678"
+  },
+  "method_id": "MACE_POLAR_1_L_explicit_cluster_SPE_v1",
+  "results": [
+    {
+      "energy_raw": -145621.8922604527,
+      "energy_unit": "eV",
+      "formal_charge": 0,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/dmso_dichloromethane_R5.xyz",
+      "geometry_sha256": "c25507a61338a9eb4b8fa35eabf87e46582ee57a08ca2fdab9b16a89bf806f56",
+      "multiplicity": 1,
+      "n_solvent": 5,
+      "output_shapes": {
+        "density_coefficients": [
+          35,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          35,
+          13824
+        ],
+        "spin_charge_density": [
+          35,
+          2,
+          4
+        ],
+        "spin_density": [
+          35,
+          4
+        ]
+      },
+      "solute": "dmso",
+      "solvent": "dichloromethane",
+      "status": "clean",
+      "system": "dmso_dichloromethane"
+    },
+    {
+      "energy_raw": -145614.62495944274,
+      "energy_unit": "eV",
+      "formal_charge": 1,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/dmso_dichloromethane_R5.xyz",
+      "geometry_sha256": "c25507a61338a9eb4b8fa35eabf87e46582ee57a08ca2fdab9b16a89bf806f56",
+      "multiplicity": 2,
+      "n_solvent": 5,
+      "output_shapes": {
+        "density_coefficients": [
+          35,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          35,
+          13824
+        ],
+        "spin_charge_density": [
+          35,
+          2,
+          4
+        ],
+        "spin_density": [
+          35,
+          4
+        ]
+      },
+      "solute": "dmso",
+      "solvent": "dichloromethane",
+      "status": "clean",
+      "system": "dmso_dichloromethane"
+    },
+    {
+      "energy_raw": -1320718.7356186796,
+      "energy_unit": "eV",
+      "formal_charge": 0,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/dmso_dichloromethane_R50.xyz",
+      "geometry_sha256": "084c3ebbec3b05e83a3efa8b822edd0f333a1b15737c648e7fe53bcc455aabc7",
+      "multiplicity": 1,
+      "n_solvent": 50,
+      "output_shapes": {
+        "density_coefficients": [
+          260,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          260,
+          13824
+        ],
+        "spin_charge_density": [
+          260,
+          2,
+          4
+        ],
+        "spin_density": [
+          260,
+          4
+        ]
+      },
+      "solute": "dmso",
+      "solvent": "dichloromethane",
+      "status": "clean",
+      "system": "dmso_dichloromethane"
+    },
+    {
+      "energy_raw": -1320711.9899108359,
+      "energy_unit": "eV",
+      "formal_charge": 1,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/dmso_dichloromethane_R50.xyz",
+      "geometry_sha256": "084c3ebbec3b05e83a3efa8b822edd0f333a1b15737c648e7fe53bcc455aabc7",
+      "multiplicity": 2,
+      "n_solvent": 50,
+      "output_shapes": {
+        "density_coefficients": [
+          260,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          260,
+          13824
+        ],
+        "spin_charge_density": [
+          260,
+          2,
+          4
+        ],
+        "spin_density": [
+          260,
+          4
+        ]
+      },
+      "solute": "dmso",
+      "solvent": "dichloromethane",
+      "status": "clean",
+      "system": "dmso_dichloromethane"
+    },
+    {
+      "energy_raw": -33109.663426864696,
+      "energy_unit": "eV",
+      "formal_charge": 0,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/thiophene_acetonitrile_R5.xyz",
+      "geometry_sha256": "9df46bb2595056ab52aa1e16aa964d34eb490a7df00a4a07831f37fd79c69223",
+      "multiplicity": 1,
+      "n_solvent": 5,
+      "output_shapes": {
+        "density_coefficients": [
+          39,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          39,
+          13824
+        ],
+        "spin_charge_density": [
+          39,
+          2,
+          4
+        ],
+        "spin_density": [
+          39,
+          4
+        ]
+      },
+      "solute": "thiophene",
+      "solvent": "acetonitrile",
+      "status": "clean",
+      "system": "thiophene_acetonitrile"
+    },
+    {
+      "energy_raw": -33100.718068937815,
+      "energy_unit": "eV",
+      "formal_charge": 1,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/thiophene_acetonitrile_R5.xyz",
+      "geometry_sha256": "9df46bb2595056ab52aa1e16aa964d34eb490a7df00a4a07831f37fd79c69223",
+      "multiplicity": 2,
+      "n_solvent": 5,
+      "output_shapes": {
+        "density_coefficients": [
+          39,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          39,
+          13824
+        ],
+        "spin_charge_density": [
+          39,
+          2,
+          4
+        ],
+        "spin_density": [
+          39,
+          4
+        ]
+      },
+      "solute": "thiophene",
+      "solvent": "acetonitrile",
+      "status": "clean",
+      "system": "thiophene_acetonitrile"
+    },
+    {
+      "energy_raw": -195661.58479037066,
+      "energy_unit": "eV",
+      "formal_charge": 0,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/thiophene_acetonitrile_R50.xyz",
+      "geometry_sha256": "f7d35c7e6f98b89db15811587ccc97489d741551e281974925caffa34c72af7d",
+      "multiplicity": 1,
+      "n_solvent": 50,
+      "output_shapes": {
+        "density_coefficients": [
+          309,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          309,
+          13824
+        ],
+        "spin_charge_density": [
+          309,
+          2,
+          4
+        ],
+        "spin_density": [
+          309,
+          4
+        ]
+      },
+      "solute": "thiophene",
+      "solvent": "acetonitrile",
+      "status": "clean",
+      "system": "thiophene_acetonitrile"
+    },
+    {
+      "energy_raw": -195653.3690301841,
+      "energy_unit": "eV",
+      "formal_charge": 1,
+      "geometry_path": "diagnostics/explicit_solvation_sp/clusters/thiophene_acetonitrile_R50.xyz",
+      "geometry_sha256": "f7d35c7e6f98b89db15811587ccc97489d741551e281974925caffa34c72af7d",
+      "multiplicity": 2,
+      "n_solvent": 50,
+      "output_shapes": {
+        "density_coefficients": [
+          309,
+          4
+        ],
+        "dipole": [
+          1,
+          3
+        ],
+        "electron_energy": [
+          1
+        ],
+        "electrostatic_energy": [
+          1
+        ],
+        "energy": [
+          1
+        ],
+        "node_feats": [
+          309,
+          13824
+        ],
+        "spin_charge_density": [
+          309,
+          2,
+          4
+        ],
+        "spin_density": [
+          309,
+          4
+        ]
+      },
+      "solute": "thiophene",
+      "solvent": "acetonitrile",
+      "status": "clean",
+      "system": "thiophene_acetonitrile"
+    }
+  ],
+  "status": "PASS",
+  "workflow_revision": "jhtvs-ft0806-explicit-solvation-sp-v1"
+}

@@ -1,0 +1,47 @@
+{
+  "cluster": "lop.scs.illinois.edu",
+  "mace": {
+    "cpu_seconds": 745.202,
+    "end_time_sge": "Tue Aug 11 00:19:12 2026",
+    "exit_status": 0,
+    "failed": 0,
+    "hostname": "compute-0-3.local",
+    "job_id": "423678",
+    "maxvmem": "5.255GB",
+    "slots": 8,
+    "start_time_sge": "Tue Aug 11 00:16:22 2026",
+    "wallclock_seconds": 170
+  },
+  "orca": {
+    "array_job_id": "423677",
+    "tasks": [
+      {
+        "cpu_seconds": 36583.806,
+        "end_time_sge": "Tue Aug 11 01:33:31 2026",
+        "exit_status": 0,
+        "failed": 0,
+        "hostname": "compute-1-13.local",
+        "maxvmem": "2.064GB",
+        "slots": 8,
+        "start_time_sge": "Tue Aug 11 00:16:22 2026",
+        "task_id": 1,
+        "wallclock_seconds": 4629
+      },
+      {
+        "cpu_seconds": 22814.912,
+        "end_time_sge": "Tue Aug 11 01:04:34 2026",
+        "exit_status": 0,
+        "failed": 0,
+        "hostname": "compute-0-6.local",
+        "maxvmem": "2.244GB",
+        "slots": 8,
+        "start_time_sge": "Tue Aug 11 00:16:22 2026",
+        "task_id": 2,
+        "wallclock_seconds": 2892
+      }
+    ]
+  },
+  "scheduler": "SGE",
+  "status": "PASS",
+  "workflow_revision": "jhtvs-ft0806-explicit-solvation-sp-v1"
+}
