@@ -356,7 +356,7 @@ def resume_array(
         "-terse",
         "-cwd",
         "-t",
-        _array_range(pending_indices),
+        f"1-{len(pending_indices)}",
         "-tc",
         str(max_concurrent),
     ]
@@ -369,7 +369,7 @@ def resume_array(
             "-o",
             str(log_dir),
             "-v",
-            f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},REPOSITORY_COMMIT={repository_commit},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device},MD_CHUNKS_PER_JOB={MD_CHUNKS_PER_SCHEDULER_JOB}",
+            f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},REPOSITORY_COMMIT={repository_commit},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device},MD_CHUNKS_PER_JOB={MD_CHUNKS_PER_SCHEDULER_JOB},TASK_INDEX_MAP={':'.join(map(str, pending_indices))}",
             str(script),
         ]
     )
@@ -417,7 +417,22 @@ def resume_array(
         wave_command = list(command)
         if scheduler_job_ids:
             wave_command[-1:-1] = ["-hold_jid_ad", scheduler_job_ids[-1]]
-        result = subprocess.run(wave_command, check=True, capture_output=True, text=True)
+        result = subprocess.run(wave_command, capture_output=True, text=True)
+        if result.returncode != 0:
+            payload.update(
+                {
+                    "status": "SUBMISSION_FAILED",
+                    "failed_command": shlex.join(wave_command),
+                    "scheduler_stdout": result.stdout.strip(),
+                    "scheduler_stderr": result.stderr.strip(),
+                }
+            )
+            ledger_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            raise RuntimeError(
+                f"retry qsub failed with exit {result.returncode}: {result.stderr.strip()}"
+            )
         scheduler_text = result.stdout.strip()
         scheduler_job_id = scheduler_text.split(".", maxsplit=1)[0]
         if not scheduler_job_id.isdecimal():

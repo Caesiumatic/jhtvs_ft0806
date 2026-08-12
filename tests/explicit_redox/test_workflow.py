@@ -137,7 +137,8 @@ def test_resume_submits_only_pending_indices_once_on_safe_gpus(
         execute=True,
     )
     assert submitted["pending_indices"] == [2]
-    assert commands[0][commands[0].index("-t") + 1] == "2"
+    assert commands[0][commands[0].index("-t") + 1] == "1-1"
+    assert any("TASK_INDEX_MAP=2" in part for part in commands[0])
     assert any("gpu1@compute-1-21.local" in part for part in commands[0])
     again = resume_array(
         raw_root=raw,
@@ -219,4 +220,5 @@ def test_resume_excludes_indices_still_active_in_base_array(
     )
     assert submitted["pending_indices"] == [2]
     assert submitted["active_indices_excluded"] == [1]
-    assert commands[0][commands[0].index("-t") + 1] == "2"
+    assert commands[0][commands[0].index("-t") + 1] == "1-1"
+    assert any("TASK_INDEX_MAP=2" in part for part in commands[0])

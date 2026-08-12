@@ -12,6 +12,11 @@ set -euo pipefail
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-jhtvs-ft0806}"
 MACE_DEVICE="${MACE_DEVICE:-cpu}"
 MD_CHUNKS_PER_JOB="${MD_CHUNKS_PER_JOB:-10}"
+TASK_INDEX="$SGE_TASK_ID"
+if [ -n "${TASK_INDEX_MAP:-}" ]; then
+  TASK_INDEX="$(printf '%s\n' "$TASK_INDEX_MAP" | awk -F ':' -v n="$SGE_TASK_ID" '{print $n}')"
+  [ -n "$TASK_INDEX" ]
+fi
 
 case "$TRAJECTORY_MODE" in
   pilot|calibration|validation|production) ;;
@@ -48,7 +53,7 @@ RAW_ROOT="$(cd "$RAW_ROOT" && pwd)"
 TASK_TABLE="$RAW_ROOT/${TRAJECTORY_MODE}_trajectory_tasks.tsv"
 [ -f "$TASK_TABLE" ] && [ ! -L "$TASK_TABLE" ]
 [ "$(sha256sum "$TASK_TABLE" | awk '{print $1}')" = "$TASK_TABLE_SHA256" ]
-[ -n "$(awk -F '\t' -v task="$SGE_TASK_ID" 'NR > 1 && $1 == task {print $0}' "$TASK_TABLE")" ]
+[ -n "$(awk -F '\t' -v task="$TASK_INDEX" 'NR > 1 && $1 == task {print $0}' "$TASK_TABLE")" ]
 
 source /etc/profile.d/modules.sh
 module load miniforge3/23.3.1
@@ -73,7 +78,7 @@ CHECKPOINT="$HOME/.cache/mace/MACEPOLAR1Lmodel"
 PYTHONPATH=src python -m jhtvs_ft0806.explicit_redox.trajectory run-task \
   --raw-root "$RAW_ROOT" \
   --mode "$TRAJECTORY_MODE" \
-  --task-index "$SGE_TASK_ID" \
+  --task-index "$TASK_INDEX" \
   --checkpoint polar-1-l \
   --device "$MACE_DEVICE" \
   --max-md-chunks "$MD_CHUNKS_PER_JOB"
