@@ -212,6 +212,39 @@ def test_registry_exact_optfreq_reuses_the_echo_payload_in_both_steps() -> None:
     assert "! SMD(" not in rendered
 
 
+def test_optfreq_can_request_hirshfeld_only_in_final_sp() -> None:
+    solvent = _solvents()["S001"]
+    job = {
+        "workflow_revision": "explicit-r5-eox-v1",
+        "job_id": "R5-HIRSHFELD-TEST",
+        "state_id": "A001_Q0_M2",
+        "solvent_id": "S001",
+        "formal_charge": "0",
+        "multiplicity": "2",
+        "method_id": "T2_wB97X-D3_OptFreq_TZVPD-SP_SMD_Hirshfeld_v1",
+        "functional": "wB97X-D3",
+        "optfreq_basis": "def2-TZVP",
+        "final_sp_basis": "def2-TZVPD",
+        "final_sp_hirshfeld": "true",
+        "nprocs": "8",
+        "maxcore_mb_per_rank": "3000",
+    }
+
+    rendered = render_optfreq_deck(
+        job,
+        _geometry(),
+        FIXTURE_DIR / "small.xyz",
+        solvent,
+        registry_sha256="registry-sha",
+        registry_row_sha256="row-sha",
+    )
+
+    method_lines = [line for line in rendered.splitlines() if line.startswith("!")]
+    assert len(method_lines) == 2
+    assert "Hirshfeld" not in method_lines[0]
+    assert method_lines[1].endswith("DEFGRID3 Hirshfeld")
+
+
 def test_self_seed_name_is_read_from_the_registry_row() -> None:
     solvent = dict(_solvents()["S007"])
     solvent["orca_smd_input_from_source"] = (

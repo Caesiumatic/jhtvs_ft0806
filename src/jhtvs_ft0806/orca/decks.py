@@ -220,10 +220,15 @@ def render_optfreq_deck(
         "end\n"
         "StepEnd\n"
     )
+    final_sp_analysis = (
+        " Hirshfeld"
+        if job.get("final_sp_hirshfeld", "").strip().lower() == "true"
+        else ""
+    )
     second_step = (
         "NewStep\n"
         f"! {job['functional']} {job['final_sp_basis']} def2/J RIJCOSX "
-        "TightSCF DEFGRID3\n"
+        f"TightSCF DEFGRID3{final_sp_analysis}\n"
         + smd
         + f"* xyzfile {job['formal_charge']} {job['multiplicity']} "
         f"{job['job_id']}_Compound_1.xyz\n"
