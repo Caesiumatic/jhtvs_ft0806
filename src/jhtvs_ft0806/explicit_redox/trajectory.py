@@ -8,8 +8,6 @@ import time
 from pathlib import Path
 from typing import Any, Sequence
 
-import numpy as np
-
 from .calculator import PolarMACEStateCalculator
 from .dynamics import run_md
 from .optimize import optimize_state
@@ -47,6 +45,13 @@ def _velocity_seed(logical_id: str) -> int:
     ) % 8_000_000
 
 
+def logical_trajectory_id(*, mode: str, system_id: str, seed_index: str, state: str) -> str:
+    if mode not in TRAJECTORY_SCOPES:
+        raise ValueError(f"trajectory mode must be one of {TRAJECTORY_SCOPES}")
+    prefix = "" if mode == "pilot" else f"{mode}__"
+    return f"{prefix}{system_id}__seed-{seed_index}__{state}"
+
+
 def prepare_trajectory_tasks(
     *, cluster_manifest: Path, raw_root: Path, mode: str
 ) -> list[dict[str, object]]:
@@ -63,7 +68,12 @@ def prepare_trajectory_tasks(
             type(geometry)(geometry.symbols[:target_atoms], geometry.positions[:target_atoms])
         )
         for state in ("lower", "oxidized"):
-            logical_id = f"{cluster['system_id']}__seed-{cluster['seed_index']}__{state}"
+            logical_id = logical_trajectory_id(
+                mode=mode,
+                system_id=cluster["system_id"],
+                seed_index=cluster["seed_index"],
+                state=state,
+            )
             rows.append(
                 {
                     "task_index": len(rows) + 1,

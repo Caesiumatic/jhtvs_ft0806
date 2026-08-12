@@ -4,7 +4,21 @@ from pathlib import Path
 
 import pytest
 
-from jhtvs_ft0806.explicit_redox.trajectory import prepare_trajectory_tasks
+from jhtvs_ft0806.explicit_redox.trajectory import (
+    logical_trajectory_id,
+    prepare_trajectory_tasks,
+)
+
+
+def test_production_scopes_do_not_collide_with_pilot_trajectory_identity() -> None:
+    arguments = {"system_id": "system", "seed_index": "0", "state": "lower"}
+    pilot = logical_trajectory_id(mode="pilot", **arguments)
+    calibration = logical_trajectory_id(mode="calibration", **arguments)
+    validation = logical_trajectory_id(mode="validation", **arguments)
+    assert pilot == "system__seed-0__lower"
+    assert calibration == "calibration__system__seed-0__lower"
+    assert validation == "validation__system__seed-0__lower"
+    assert len({pilot, calibration, validation}) == 3
 
 
 def test_prepare_trajectory_tasks_duplicates_same_cluster_into_two_states(tmp_path: Path) -> None:
