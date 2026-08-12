@@ -1,0 +1,217 @@
+{
+  "deduplicated_conformer_count": 120,
+  "entities": [
+    {
+      "canonical_smiles": "CC#N",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-fdd689a8c945",
+      "etkdg_seed": 7593533,
+      "formal_charge": 0,
+      "metadata_sha256": "373f0885456d0681473046e4d152277523ece1c03ca35f4d7150f3c04a3b2a8d"
+    },
+    {
+      "canonical_smiles": "CC1COC(=O)O1",
+      "deduplicated_conformers": 4,
+      "entity_id": "iso-77068c9132ef",
+      "etkdg_seed": 1166856,
+      "formal_charge": 0,
+      "metadata_sha256": "c3f0d2c53e10e86c1744a8e8d90d396111c78db3f3ade9d0dd4dce8f1827d689"
+    },
+    {
+      "canonical_smiles": "CCCCCCCCc1cc(-c2ccc(-c3ccco3)o2)oc1-c1ccc(-c2ccco2)o1",
+      "deduplicated_conformers": 49,
+      "entity_id": "iso-cbd56eae352e",
+      "etkdg_seed": 4285705,
+      "formal_charge": 0,
+      "metadata_sha256": "d3d90b077c73c95de0591cbe9a0777868747b42302ac082b5bbb3fd354cc7d09"
+    },
+    {
+      "canonical_smiles": "CCCCCCc1ccsc1",
+      "deduplicated_conformers": 34,
+      "entity_id": "iso-e7c2c3d29a36",
+      "etkdg_seed": 8000488,
+      "formal_charge": 0,
+      "metadata_sha256": "e8df97b1745b95f3d2382989a03f47bd6a4f35942c1d295c38b5afe42ac5596b"
+    },
+    {
+      "canonical_smiles": "CN(C)C=O",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-aeb2e86e450d",
+      "etkdg_seed": 1614629,
+      "formal_charge": 0,
+      "metadata_sha256": "dd814419dff7549ae2a54b23a56257e6143b67037e4b5a09013e88b1f9d74257"
+    },
+    {
+      "canonical_smiles": "CS(C)=O",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-ef4a329fe2b9",
+      "etkdg_seed": 1956327,
+      "formal_charge": 0,
+      "metadata_sha256": "9107ae9164bb39df3e80c1c35a1d28cdac61ccd9e4b6bbcad95a17acad6ff337"
+    },
+    {
+      "canonical_smiles": "C[N+](=O)[O-]",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-9dd6477011e1",
+      "etkdg_seed": 6256857,
+      "formal_charge": 0,
+      "metadata_sha256": "0e74c0493ed7f03b7f4b731a5d9b6d5c4e238c8a11eb6551e4ea0b057e8aa84b"
+    },
+    {
+      "canonical_smiles": "Cc1ccsc1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-30f397073a73",
+      "etkdg_seed": 7378545,
+      "formal_charge": 0,
+      "metadata_sha256": "6061edf6f04090b1fe7b36100ca8368c1902c51895a2bf7810844d105d2e0a37"
+    },
+    {
+      "canonical_smiles": "ClCCl",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-a910e51b8ef4",
+      "etkdg_seed": 4384311,
+      "formal_charge": 0,
+      "metadata_sha256": "7e5779c851ccdb1ec80c62719ea9e3ee902afe1df159ef7e797b5d9db2acddae"
+    },
+    {
+      "canonical_smiles": "Clc1ccsc1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-71b0e04a384f",
+      "etkdg_seed": 6136395,
+      "formal_charge": 0,
+      "metadata_sha256": "087cad664abd3d51ca837e35927ffab05377775fd25fa064c7b88f4accb5581e"
+    },
+    {
+      "canonical_smiles": "Cn1cccc1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-e5914cb4b21d",
+      "etkdg_seed": 3445760,
+      "formal_charge": 0,
+      "metadata_sha256": "2451134d91833867ace09e301117f937685bb6c0ba99b3ed19d9d814ee7b14b6"
+    },
+    {
+      "canonical_smiles": "O",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-c4694f2e93d5",
+      "etkdg_seed": 1884932,
+      "formal_charge": 0,
+      "metadata_sha256": "4ab984140917c02e18e1866689b017fa435bf71e01caa700ae506e0e2ca03dc3"
+    },
+    {
+      "canonical_smiles": "O=C1CCCO1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-b2a02ad4ea52",
+      "etkdg_seed": 5263771,
+      "formal_charge": 0,
+      "metadata_sha256": "8156c3e0d1435fa9179a161b01495d4716b49a7f4ac97694174d54c69fa5262b"
+    },
+    {
+      "canonical_smiles": "O=S(=O)([N-]S(=O)(=O)C(F)(F)F)C(F)(F)F",
+      "deduplicated_conformers": 6,
+      "entity_id": "iso-b561ac428577",
+      "etkdg_seed": 2044327,
+      "formal_charge": -1,
+      "metadata_sha256": "04f12f649d1f5c46dbb70daf82d90c8ea2c7c585d59c963ce1205aed44c2df56"
+    },
+    {
+      "canonical_smiles": "O=S(=O)([O-])C(F)(F)F",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-8d67ccc035ab",
+      "etkdg_seed": 8563821,
+      "formal_charge": -1,
+      "metadata_sha256": "ed34e7ac8de8211603e675ff3ced41b3d5cd52e2cb6a2271f1a5da9cc089204d"
+    },
+    {
+      "canonical_smiles": "O=S1(=O)CCCC1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-7cc6ecfc4117",
+      "etkdg_seed": 8859603,
+      "formal_charge": 0,
+      "metadata_sha256": "343bcfed1e6bbe4cadaaa712ae40eec29948ac5b5003ca25e021339ba5d2ae94"
+    },
+    {
+      "canonical_smiles": "[O-][Cl+3]([O-])([O-])[O-]",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-c1efe6dcdd83",
+      "etkdg_seed": 3856589,
+      "formal_charge": -1,
+      "metadata_sha256": "5069a4f7a68e7ae0cf5857bd0a4bfa05798462ea470a2ef1d5cd99bacda5a229"
+    },
+    {
+      "canonical_smiles": "c1cc2c([nH]1)OCCO2",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-46e1f895ac02",
+      "etkdg_seed": 7815662,
+      "formal_charge": 0,
+      "metadata_sha256": "8f56512472988b48ae6a60806242a1074769e05bc7154a202bd4953a01f7c9f3"
+    },
+    {
+      "canonical_smiles": "c1cc2c(s1)-c1sccc1C2",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-254c2323ba38",
+      "etkdg_seed": 1550086,
+      "formal_charge": 0,
+      "metadata_sha256": "f949d2458928cdb45ad27a52e21eb0d76ebd5d64e9e3a9d1aa9b85758efa886b"
+    },
+    {
+      "canonical_smiles": "c1cc2c(s1)OCCO2",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-c14b3eff7187",
+      "etkdg_seed": 6083915,
+      "formal_charge": 0,
+      "metadata_sha256": "d11bb09f9d99d5596a1f0ef214a02377abd5293d54b0747fbf573f417fb12379"
+    },
+    {
+      "canonical_smiles": "c1cc[nH]c1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-f996e37e5a4b",
+      "etkdg_seed": 5765949,
+      "formal_charge": 0,
+      "metadata_sha256": "15734e8d02d206a4c7cbc17824251bb3d2b28451e7d8ea10493b462f96db2919"
+    },
+    {
+      "canonical_smiles": "c1cc[se]c1",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-76a14cc8a100",
+      "etkdg_seed": 7851877,
+      "formal_charge": 0,
+      "metadata_sha256": "4e47120ed1ecccf728763533745e2c840df20f944848b3a6674c9f961c25c134"
+    },
+    {
+      "canonical_smiles": "c1ccc2c(c1)[nH]c1ccccc12",
+      "deduplicated_conformers": 1,
+      "entity_id": "iso-9e96fbc760d5",
+      "etkdg_seed": 2891511,
+      "formal_charge": 0,
+      "metadata_sha256": "f87efd8235a04f052a5cbf3c769cb88cc974df7e3ef307b2f03f3ebb1cbc544a"
+    },
+    {
+      "canonical_smiles": "c1coc(-c2ccc(-c3ccco3)o2)c1",
+      "deduplicated_conformers": 3,
+      "entity_id": "iso-761cbade8055",
+      "etkdg_seed": 8160595,
+      "formal_charge": 0,
+      "metadata_sha256": "ab45f78026d6b722c680c153c33509151bc59558ed503e56c82f0c6282aac689"
+    },
+    {
+      "canonical_smiles": "c1csc(-c2ccc(-c3cccs3)s2)c1",
+      "deduplicated_conformers": 3,
+      "entity_id": "iso-345783683ec7",
+      "etkdg_seed": 2450686,
+      "formal_charge": 0,
+      "metadata_sha256": "178e25bc4745d8a243947aa4bb996ea4d8a61dbdbe9aa5a60afb806cd30b39c9"
+    },
+    {
+      "canonical_smiles": "c1csc(-c2cccs2)c1",
+      "deduplicated_conformers": 2,
+      "entity_id": "iso-05b5362f9355",
+      "etkdg_seed": 8341115,
+      "formal_charge": 0,
+      "metadata_sha256": "af81a0989e0db7be5f63dadb04821f6fa7cac373336a01f7dfaad1b6df77c384"
+    }
+  ],
+  "entity_count": 26,
+  "requested_conformer_count": 1300,
+  "status": "PASS",
+  "structure_candidates_sha256": "851ba976f3fcbb91a9877ca4e7b16589b1e042a6488826fe2ab99c2c1ab06f45"
+}
