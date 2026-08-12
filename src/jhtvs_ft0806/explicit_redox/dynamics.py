@@ -112,6 +112,10 @@ def run_md(
     for chunk in pending_chunks(plan, output_dir):
         chunk_restraint_active_steps = 0
         chunk_maximum_excursion = 0.0
+        temperatures: list[float] = []
+        potential_energies: list[float] = []
+        total_energies: list[float] = []
+        maximum_force = 0.0
         rng = np.random.default_rng(chunk.random_seed)
         dynamics = Langevin(
             atoms,
@@ -125,10 +129,20 @@ def run_md(
         trajectory = Trajectory(trajectory_path, "w", atoms)
 
         def sample() -> None:
-            nonlocal chunk_restraint_active_steps, chunk_maximum_excursion, production_samples
+            nonlocal chunk_restraint_active_steps, chunk_maximum_excursion, production_samples, maximum_force
             if dynamics.nsteps == 0:
                 return
             result = restraint.evaluate(np.asarray(atoms.positions, dtype=np.float64))
+            temperature = float(atoms.get_temperature())
+            potential = float(atoms.get_potential_energy())
+            kinetic = float(atoms.get_kinetic_energy())
+            force = float(np.linalg.norm(atoms.get_forces(), axis=1).max())
+            if not np.all(np.isfinite([temperature, potential, kinetic, force])):
+                raise RuntimeError("non-finite MD diagnostic")
+            temperatures.append(temperature)
+            potential_energies.append(potential)
+            total_energies.append(potential + kinetic)
+            maximum_force = max(maximum_force, force)
             chunk_restraint_active_steps += int(result.active_count > 0)
             chunk_maximum_excursion = max(
                 chunk_maximum_excursion, result.maximum_excursion_A
@@ -154,6 +168,19 @@ def run_md(
             "production_samples": 0 if chunk.phase == "equilibration" else chunk.steps // sample_every,
             "restraint_activation_samples": chunk_restraint_active_steps,
             "maximum_excursion_A": chunk_maximum_excursion,
+            "diagnostic_samples": len(temperatures),
+            "temperature_mean_K": float(np.mean(temperatures)),
+            "temperature_sd_K": float(np.std(temperatures, ddof=1)) if len(temperatures) > 1 else 0.0,
+            "temperature_min_K": min(temperatures),
+            "temperature_max_K": max(temperatures),
+            "temperature_sum_K": sum(temperatures),
+            "temperature_sumsq_K2": sum(value * value for value in temperatures),
+            "potential_energy_min_eV": min(potential_energies),
+            "potential_energy_max_eV": max(potential_energies),
+            "total_energy_change_eV": total_energies[-1] - total_energies[0],
+            "total_energy_change_eV_ps": (total_energies[-1] - total_energies[0])
+            / (chunk.steps * timestep_fs / 1000.0),
+            "maximum_force_eV_A": maximum_force,
         }
         (output_dir / f"chunk-{chunk.index:04d}.json").write_text(
             json.dumps(chunk_receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -163,6 +190,11 @@ def run_md(
         json.loads(path.read_text(encoding="utf-8"))
         for path in sorted(output_dir.glob("chunk-*.json"))
     ]
+    diagnostic_samples = sum(int(row["diagnostic_samples"]) for row in chunk_receipts)
+    temperature_sum = sum(float(row["temperature_sum_K"]) for row in chunk_receipts)
+    temperature_sumsq = sum(float(row["temperature_sumsq_K2"]) for row in chunk_receipts)
+    temperature_mean = temperature_sum / diagnostic_samples
+    temperature_variance = max(0.0, temperature_sumsq / diagnostic_samples - temperature_mean**2)
     receipt = {
         "status": "complete" if not pending_chunks(plan, output_dir) else "incomplete",
         "logical_id": logical_id,
@@ -178,6 +210,15 @@ def run_md(
         ),
         "maximum_excursion_A": max(
             (float(row["maximum_excursion_A"]) for row in chunk_receipts), default=0.0
+        ),
+        "diagnostic_samples": diagnostic_samples,
+        "temperature_mean_K": temperature_mean,
+        "temperature_sd_K": float(np.sqrt(temperature_variance)),
+        "temperature_min_K": min(float(row["temperature_min_K"]) for row in chunk_receipts),
+        "temperature_max_K": max(float(row["temperature_max_K"]) for row in chunk_receipts),
+        "maximum_force_eV_A": max(float(row["maximum_force_eV_A"]) for row in chunk_receipts),
+        "maximum_absolute_chunk_energy_change_eV_ps": max(
+            abs(float(row["total_energy_change_eV_ps"])) for row in chunk_receipts
         ),
     }
     (output_dir / "md.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")

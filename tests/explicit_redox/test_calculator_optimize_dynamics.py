@@ -146,3 +146,66 @@ def test_optimizer_smoke_with_harmonic_calculator(tmp_path: Path) -> None:
     )
     assert result["converged"] is True
     assert result["observed_max_force_eV_A"] <= 0.05
+
+
+def test_md_smoke_writes_exact_sample_count_and_restart_receipt(tmp_path: Path) -> None:
+    pytest.importorskip("ase")
+    from ase import Atoms
+    from ase.calculators.calculator import Calculator, all_changes
+
+    from jhtvs_ft0806.explicit_redox.dynamics import run_md
+    from jhtvs_ft0806.explicit_redox.restraint import FlatBottomShell
+
+    class Harmonic(Calculator):
+        implemented_properties = ["energy", "forces"]
+
+        def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
+            super().calculate(atoms, properties, system_changes)
+            positions = atoms.positions
+            self.results = {"energy": float(0.01 * (positions**2).sum()), "forces": -0.02 * positions}
+
+    atoms = Atoms(
+        "C6",
+        positions=np.asarray(
+            [[0, 0, 0], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1]],
+            dtype=float,
+        ),
+    )
+    restraint = FlatBottomShell(
+        target_heavy_indices=[0],
+        solvent_groups=[[1], [2], [3], [4], [5]],
+        masses=atoms.get_masses(),
+        R0_A=5.0,
+    )
+    result = run_md(
+        logical_id="smoke",
+        atoms=atoms,
+        model_calculator=Harmonic(),
+        restraint=restraint,
+        charge=0,
+        spin=1,
+        velocity_seed=12345,
+        output_dir=tmp_path,
+        equilibration_ps=0.001,
+        production_ps=0.001,
+        checkpoint_ps=0.001,
+        sample_interval_fs=0.5,
+    )
+    assert result["status"] == "complete"
+    assert result["completed_production_samples"] == 2
+    assert result["temperature_mean_K"] > 0.0
+    restarted = run_md(
+        logical_id="smoke",
+        atoms=atoms,
+        model_calculator=Harmonic(),
+        restraint=restraint,
+        charge=0,
+        spin=1,
+        velocity_seed=12345,
+        output_dir=tmp_path,
+        equilibration_ps=0.001,
+        production_ps=0.001,
+        checkpoint_ps=0.001,
+        sample_interval_fs=0.5,
+    )
+    assert restarted["new_production_samples"] == 0
