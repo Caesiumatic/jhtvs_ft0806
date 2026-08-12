@@ -18,6 +18,8 @@ class GapBatch:
     oxidized_energy_eV: NDArray[np.float64]
     delta_E_eV: NDArray[np.float64]
     restraint_energy_eV: NDArray[np.float64]
+    lower_diagnostics: dict[str, NDArray[np.float64]]
+    oxidized_diagnostics: dict[str, NDArray[np.float64]]
 
 
 def coordinate_sha256(atoms: Any) -> str:
@@ -27,13 +29,13 @@ def coordinate_sha256(atoms: Any) -> str:
     return digest.hexdigest()
 
 
-def _state_energies(
+def _state_outputs(
     backend: Any,
     atoms_batch: Sequence[Any],
     *,
     charge: int,
     spin: int,
-) -> NDArray[np.float64]:
+) -> tuple[NDArray[np.float64], dict[str, NDArray[np.float64]]]:
     graphs = [
         backend.build_graph_from_atoms(
             atoms=atoms.copy(), formal_charge=charge, multiplicity=spin
@@ -48,7 +50,16 @@ def _state_energies(
     energies = outputs["energy"].detach().cpu().numpy().reshape(-1).astype(np.float64)
     if energies.size != len(atoms_batch) or not np.all(np.isfinite(energies)):
         raise RuntimeError("invalid batched state energies")
-    return energies
+    atom_count = len(atoms_batch[0].get_chemical_symbols())
+    diagnostics: dict[str, NDArray[np.float64]] = {}
+    for key in ("density_coefficients", "spin_density", "spin_charge_density"):
+        if outputs.get(key) is None:
+            raise RuntimeError(f"batched PolarMACE output missing {key}")
+        values = outputs[key].detach().cpu().numpy().astype(np.float64)
+        if values.shape[0] != len(atoms_batch) * atom_count or not np.all(np.isfinite(values)):
+            raise RuntimeError(f"invalid batched {key}")
+        diagnostics[key] = values.reshape(len(atoms_batch), atom_count, *values.shape[1:])
+    return energies, diagnostics
 
 
 def evaluate_gap_batch(
@@ -64,8 +75,13 @@ def evaluate_gap_batch(
     if not atoms_batch:
         raise ValueError("cannot evaluate an empty frame batch")
     hashes = tuple(coordinate_sha256(atoms) for atoms in atoms_batch)
-    lower = _state_energies(backend, atoms_batch, charge=lower_charge, spin=lower_spin)
-    oxidized = _state_energies(
+    atom_counts = {len(atoms.get_chemical_symbols()) for atoms in atoms_batch}
+    if len(atom_counts) != 1:
+        raise ValueError("all frames in a gap batch must have the same atom count")
+    lower, lower_diagnostics = _state_outputs(
+        backend, atoms_batch, charge=lower_charge, spin=lower_spin
+    )
+    oxidized, oxidized_diagnostics = _state_outputs(
         backend, atoms_batch, charge=oxidized_charge, spin=oxidized_spin
     )
     restraint_energies = np.asarray(
@@ -77,19 +93,33 @@ def evaluate_gap_batch(
     delta = oxidized_total - lower_total
     if not np.allclose(delta, oxidized - lower, rtol=0.0, atol=1e-12):
         raise RuntimeError("flat-bottom restraint did not cancel from vertical gap")
-    return GapBatch(hashes, lower, oxidized, delta, restraint_energies)
+    return GapBatch(
+        hashes,
+        lower,
+        oxidized,
+        delta,
+        restraint_energies,
+        lower_diagnostics,
+        oxidized_diagnostics,
+    )
 
 
 def write_gap_chunk(path: Path, batch: GapBatch) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        path,
-        coordinate_sha256=np.asarray(batch.coordinate_sha256),
-        lower_energy_eV=batch.lower_energy_eV,
-        oxidized_energy_eV=batch.oxidized_energy_eV,
-        delta_E_eV=batch.delta_E_eV,
-        restraint_energy_eV=batch.restraint_energy_eV,
-    )
+    payload: dict[str, NDArray[Any]] = {
+        "coordinate_sha256": np.asarray(batch.coordinate_sha256),
+        "lower_energy_eV": batch.lower_energy_eV,
+        "oxidized_energy_eV": batch.oxidized_energy_eV,
+        "delta_E_eV": batch.delta_E_eV,
+        "restraint_energy_eV": batch.restraint_energy_eV,
+    }
+    for state, diagnostics in (
+        ("lower", batch.lower_diagnostics),
+        ("oxidized", batch.oxidized_diagnostics),
+    ):
+        for name, values in diagnostics.items():
+            payload[f"{state}_{name}"] = values
+    np.savez_compressed(path, **payload)
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 

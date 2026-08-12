@@ -75,7 +75,13 @@ class _Backend:
 
     def model(self, payload, **_kwargs):
         energies = [10.0 + charge + float(atoms.positions.sum()) * 0.01 for atoms, charge, _ in payload["items"]]
-        return {"energy": _Tensor(energies)}
+        atom_rows = sum(len(atoms.positions) for atoms, _, _ in payload["items"])
+        return {
+            "energy": _Tensor(energies),
+            "density_coefficients": _Tensor(np.ones((atom_rows, 4))),
+            "spin_density": _Tensor(np.ones((atom_rows, 4))),
+            "spin_charge_density": _Tensor(np.ones((atom_rows, 2, 4))),
+        }
 
 
 def test_vertical_gap_sign_and_same_coordinate_definition() -> None:
@@ -101,6 +107,7 @@ def test_batched_two_state_gap_and_raw_result_reproducibility(tmp_path) -> None:
         restraint=restraint,
     )
     np.testing.assert_allclose(batch.delta_E_eV, [1.0, 1.0])
+    assert batch.lower_diagnostics["density_coefficients"].shape == (2, 7, 4)
     first = tmp_path / "first.npz"
     second = tmp_path / "second.npz"
     assert write_gap_chunk(first, batch) == write_gap_chunk(second, batch)
