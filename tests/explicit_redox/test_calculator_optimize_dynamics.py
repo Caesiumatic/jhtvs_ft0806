@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from jhtvs_ft0806.explicit_redox.calculator import (
     PolarMACEStateCalculator,
     apply_state_metadata,
+    ensure_torch_compiler_compat,
     model_parameter_sha256,
 )
 from jhtvs_ft0806.explicit_redox.dynamics import chunk_plan, pending_chunks
@@ -53,6 +55,21 @@ def test_charge_spin_and_external_field_reach_calculator_metadata() -> None:
     assert atoms.info["spin"] == 2
     np.testing.assert_array_equal(atoms.info["external_field"], np.zeros(3))
     assert atoms.pbc is False
+
+
+def test_torch_compiler_compat_uses_dynamo_probe_without_overwriting_native_api() -> None:
+    probe = lambda: False
+    old_torch = SimpleNamespace(_dynamo=SimpleNamespace(is_compiling=probe))
+    assert ensure_torch_compiler_compat(old_torch) is True
+    assert old_torch.compiler.is_compiling is probe
+
+    native_probe = lambda: True
+    new_torch = SimpleNamespace(
+        _dynamo=SimpleNamespace(is_compiling=probe),
+        compiler=SimpleNamespace(is_compiling=native_probe),
+    )
+    assert ensure_torch_compiler_compat(new_torch) is False
+    assert new_torch.compiler.is_compiling is native_probe
 
 
 def test_charge_and_spin_reach_polar_backend_api() -> None:

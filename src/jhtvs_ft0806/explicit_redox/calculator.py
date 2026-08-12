@@ -4,11 +4,26 @@ import copy
 import hashlib
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Mapping
 
 import numpy as np
 
 from jhtvs_ft0806.ml.features import EXPECTED_CHECKPOINT_SHA256, PolarMACEBackend
+
+
+def ensure_torch_compiler_compat(torch_module: Any) -> bool:
+    """Expose the eager-mode compilation probe expected by MACE 0.3.16."""
+
+    compiler = getattr(torch_module, "compiler", None)
+    if compiler is not None and hasattr(compiler, "is_compiling"):
+        return False
+    is_compiling = torch_module._dynamo.is_compiling
+    if compiler is None:
+        torch_module.compiler = SimpleNamespace(is_compiling=is_compiling)
+    else:
+        compiler.is_compiling = is_compiling
+    return True
 
 
 def apply_state_metadata(atoms: Any, *, charge: int, spin: int) -> None:
@@ -49,6 +64,7 @@ class PolarMACEStateCalculator:
             from ase.calculators.calculator import Calculator
         except ImportError as exc:  # pragma: no cover - exercised on the execution host
             raise RuntimeError("ASE, PyTorch and MACE are required") from exc
+        ensure_torch_compiler_compat(torch)
         self._ase_base = Calculator()
         self.results: dict[str, Any] = {}
         self.atoms = None
