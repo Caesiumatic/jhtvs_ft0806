@@ -78,6 +78,7 @@ def run_md(
     production_ps: float = 150.0,
     checkpoint_ps: float = 1.0,
     sample_interval_fs: float = 20.0,
+    max_new_chunks: int | None = None,
 ) -> dict[str, Any]:
     try:
         from ase import units
@@ -109,7 +110,12 @@ def run_md(
     atoms.calc = RestrainedCalculator(model_calculator, restraint)
     sample_every = round(sample_interval_fs / timestep_fs)
     production_samples = 0
-    for chunk in pending_chunks(plan, output_dir):
+    pending = pending_chunks(plan, output_dir)
+    if max_new_chunks is not None:
+        if max_new_chunks < 1:
+            raise ValueError("maximum new MD chunks must be positive")
+        pending = pending[:max_new_chunks]
+    for chunk in pending:
         chunk_restraint_active_steps = 0
         chunk_maximum_excursion = 0.0
         temperatures: list[float] = []

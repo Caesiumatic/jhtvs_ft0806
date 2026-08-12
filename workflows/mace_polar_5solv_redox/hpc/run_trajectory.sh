@@ -10,6 +10,7 @@ set -euo pipefail
 : "${TASK_TABLE_SHA256:?set the frozen task-table SHA256}"
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-jhtvs-ft0806}"
 MACE_DEVICE="${MACE_DEVICE:-cpu}"
+MD_CHUNKS_PER_JOB="${MD_CHUNKS_PER_JOB:-10}"
 
 case "$TRAJECTORY_MODE" in
   pilot|calibration|validation|production) ;;
@@ -52,4 +53,5 @@ PYTHONPATH=src python -m jhtvs_ft0806.explicit_redox.trajectory run-task \
   --mode "$TRAJECTORY_MODE" \
   --task-index "$SGE_TASK_ID" \
   --checkpoint polar-1-l \
-  --device "$MACE_DEVICE"
+  --device "$MACE_DEVICE" \
+  --max-md-chunks "$MD_CHUNKS_PER_JOB"

@@ -19,6 +19,8 @@ def test_trajectory_launcher_is_fail_closed_and_mode_scoped() -> None:
     assert "set -euo pipefail" in text
     assert "TRAJECTORY_MODE" in text
     assert "MACE_DEVICE" in text
+    assert "MD_CHUNKS_PER_JOB" in text
+    assert "--max-md-chunks" in text
     assert "CONDA_ENV_NAME" in text
     assert '${TRAJECTORY_MODE}_trajectory_tasks.tsv' in text
     assert "TASK_TABLE_SHA256" in text

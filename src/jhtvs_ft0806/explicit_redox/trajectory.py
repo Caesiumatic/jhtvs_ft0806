@@ -136,6 +136,7 @@ def run_trajectory_task(
     task_index: int,
     checkpoint: str = "polar-1-l",
     device: str = "cpu",
+    max_md_chunks: int | None = None,
 ) -> dict[str, Any]:
     try:
         from ase.io import read
@@ -180,6 +181,7 @@ def run_trajectory_task(
         spin=int(task["spin"]),
         velocity_seed=int(task["velocity_seed"]),
         output_dir=output_dir / "md",
+        max_new_chunks=max_md_chunks,
         **dynamics_kwargs,
     )
     calculator.assert_model_unchanged()
@@ -210,6 +212,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--task-index", type=int, required=True)
     run.add_argument("--checkpoint", default="polar-1-l")
     run.add_argument("--device", default="cpu")
+    run.add_argument("--max-md-chunks", type=int)
     args = parser.parse_args(argv)
     if args.command == "prepare":
         rows = prepare_trajectory_tasks(
@@ -225,6 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     task_index=args.task_index,
                     checkpoint=args.checkpoint,
                     device=args.device,
+                    max_md_chunks=args.max_md_chunks,
                 ),
                 sort_keys=True,
             )

@@ -12,6 +12,9 @@ from typing import Any, Sequence
 from .trajectory import TRAJECTORY_SCOPES, _read_tsv
 
 
+MD_CHUNKS_PER_SCHEDULER_JOB = 10
+
+
 def _task_table(raw_root: Path, scope: str) -> Path:
     return raw_root / f"{scope}_trajectory_tasks.tsv"
 
@@ -66,11 +69,13 @@ def submit_array(
     digest = _sha256(table)
     ledger_dir = raw_root / "submissions"
     ledger_path = ledger_dir / f"{scope}_{stage}.json"
+    prior_ledger: dict[str, Any] | None = None
     if ledger_path.is_file():
-        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
-        if ledger["task_table_sha256"] != digest:
+        prior_ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        if prior_ledger["task_table_sha256"] != digest:
             raise RuntimeError("submission ledger task-table hash drift")
-        return {**ledger, "status": "ALREADY_SUBMITTED"}
+        if prior_ledger["status"] == "SUBMITTED":
+            return {**prior_ledger, "status": "ALREADY_SUBMITTED"}
     repository = Path(__file__).resolve().parents[3]
     script = repository / "workflows" / "mace_polar_5solv_redox" / "hpc" / (
         "run_trajectory.sh" if stage == "trajectory" else "run_gap.sh"
@@ -99,9 +104,14 @@ def submit_array(
         "-o",
         str(log_dir),
         "-v",
-        f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device}",
+        f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device},MD_CHUNKS_PER_JOB={MD_CHUNKS_PER_SCHEDULER_JOB}",
         str(script),
     ])
+    wave_count = (
+        1
+        if stage == "gap" or scope == "pilot"
+        else 200 // MD_CHUNKS_PER_SCHEDULER_JOB
+    )
     payload: dict[str, Any] = {
         "status": "PREPARED",
         "scope": scope,
@@ -111,25 +121,61 @@ def submit_array(
         "max_concurrent": max_concurrent,
         "slots": slots,
         "device": device,
+        "md_chunks_per_scheduler_job": MD_CHUNKS_PER_SCHEDULER_JOB
+        if stage == "trajectory"
+        else None,
+        "scheduler_wave_count": wave_count,
         "command": shlex.join(command),
     }
     if not execute:
         return payload
-    result = subprocess.run(command, check=True, capture_output=True, text=True)
-    scheduler_text = result.stdout.strip()
-    scheduler_job_id = scheduler_text.split(".", maxsplit=1)[0]
-    if not scheduler_job_id.isdecimal():
-        raise RuntimeError(f"could not parse qsub job id: {scheduler_text!r}")
+    ledger_dir.mkdir(parents=True, exist_ok=True)
+    scheduler_job_ids = list(prior_ledger.get("scheduler_job_ids", [])) if prior_ledger else []
+    scheduler_receipts = list(prior_ledger.get("scheduler_receipts", [])) if prior_ledger else []
+    payload.update(
+        {
+            "status": "SUBMITTING",
+            "scheduler_job_ids": scheduler_job_ids,
+            "scheduler_receipts": scheduler_receipts,
+            "submitted_at_utc": prior_ledger.get("submitted_at_utc")
+            if prior_ledger
+            else datetime.now(UTC).isoformat(),
+        }
+    )
+    ledger_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    for wave_index in range(len(scheduler_job_ids), wave_count):
+        wave_command = list(command)
+        if scheduler_job_ids:
+            wave_command[-1:-1] = ["-hold_jid_ad", scheduler_job_ids[-1]]
+        result = subprocess.run(wave_command, check=True, capture_output=True, text=True)
+        scheduler_text = result.stdout.strip()
+        scheduler_job_id = scheduler_text.split(".", maxsplit=1)[0]
+        if not scheduler_job_id.isdecimal():
+            raise RuntimeError(f"could not parse qsub job id: {scheduler_text!r}")
+        scheduler_job_ids.append(scheduler_job_id)
+        scheduler_receipts.append(scheduler_text)
+        payload.update(
+            {
+                "scheduler_job_ids": scheduler_job_ids,
+                "scheduler_receipts": scheduler_receipts,
+                "submitted_scheduler_waves": wave_index + 1,
+            }
+        )
+        ledger_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     payload.update(
         {
             "status": "SUBMITTED",
-            "scheduler_job_id": scheduler_job_id,
-            "scheduler_receipt": scheduler_text,
-            "submitted_at_utc": datetime.now(UTC).isoformat(),
+            "scheduler_job_id": scheduler_job_ids[0],
+            "scheduler_receipt": scheduler_receipts[0],
         }
     )
-    ledger_dir.mkdir(parents=True, exist_ok=True)
-    ledger_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    ledger_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return payload
 
 
