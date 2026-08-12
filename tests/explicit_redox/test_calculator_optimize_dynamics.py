@@ -14,6 +14,7 @@ from jhtvs_ft0806.explicit_redox.calculator import (
     model_parameter_sha256,
 )
 from jhtvs_ft0806.explicit_redox.dynamics import chunk_plan, pending_chunks
+from jhtvs_ft0806.explicit_redox.optimize import restore_fire_geometry
 
 
 class FakeAtoms:
@@ -116,6 +117,24 @@ def test_model_parameter_hash_detects_changes() -> None:
     assert model_parameter_sha256(model) == before
     model.values[0] = 3.0
     assert model_parameter_sha256(model) != before
+
+
+def test_fire_restart_restores_last_trajectory_geometry(tmp_path: Path) -> None:
+    pytest.importorskip("ase")
+    from ase import Atoms
+    from ase.io import write
+
+    atoms = Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.7]])
+    resumed = atoms.copy()
+    resumed.positions[1, 2] = 0.9
+    trajectory = tmp_path / "optimization.traj"
+    restart = tmp_path / "fire.restart.json"
+    write(trajectory, resumed)
+    restart.write_text("{}", encoding="utf-8")
+    assert restore_fire_geometry(
+        atoms, restart_path=restart, trajectory_path=trajectory
+    ) is True
+    np.testing.assert_allclose(atoms.positions, resumed.positions)
 
 
 def test_md_chunk_plan_and_restart_idempotency(tmp_path: Path) -> None:

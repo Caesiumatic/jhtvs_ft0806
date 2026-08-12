@@ -12,7 +12,7 @@ from rdkit import Chem
 from rdkit.Geometry import Point3D
 
 from .calculator import PolarMACEStateCalculator, apply_state_metadata
-from .optimize import atoms_geometry_sha256
+from .optimize import atoms_geometry_sha256, restore_fire_geometry
 from .packing import read_xyz
 from .structures import ConformerRecord, select_mace_conformers, tfsi_family
 
@@ -86,11 +86,16 @@ def run_isolated_task(
         checkpoint=checkpoint, charge=charge, spin=spin, device=device
     )
     atoms.calc = calculator
+    restart_path = output_dir / "fire.restart.json"
+    trajectory_path = output_dir / "optimization.traj"
+    resumed = restore_fire_geometry(
+        atoms, restart_path=restart_path, trajectory_path=trajectory_path
+    )
     optimizer = FIRE(
         atoms,
-        restart=str(output_dir / "fire.restart.json"),
+        restart=str(restart_path),
         logfile=str(output_dir / "fire.log"),
-        trajectory=str(output_dir / "optimization.traj"),
+        trajectory=str(trajectory_path),
     )
     converged = bool(optimizer.run(fmax=fmax_eV_A, steps=max_steps))
     energy = float(atoms.get_potential_energy())
@@ -102,6 +107,7 @@ def run_isolated_task(
         "status": "clean" if converged else "incomplete",
         "converged": converged,
         "steps": int(optimizer.nsteps),
+        "resumed_from_fire_restart": resumed,
         "energy_eV": energy,
         "maximum_force_eV_A": float(np.linalg.norm(forces, axis=1).max()),
         "geometry_sha256": atoms_geometry_sha256(atoms),
