@@ -103,10 +103,12 @@ def test_pilot_report_requires_complete_four_system_two_state_scope(tmp_path: Pa
     submissions = raw / "submissions"
     submissions.mkdir()
     (submissions / "pilot_trajectory.json").write_text(
-        json.dumps({"scheduler_job_id": "100"}), encoding="utf-8"
+        json.dumps({"scheduler_job_id": "100", "scheduler_job_ids": ["100"]}),
+        encoding="utf-8",
     )
     (submissions / "pilot_gap.json").write_text(
-        json.dumps({"scheduler_job_id": "101"}), encoding="utf-8"
+        json.dumps({"scheduler_job_id": "101", "scheduler_job_ids": ["101"]}),
+        encoding="utf-8",
     )
     payload = write_pilot_report(
         workflow_dir=workflow,

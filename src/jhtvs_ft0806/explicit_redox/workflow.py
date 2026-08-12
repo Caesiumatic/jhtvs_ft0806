@@ -5,6 +5,7 @@ import hashlib
 import json
 import shlex
 import subprocess
+from math import ceil
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Sequence
@@ -13,6 +14,11 @@ from .trajectory import TRAJECTORY_SCOPES, _read_tsv
 
 
 MD_CHUNKS_PER_SCHEDULER_JOB = 10
+SAFE_GPU_QUEUES = (
+    "gpu1@compute-1-21.local,"
+    "gpu2@compute-1-22.local,"
+    "gpu2@compute-1-23.local"
+)
 
 
 def _task_table(raw_root: Path, scope: str) -> Path:
@@ -62,6 +68,40 @@ def workflow_status(*, raw_root: Path, scope: str) -> dict[str, Any]:
     }
 
 
+def _array_range(indices: Sequence[int]) -> str:
+    if not indices:
+        raise ValueError("cannot render an empty scheduler task range")
+    groups: list[str] = []
+    start = previous = indices[0]
+    for index in indices[1:]:
+        if index == previous + 1:
+            previous = index
+            continue
+        groups.append(str(start) if start == previous else f"{start}-{previous}")
+        start = previous = index
+    groups.append(str(start) if start == previous else f"{start}-{previous}")
+    return ",".join(groups)
+
+
+def _resource_arguments(device: str, slots: int) -> tuple[list[str], str]:
+    if device == "cuda":
+        return (
+            [
+                "-q",
+                SAFE_GPU_QUEUES,
+                "-l",
+                "gpu=1,slots_gpu=1",
+                "-l",
+                "exclusive=true",
+                "-pe",
+                "cuda",
+                "1",
+            ],
+            "jhtvs-ft0806-gpu",
+        )
+    return ["-pe", "smp", str(slots)], "jhtvs-ft0806"
+
+
 def submit_array(
     *,
     raw_root: Path,
@@ -107,12 +147,8 @@ def submit_array(
         "-tc",
         str(max_concurrent),
     ]
-    if device == "cuda":
-        command.extend(["-q", "gpu1,gpu2", "-l", "gpu=1,slots_gpu=1", "-pe", "cuda", "1"])
-        conda_environment = "jhtvs-ft0806-gpu"
-    else:
-        command.extend(["-pe", "smp", str(slots)])
-        conda_environment = "jhtvs-ft0806"
+    resource_arguments, conda_environment = _resource_arguments(device, slots)
+    command.extend(resource_arguments)
     command.extend([
         "-N",
         job_name,
@@ -195,13 +231,186 @@ def submit_array(
     return payload
 
 
+def _remaining_trajectory_waves(
+    *, raw_root: Path, scope: str, pending_indices: Sequence[int]
+) -> int:
+    tasks = {
+        int(row["task_index"]): row for row in _read_tsv(_task_table(raw_root, scope))
+    }
+    total_chunks = 3 if scope == "pilot" else 200
+    maximum_remaining = 0
+    for index in pending_indices:
+        logical_id = tasks[index]["logical_trajectory_id"]
+        completed = 0
+        for path in (raw_root / "trajectories" / logical_id / "md").glob("chunk-*.json"):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            completed += int(payload.get("status") == "complete")
+        maximum_remaining = max(maximum_remaining, total_chunks - completed)
+    return max(1, ceil(maximum_remaining / MD_CHUNKS_PER_SCHEDULER_JOB))
+
+
+def resume_array(
+    *,
+    raw_root: Path,
+    scope: str,
+    stage: str,
+    execute: bool,
+    max_concurrent: int = 3,
+    slots: int = 8,
+    device: str = "cuda",
+) -> dict[str, Any]:
+    if stage not in {"trajectory", "gap"}:
+        raise ValueError("resume stage must be trajectory or gap")
+    if device not in {"cpu", "cuda"}:
+        raise ValueError("resume device must be cpu or cuda")
+    table = _task_table(raw_root, scope)
+    digest = _sha256(table)
+    status = workflow_status(raw_root=raw_root, scope=scope)
+    pending_indices = status[
+        "pending_trajectory_indices" if stage == "trajectory" else "pending_gap_indices"
+    ]
+    if not pending_indices:
+        return {"status": "complete", "scope": scope, "stage": stage, "pending_indices": []}
+    ledger_dir = raw_root / "submissions"
+    base_ledger_path = ledger_dir / f"{scope}_{stage}.json"
+    if not base_ledger_path.is_file():
+        raise RuntimeError("cannot resume before the initial stage submission")
+    base_ledger = json.loads(base_ledger_path.read_text(encoding="utf-8"))
+    if base_ledger["task_table_sha256"] != digest:
+        raise RuntimeError("resume task-table hash drift")
+    prior_retries = sorted(ledger_dir.glob(f"{scope}_{stage}_retry-*.json"))
+    prior_ledger: dict[str, Any] | None = None
+    if prior_retries:
+        latest = json.loads(prior_retries[-1].read_text(encoding="utf-8"))
+        if latest["status"] == "SUBMITTING":
+            prior_ledger = latest
+            retry_index = int(latest["retry_index"])
+            ledger_path = prior_retries[-1]
+        else:
+            active = any(
+                subprocess.run(
+                    ["qstat", "-j", job_id], capture_output=True, text=True
+                ).returncode
+                == 0
+                for job_id in latest["scheduler_job_ids"]
+            )
+            if active:
+                return {**latest, "status": "ALREADY_SUBMITTED"}
+            retry_index = int(latest["retry_index"]) + 1
+            ledger_path = ledger_dir / f"{scope}_{stage}_retry-{retry_index:03d}.json"
+    else:
+        retry_index = 1
+        ledger_path = ledger_dir / f"{scope}_{stage}_retry-{retry_index:03d}.json"
+    repository = Path(__file__).resolve().parents[3]
+    repository_commit = _repository_commit(repository)
+    script = repository / "workflows" / "mace_polar_5solv_redox" / "hpc" / (
+        "run_trajectory.sh" if stage == "trajectory" else "run_gap.sh"
+    )
+    log_dir = raw_root / "scheduler_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    command = [
+        "qsub",
+        "-terse",
+        "-cwd",
+        "-t",
+        _array_range(pending_indices),
+        "-tc",
+        str(max_concurrent),
+    ]
+    resource_arguments, conda_environment = _resource_arguments(device, slots)
+    command.extend(resource_arguments)
+    command.extend(
+        [
+            "-N",
+            f"mp_{scope[:3]}_{'md' if stage == 'trajectory' else 'gap'}r{retry_index}",
+            "-o",
+            str(log_dir),
+            "-v",
+            f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},REPOSITORY_COMMIT={repository_commit},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device},MD_CHUNKS_PER_JOB={MD_CHUNKS_PER_SCHEDULER_JOB}",
+            str(script),
+        ]
+    )
+    wave_count = (
+        _remaining_trajectory_waves(
+            raw_root=raw_root, scope=scope, pending_indices=pending_indices
+        )
+        if stage == "trajectory"
+        else 1
+    )
+    payload: dict[str, Any] = {
+        "status": "PREPARED",
+        "scope": scope,
+        "stage": stage,
+        "retry_index": retry_index,
+        "pending_indices": pending_indices,
+        "task_table_sha256": digest,
+        "repository_commit": repository_commit,
+        "device": device,
+        "max_concurrent": max_concurrent,
+        "slots": slots,
+        "scheduler_wave_count": wave_count,
+        "command": shlex.join(command),
+    }
+    if not execute:
+        return payload
+    ledger_dir.mkdir(parents=True, exist_ok=True)
+    scheduler_job_ids = list(prior_ledger.get("scheduler_job_ids", [])) if prior_ledger else []
+    scheduler_receipts = list(prior_ledger.get("scheduler_receipts", [])) if prior_ledger else []
+    payload.update(
+        {
+            "status": "SUBMITTING",
+            "scheduler_job_ids": scheduler_job_ids,
+            "scheduler_receipts": scheduler_receipts,
+            "submitted_at_utc": prior_ledger.get("submitted_at_utc")
+            if prior_ledger
+            else datetime.now(UTC).isoformat(),
+        }
+    )
+    ledger_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    for wave_index in range(len(scheduler_job_ids), wave_count):
+        wave_command = list(command)
+        if scheduler_job_ids:
+            wave_command[-1:-1] = ["-hold_jid_ad", scheduler_job_ids[-1]]
+        result = subprocess.run(wave_command, check=True, capture_output=True, text=True)
+        scheduler_text = result.stdout.strip()
+        scheduler_job_id = scheduler_text.split(".", maxsplit=1)[0]
+        if not scheduler_job_id.isdecimal():
+            raise RuntimeError(f"could not parse retry qsub job id: {scheduler_text!r}")
+        scheduler_job_ids.append(scheduler_job_id)
+        scheduler_receipts.append(scheduler_text)
+        payload.update(
+            {
+                "scheduler_job_ids": scheduler_job_ids,
+                "scheduler_receipts": scheduler_receipts,
+                "submitted_scheduler_waves": wave_index + 1,
+            }
+        )
+        ledger_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+    payload.update({"status": "SUBMITTED", "scheduler_job_id": scheduler_job_ids[0]})
+    ledger_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return payload
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("status", "resume"):
-        command = sub.add_parser(name)
-        command.add_argument("--raw-root", type=Path, required=True)
-        command.add_argument("--scope", choices=TRAJECTORY_SCOPES, required=True)
+    status = sub.add_parser("status")
+    status.add_argument("--raw-root", type=Path, required=True)
+    status.add_argument("--scope", choices=TRAJECTORY_SCOPES, required=True)
+    resume = sub.add_parser("resume")
+    resume.add_argument("--raw-root", type=Path, required=True)
+    resume.add_argument("--scope", choices=TRAJECTORY_SCOPES, required=True)
+    resume.add_argument("--stage", choices=("trajectory", "gap"), default="trajectory")
+    resume.add_argument("--max-concurrent", type=int, default=3)
+    resume.add_argument("--slots", type=int, default=8)
+    resume.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
+    resume.add_argument("--execute", action="store_true")
     submit = sub.add_parser("submit-md")
     submit.add_argument("--raw-root", type=Path, required=True)
     submit.add_argument("--scope", choices=TRAJECTORY_SCOPES, required=True)
@@ -211,8 +420,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     submit.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     submit.add_argument("--execute", action="store_true")
     args = parser.parse_args(argv)
-    if args.command in {"status", "resume"}:
+    if args.command == "status":
         payload = workflow_status(raw_root=args.raw_root, scope=args.scope)
+    elif args.command == "resume":
+        payload = resume_array(
+            raw_root=args.raw_root,
+            scope=args.scope,
+            stage=args.stage,
+            execute=args.execute,
+            max_concurrent=args.max_concurrent,
+            slots=args.slots,
+            device=args.device,
+        )
     else:
         payload = submit_array(
             raw_root=args.raw_root,

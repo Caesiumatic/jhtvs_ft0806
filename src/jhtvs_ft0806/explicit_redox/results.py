@@ -119,6 +119,21 @@ def _execution_provenance(raw_root: Path, scope: str) -> dict[str, Any]:
             "task_table_sha256": payload["task_table_sha256"],
             "scheduler_job_ids": payload["scheduler_job_ids"],
             "device": payload["device"],
+            "retries": [
+                {
+                    "retry_index": retry["retry_index"],
+                    "pending_indices": retry["pending_indices"],
+                    "repository_commit": retry["repository_commit"],
+                    "scheduler_job_ids": retry["scheduler_job_ids"],
+                    "device": retry["device"],
+                }
+                for retry in (
+                    json.loads(path.read_text(encoding="utf-8"))
+                    for path in sorted(
+                        (raw_root / "submissions").glob(f"{scope}_{stage}_retry-*.json")
+                    )
+                )
+            ],
         }
     return result
 

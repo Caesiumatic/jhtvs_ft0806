@@ -49,6 +49,13 @@
     "maxvmem": "1.886GB",
     "torch_version": "2.1.2+cu118"
   },
+  "lop_gpu_inventory": {
+    "compute-1-20.local": "4 x NVIDIA GeForce GTX 980, 4043 MiB each; excluded from production because the largest pilot cluster exceeded memory",
+    "compute-1-21.local": "4 x NVIDIA GeForce GTX TITAN X, 12212 MiB each",
+    "compute-1-22.local": "4 x NVIDIA Tesla K80, 11441 MiB each",
+    "compute-1-23.local": "4 x NVIDIA Tesla K80, 11441 MiB each",
+    "scheduler_constraint": "One exclusive MACE process per host because Lop did not assign distinct CUDA_VISIBLE_DEVICES to simultaneous slots_gpu jobs on the same host."
+  },
   "mace_version": "0.3.16",
   "selected_production_device": "cuda",
   "selection_basis": "The identical 11-coordinate steady-state benchmark was numerically equivalent and substantially faster on the K80 GPU; the one-coordinate startup probe was retained separately."

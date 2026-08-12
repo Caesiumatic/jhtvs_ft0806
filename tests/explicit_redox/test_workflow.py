@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from jhtvs_ft0806.explicit_redox.workflow import submit_array, workflow_status
+from jhtvs_ft0806.explicit_redox.workflow import (
+    _array_range,
+    resume_array,
+    submit_array,
+    workflow_status,
+)
 
 
 def _tasks(raw: Path) -> None:
@@ -45,6 +50,9 @@ def test_status_and_submission_preflight_are_task_hash_scoped(tmp_path: Path) ->
         device="cuda",
     )
     assert "-l gpu=1,slots_gpu=1" in gpu["command"]
+    assert "-l exclusive=true" in gpu["command"]
+    assert "gpu1@compute-1-21.local" in gpu["command"]
+    assert "gpu2@compute-1-22.local" in gpu["command"]
     assert "MACE_DEVICE=cuda" in gpu["command"]
     assert prepared["scheduler_wave_count"] == 1
     assert "MD_CHUNKS_PER_JOB=10" in prepared["command"]
@@ -88,3 +96,57 @@ def test_full_trajectory_submission_is_an_idempotent_twenty_wave_dependency_chai
     )
     assert again["status"] == "ALREADY_SUBMITTED"
     assert len(commands) == 20
+
+
+def test_resume_submits_only_pending_indices_once_on_safe_exclusive_gpus(
+    tmp_path: Path, monkeypatch
+) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _tasks(raw)
+    digest = __import__("hashlib").sha256(
+        (raw / "pilot_trajectory_tasks.tsv").read_bytes()
+    ).hexdigest()
+    submissions = raw / "submissions"
+    submissions.mkdir()
+    (submissions / "pilot_trajectory.json").write_text(
+        json.dumps({"status": "SUBMITTED", "task_table_sha256": digest}),
+        encoding="utf-8",
+    )
+    complete = raw / "trajectories" / "one"
+    complete.mkdir(parents=True)
+    (complete / "trajectory.json").write_text(
+        json.dumps({"status": "complete"}), encoding="utf-8"
+    )
+    commands = []
+
+    def fake_run(command, **_kwargs):
+        if command[:2] == ["git", "rev-parse"]:
+            return SimpleNamespace(stdout="b" * 40 + "\n", returncode=0)
+        if command[:2] == ["qstat", "-j"]:
+            return SimpleNamespace(stdout="", stderr="", returncode=0)
+        commands.append(command)
+        return SimpleNamespace(stdout="2001.2\n", returncode=0)
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    submitted = resume_array(
+        raw_root=raw,
+        scope="pilot",
+        stage="trajectory",
+        execute=True,
+    )
+    assert submitted["pending_indices"] == [2]
+    assert commands[0][commands[0].index("-t") + 1] == "2"
+    assert "exclusive=true" in commands[0]
+    again = resume_array(
+        raw_root=raw,
+        scope="pilot",
+        stage="trajectory",
+        execute=True,
+    )
+    assert again["status"] == "ALREADY_SUBMITTED"
+    assert len(commands) == 1
+
+
+def test_scheduler_array_range_compresses_only_contiguous_indices() -> None:
+    assert _array_range([1, 2, 3, 5, 7, 8]) == "1-3,5,7-8"

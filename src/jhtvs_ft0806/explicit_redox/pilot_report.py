@@ -132,6 +132,14 @@ def write_pilot_report(
     gap_submission = json.loads(
         (raw_root / "submissions" / "pilot_gap.json").read_text(encoding="utf-8")
     )
+    trajectory_retries = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((raw_root / "submissions").glob("pilot_trajectory_retry-*.json"))
+    ]
+    gap_retries = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((raw_root / "submissions").glob("pilot_gap_retry-*.json"))
+    ]
     payload: dict[str, Any] = {
         "status": status,
         "pilot_system_count": len(manifest),
@@ -141,6 +149,10 @@ def write_pilot_report(
         "critical_qc_flags": sorted(critical_flags),
         "trajectory_scheduler_job_id": trajectory_submission["scheduler_job_id"],
         "gap_scheduler_job_id": gap_submission["scheduler_job_id"],
+        "trajectory_scheduler_job_ids": trajectory_submission["scheduler_job_ids"]
+        + [job for retry in trajectory_retries for job in retry["scheduler_job_ids"]],
+        "gap_scheduler_job_ids": gap_submission["scheduler_job_ids"]
+        + [job for retry in gap_retries for job in retry["scheduler_job_ids"]],
         "trajectory_wallclock_seconds_sum": trajectory_wallclock,
         "gap_wallclock_seconds_sum": gap_wallclock,
         "pilot_raw_bytes": raw_bytes,
@@ -158,7 +170,7 @@ def write_pilot_report(
         "",
         f"- Status: **{status}**",
         f"- Scope: {len(manifest)} systems, {len(tasks)} state trajectories, one shell seed each",
-        f"- Scheduler jobs: trajectory `{trajectory_submission['scheduler_job_id']}`, gap `{gap_submission['scheduler_job_id']}`",
+        f"- Scheduler jobs: trajectory `{', '.join(payload['trajectory_scheduler_job_ids'])}`, gap `{', '.join(payload['gap_scheduler_job_ids'])}`",
         f"- Summed wallclock: trajectory {trajectory_wallclock / 3600.0:.2f} h; gap {gap_wallclock / 3600.0:.2f} h",
         f"- Raw pilot storage: {raw_bytes / 1024.0**2:.2f} MiB",
         f"- Critical QC flags: {', '.join(sorted(critical_flags)) if critical_flags else 'none'}",
