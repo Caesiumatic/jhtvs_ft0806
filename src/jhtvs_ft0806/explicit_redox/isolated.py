@@ -8,9 +8,13 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import numpy as np
+from rdkit import Chem
+from rdkit.Geometry import Point3D
 
 from .calculator import PolarMACEStateCalculator, apply_state_metadata
 from .optimize import atoms_geometry_sha256
+from .packing import read_xyz
+from .structures import ConformerRecord, select_mace_conformers, tfsi_family
 
 
 TASK_FIELDS = ("task_index", "entity_id", "conformer_id", "formal_charge", "spin", "input_xyz", "output_dir")
@@ -108,8 +112,35 @@ def run_isolated_task(
     return receipt
 
 
+def _tfsi_family_from_xyz(smiles: str, path: Path) -> str | None:
+    molecule = Chem.AddHs(Chem.MolFromSmiles(smiles))
+    nitrogen = next(
+        (
+            atom
+            for atom in molecule.GetAtoms()
+            if atom.GetSymbol() == "N"
+            and sum(neighbor.GetSymbol() == "S" for neighbor in atom.GetNeighbors()) == 2
+        ),
+        None,
+    )
+    if nitrogen is None:
+        return None
+    geometry = read_xyz(path)
+    symbols = tuple(atom.GetSymbol() for atom in molecule.GetAtoms())
+    if geometry.symbols != symbols:
+        raise RuntimeError("optimized TFSI atom ordering drift")
+    conformer = Chem.Conformer(molecule.GetNumAtoms())
+    for index, (x, y, z) in enumerate(geometry.positions):
+        conformer.SetAtomPosition(index, Point3D(x, y, z))
+    molecule.RemoveAllConformers()
+    conformer_id = molecule.AddConformer(conformer, assignId=True)
+    return tfsi_family(molecule, conformer_id)
+
+
 def collect_isolated(raw_root: Path, *, window_eV: float = 0.25) -> list[dict[str, object]]:
     tasks = prepare_isolated_tasks(raw_root)
+    with (raw_root / "structure_candidates.csv").open(encoding="utf-8", newline="") as handle:
+        entity_metadata = {row["entity_id"]: row for row in csv.DictReader(handle)}
     by_entity: dict[str, list[dict[str, Any]]] = {}
     for task in tasks:
         receipt = raw_root / str(task["output_dir"]) / "result.json"
@@ -123,9 +154,37 @@ def collect_isolated(raw_root: Path, *, window_eV: float = 0.25) -> list[dict[st
     for entity_id, rows in sorted(by_entity.items()):
         ranked = sorted(rows, key=lambda row: (float(row["energy_eV"]), int(row["conformer_id"])))
         minimum = float(ranked[0]["energy_eV"])
-        for rank, row in enumerate(
-            [item for item in ranked if float(item["energy_eV"]) <= minimum + window_eV][:3]
-        ):
+        records = [
+            ConformerRecord(
+                conformer_id=int(row["conformer_id"]),
+                embed_seed=0,
+                geometry_sha256=str(row["geometry_sha256"]),
+                mmff_variant="not_used_for_selection",
+                mmff_energy_eV=None,
+                xyz_path=f"{row['output_dir']}/optimized.xyz",
+            )
+            for row in rows
+        ]
+        families = [
+            _tfsi_family_from_xyz(
+                entity_metadata[entity_id]["canonical_smiles"],
+                raw_root / str(row["output_dir"]) / "optimized.xyz",
+            )
+            for row in rows
+        ]
+        family_selection = None if all(family is None for family in families) else [str(family) for family in families]
+        chosen = select_mace_conformers(
+            records,
+            [float(row["energy_eV"]) for row in rows],
+            window_eV=window_eV,
+            families=family_selection,
+        )
+        by_conformer = {int(row["conformer_id"]): row for row in rows}
+        family_by_conformer = {
+            record.conformer_id: family for record, family in zip(records, families, strict=True)
+        }
+        for rank, record in enumerate(chosen):
+            row = by_conformer[record.conformer_id]
             selected.append(
                 {
                     "entity_id": entity_id,
@@ -133,11 +192,12 @@ def collect_isolated(raw_root: Path, *, window_eV: float = 0.25) -> list[dict[st
                     "conformer_id": row["conformer_id"],
                     "energy_eV": row["energy_eV"],
                     "relative_energy_eV": float(row["energy_eV"]) - minimum,
+                    "conformer_family": family_by_conformer[record.conformer_id] or "",
                     "geometry_sha256": row["geometry_sha256"],
                     "optimized_xyz": f"{row['output_dir']}/optimized.xyz",
                 }
             )
-    fields = ("entity_id", "rank", "conformer_id", "energy_eV", "relative_energy_eV", "geometry_sha256", "optimized_xyz")
+    fields = ("entity_id", "rank", "conformer_id", "energy_eV", "relative_energy_eV", "conformer_family", "geometry_sha256", "optimized_xyz")
     with (raw_root / "isolated_selected.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
