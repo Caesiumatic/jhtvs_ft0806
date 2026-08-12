@@ -34,6 +34,7 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 set +u
 conda activate "$CONDA_ENV_NAME"
 set -u
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
 cd "$REPO_ROOT"
 
 export OMP_NUM_THREADS="${NSLOTS:-1}"

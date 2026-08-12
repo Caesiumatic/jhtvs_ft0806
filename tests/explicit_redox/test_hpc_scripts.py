@@ -37,6 +37,15 @@ def test_gap_launcher_uses_same_frozen_trajectory_identity() -> None:
     assert "MACE_DEVICE" in text
 
 
+def test_device_probe_launcher_activates_requested_isolated_environment() -> None:
+    text = (ROOT / "workflows" / "mace_polar_5solv_redox" / "hpc" / "run_device_probe.sh").read_text()
+    assert "set -euo pipefail" in text
+    assert "CONDA_ENV_NAME" in text
+    assert "PROBE_DEVICE" in text
+    assert 'LD_LIBRARY_PATH="$CONDA_PREFIX/lib:' in text
+    assert "device_probe run" in text
+
+
 def test_isolated_submission_matches_frozen_task_scope() -> None:
     payload = json.loads(
         (ROOT / "workflows" / "mace_polar_5solv_redox" / "isolated_submission.json").read_text()
