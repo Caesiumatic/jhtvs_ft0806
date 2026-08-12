@@ -5,14 +5,43 @@
   "execution_commit": "16c6467c85865e1084aed46096ebf935c062d578",
   "graph_electrostatics_version": "0.4.0",
   "mace_torch_version": "0.3.16",
-  "max_concurrent_tasks": 8,
+  "completed_at_cluster_local": "2026-08-11T21:37:01-05:00",
+  "initial_max_concurrent_tasks": 8,
+  "maximum_observed_concurrent_tasks": 24,
   "parallel_environment": "smp",
   "raw_candidate_archive_sha256": "777b0e878c1e5fc935ec8f7751b6e910ce192dcc5a23f450f219e41e7c382cea",
   "scheduler": "SGE",
   "scheduler_job_id": "423754",
   "slots_per_task": 8,
-  "status": "submitted",
+  "status": "complete",
   "submitted_at_cluster_local": "2026-08-11T20:10:31-05:00",
   "task_table_sha256": "2d156affd73f8518ea978c87f0d761ea0d7cfcae7c963348009875ceca0f08cc",
-  "workflow_stage": "isolated_lower_charge_conformer_optimization"
+  "workflow_stage": "isolated_lower_charge_conformer_optimization",
+  "completion": {
+    "clean_result_count": 120,
+    "failed_scheduler_tasks": 0,
+    "maximum_force_eV_A": 0.01998009418137535,
+    "maximum_optimization_steps": 267,
+    "maximum_scheduler_maxvmem_GB": 4.362,
+    "median_optimization_steps": 65.5,
+    "median_scheduler_wallclock_seconds": 176.5,
+    "nonzero_scheduler_exit_tasks": 0,
+    "result_receipt_merkle_sha256": "6749897691a8d62016145b98b788d3ad8ee3bcb2e7cf1a0e71cde49aebd75b15",
+    "scheduler_record_count": 120,
+    "selected_conformer_count": 39,
+    "selected_entity_count": 26,
+    "selected_manifest_sha256": "16a6aa4f47b448f13ce3033147ac7b34102c4c7a1489f61c886dc595c092cf46",
+    "summed_scheduler_wallclock_hours": 14.312777777777777,
+    "tfsi_selected_families": [
+      "cis",
+      "trans"
+    ]
+  },
+  "execution_checkout_audit": {
+    "fresh_tasks_after_restart_support_commit": 58,
+    "legacy_receipts_without_restart_field": 62,
+    "resumed_tasks": 0,
+    "scientific_protocol_changed_during_array": false,
+    "note": "The shared execution checkout advanced only through pushed engineering commits; the later isolated receipt schema records restart status, and no task resumed."
+  }
 }
