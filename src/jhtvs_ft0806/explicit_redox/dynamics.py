@@ -126,6 +126,8 @@ def run_md(
 
         def sample() -> None:
             nonlocal chunk_restraint_active_steps, chunk_maximum_excursion, production_samples
+            if dynamics.nsteps == 0:
+                return
             result = restraint.evaluate(np.asarray(atoms.positions, dtype=np.float64))
             chunk_restraint_active_steps += int(result.active_count > 0)
             chunk_maximum_excursion = max(
