@@ -33,4 +33,7 @@ diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.hess
 diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.trj
 diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.opt
 diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*_Compound_*.xyz
+# Preserve the tracked top-level prepared decks while ignoring every ORCA-created
+# runtime file, including Compound sub-decks and basis/scratch sidecars.
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*
 diagnostics/explicit_solvation_eox_r5/orca/scheduler_logs/
