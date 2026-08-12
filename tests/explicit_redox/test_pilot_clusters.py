@@ -87,4 +87,5 @@ def test_cluster_packing_uses_round_robin_selected_conformers(tmp_path: Path) ->
     )
     assert [row["target_conformer_rank"] for row in rows] == ["0", "1"]
     assert all(row["solvent_count"] == 5 and row["status"] == "clean" for row in rows)
+    assert all(row["packmol_version"] and len(row["packmol_executable_sha256"]) == 64 for row in rows)
     assert (raw / "pilot_cluster_manifest.csv").is_file()

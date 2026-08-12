@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -30,6 +31,9 @@ class PackedCluster:
     solvent_count: int
     minimum_intermolecular_distance_A: float
     containment_radius_A: float
+    packmol_executable: str
+    packmol_executable_sha256: str
+    packmol_version: str
 
 
 def sha256_file(path: Path) -> str:
@@ -170,6 +174,9 @@ def run_packmol(
     log_path.write_text(stdout + stderr, encoding="utf-8", newline="\n")
     if completed.returncode != 0 or "Success!" not in stdout or not geometry_path.is_file():
         raise RuntimeError(f"Packmol failed; inspect {log_path}")
+    version_match = re.search(r"\bVersion\s+([^\s]+)", stdout)
+    if version_match is None:
+        raise RuntimeError("Packmol output did not report a version")
     distance = validate_cluster(
         read_xyz(geometry_path), target=target, solvent=solvent, tolerance_A=tolerance_A
     )
@@ -184,4 +191,7 @@ def run_packmol(
         solvent_count=5,
         minimum_intermolecular_distance_A=distance,
         containment_radius_A=radius,
+        packmol_executable=str(Path(binary).resolve()),
+        packmol_executable_sha256=sha256_file(Path(binary).resolve()),
+        packmol_version=version_match.group(1),
     )
