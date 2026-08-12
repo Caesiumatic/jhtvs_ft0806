@@ -107,6 +107,22 @@ def _metrics(experimental: np.ndarray, predicted: np.ndarray) -> tuple[float, fl
     return r2, mae
 
 
+def _execution_provenance(raw_root: Path, scope: str) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for stage in ("trajectory", "gap"):
+        path = raw_root / "submissions" / f"{scope}_{stage}.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if payload["status"] != "SUBMITTED":
+            raise RuntimeError(f"{scope} {stage} execution ledger is not final")
+        result[stage] = {
+            "repository_commit": payload["repository_commit"],
+            "task_table_sha256": payload["task_table_sha256"],
+            "scheduler_job_ids": payload["scheduler_job_ids"],
+            "device": payload["device"],
+        }
+    return result
+
+
 def assemble_validation_results(
     *, workflow_dir: Path, raw_root: Path, results_dir: Path
 ) -> dict[str, Any]:
@@ -237,6 +253,10 @@ def assemble_validation_results(
         "reference_alignment_sha256": hashlib.sha256(
             (results_dir / "reference_alignment.json").read_bytes()
         ).hexdigest(),
+        "execution": {
+            "calibration": _execution_provenance(raw_root, "calibration"),
+            "validation": _execution_provenance(raw_root, "validation"),
+        },
     }
     (results_dir / "provenance.json").write_text(
         json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"

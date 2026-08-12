@@ -23,6 +23,20 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _repository_commit(repository: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD"],
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    commit = result.stdout.strip()
+    if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):
+        raise RuntimeError("could not resolve a full repository commit")
+    return commit
+
+
 def workflow_status(*, raw_root: Path, scope: str) -> dict[str, Any]:
     tasks = _read_tsv(_task_table(raw_root, scope))
     trajectory_complete = []
@@ -77,6 +91,7 @@ def submit_array(
         if prior_ledger["status"] == "SUBMITTED":
             return {**prior_ledger, "status": "ALREADY_SUBMITTED"}
     repository = Path(__file__).resolve().parents[3]
+    repository_commit = _repository_commit(repository)
     script = repository / "workflows" / "mace_polar_5solv_redox" / "hpc" / (
         "run_trajectory.sh" if stage == "trajectory" else "run_gap.sh"
     )
@@ -104,7 +119,7 @@ def submit_array(
         "-o",
         str(log_dir),
         "-v",
-        f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device},MD_CHUNKS_PER_JOB={MD_CHUNKS_PER_SCHEDULER_JOB}",
+        f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},REPOSITORY_COMMIT={repository_commit},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device},MD_CHUNKS_PER_JOB={MD_CHUNKS_PER_SCHEDULER_JOB}",
         str(script),
     ])
     wave_count = (
@@ -118,6 +133,7 @@ def submit_array(
         "stage": stage,
         "task_count": len(tasks),
         "task_table_sha256": digest,
+        "repository_commit": repository_commit,
         "max_concurrent": max_concurrent,
         "slots": slots,
         "device": device,

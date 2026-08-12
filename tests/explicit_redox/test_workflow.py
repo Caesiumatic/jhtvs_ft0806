@@ -48,6 +48,7 @@ def test_status_and_submission_preflight_are_task_hash_scoped(tmp_path: Path) ->
     assert "MACE_DEVICE=cuda" in gpu["command"]
     assert prepared["scheduler_wave_count"] == 1
     assert "MD_CHUNKS_PER_JOB=10" in prepared["command"]
+    assert "REPOSITORY_COMMIT=" + prepared["repository_commit"] in prepared["command"]
 
 
 def test_full_trajectory_submission_is_an_idempotent_twenty_wave_dependency_chain(
@@ -60,6 +61,8 @@ def test_full_trajectory_submission_is_an_idempotent_twenty_wave_dependency_chai
     commands = []
 
     def fake_run(command, **_kwargs):
+        if command[:2] == ["git", "rev-parse"]:
+            return SimpleNamespace(stdout="a" * 40 + "\n")
         commands.append(command)
         return SimpleNamespace(stdout=f"{1000 + len(commands)}.1-2:1\n")
 

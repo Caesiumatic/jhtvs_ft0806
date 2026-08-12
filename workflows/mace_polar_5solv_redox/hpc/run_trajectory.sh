@@ -8,6 +8,7 @@ set -euo pipefail
 : "${RAW_ROOT:?set RAW_ROOT to the non-Git workflow data root}"
 : "${TRAJECTORY_MODE:?set TRAJECTORY_MODE to pilot or production}"
 : "${TASK_TABLE_SHA256:?set the frozen task-table SHA256}"
+: "${REPOSITORY_COMMIT:?set the frozen repository commit}"
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-jhtvs-ft0806}"
 MACE_DEVICE="${MACE_DEVICE:-cpu}"
 MD_CHUNKS_PER_JOB="${MD_CHUNKS_PER_JOB:-10}"
@@ -37,6 +38,7 @@ conda activate "$CONDA_ENV_NAME"
 set -u
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH:-}"
 cd "$REPO_ROOT"
+[ "$(git rev-parse --verify HEAD)" = "$REPOSITORY_COMMIT" ]
 
 export OMP_NUM_THREADS="${NSLOTS:-1}"
 export MKL_NUM_THREADS="${NSLOTS:-1}"
