@@ -104,6 +104,57 @@ def evaluate_gap_batch(
     )
 
 
+def evaluate_gap_batch_chunked(
+    *,
+    backend: Any,
+    atoms_batch: Sequence[Any],
+    lower_charge: int,
+    lower_spin: int,
+    oxidized_charge: int,
+    oxidized_spin: int,
+    restraint: FlatBottomShell,
+    batch_size: int = 5,
+) -> GapBatch:
+    if batch_size < 1:
+        raise ValueError("gap batch size must be positive")
+    parts = [
+        evaluate_gap_batch(
+            backend=backend,
+            atoms_batch=atoms_batch[start : start + batch_size],
+            lower_charge=lower_charge,
+            lower_spin=lower_spin,
+            oxidized_charge=oxidized_charge,
+            oxidized_spin=oxidized_spin,
+            restraint=restraint,
+        )
+        for start in range(0, len(atoms_batch), batch_size)
+    ]
+    if not parts:
+        raise ValueError("cannot evaluate an empty frame batch")
+    diagnostic_keys = set(parts[0].lower_diagnostics)
+    if any(
+        set(part.lower_diagnostics) != diagnostic_keys
+        or set(part.oxidized_diagnostics) != diagnostic_keys
+        for part in parts
+    ):
+        raise RuntimeError("gap diagnostic keys changed between microbatches")
+    return GapBatch(
+        coordinate_sha256=tuple(value for part in parts for value in part.coordinate_sha256),
+        lower_energy_eV=np.concatenate([part.lower_energy_eV for part in parts]),
+        oxidized_energy_eV=np.concatenate([part.oxidized_energy_eV for part in parts]),
+        delta_E_eV=np.concatenate([part.delta_E_eV for part in parts]),
+        restraint_energy_eV=np.concatenate([part.restraint_energy_eV for part in parts]),
+        lower_diagnostics={
+            key: np.concatenate([part.lower_diagnostics[key] for part in parts])
+            for key in sorted(diagnostic_keys)
+        },
+        oxidized_diagnostics={
+            key: np.concatenate([part.oxidized_diagnostics[key] for part in parts])
+            for key in sorted(diagnostic_keys)
+        },
+    )
+
+
 def write_gap_chunk(path: Path, batch: GapBatch) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, NDArray[Any]] = {

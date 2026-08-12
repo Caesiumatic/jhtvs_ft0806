@@ -11,7 +11,11 @@ from jhtvs_ft0806.explicit_redox.marcus import (
     ev_per_electron_to_volts,
 )
 from jhtvs_ft0806.explicit_redox.restraint import FlatBottomShell
-from jhtvs_ft0806.explicit_redox.vertical_gap import evaluate_gap_batch, write_gap_chunk
+from jhtvs_ft0806.explicit_redox.vertical_gap import (
+    evaluate_gap_batch,
+    evaluate_gap_batch_chunked,
+    write_gap_chunk,
+)
 
 
 class _Tensor:
@@ -111,6 +115,41 @@ def test_batched_two_state_gap_and_raw_result_reproducibility(tmp_path) -> None:
     first = tmp_path / "first.npz"
     second = tmp_path / "second.npz"
     assert write_gap_chunk(first, batch) == write_gap_chunk(second, batch)
+
+
+def test_gap_microbatching_preserves_order_and_diagnostics() -> None:
+    restraint = FlatBottomShell(
+        target_heavy_indices=[0, 1],
+        solvent_groups=[[2], [3], [4], [5], [6]],
+        masses=[12, 12, 16, 16, 16, 16, 16],
+        R0_A=2.0,
+    )
+    frames = [_Atoms(float(index) / 10.0) for index in range(7)]
+    direct = evaluate_gap_batch(
+        backend=_Backend(),
+        atoms_batch=frames,
+        lower_charge=-1,
+        lower_spin=1,
+        oxidized_charge=0,
+        oxidized_spin=2,
+        restraint=restraint,
+    )
+    chunked = evaluate_gap_batch_chunked(
+        backend=_Backend(),
+        atoms_batch=frames,
+        lower_charge=-1,
+        lower_spin=1,
+        oxidized_charge=0,
+        oxidized_spin=2,
+        restraint=restraint,
+        batch_size=3,
+    )
+    assert chunked.coordinate_sha256 == direct.coordinate_sha256
+    np.testing.assert_allclose(chunked.delta_E_eV, direct.delta_E_eV)
+    np.testing.assert_allclose(
+        chunked.oxidized_diagnostics["spin_density"],
+        direct.oxidized_diagnostics["spin_density"],
+    )
 
 
 def test_marcus_formula_on_synthetic_harmonic_data() -> None:

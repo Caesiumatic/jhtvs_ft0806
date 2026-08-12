@@ -14,7 +14,7 @@ import numpy as np
 from .calculator import PolarMACEStateCalculator
 from .marcus import assemble_seed, assemble_system
 from .trajectory import TRAJECTORY_SCOPES, _read_tsv, _task, restraint_from_task
-from .vertical_gap import evaluate_gap_batch, read_gap_chunks, write_gap_chunk
+from .vertical_gap import evaluate_gap_batch_chunked, read_gap_chunks, write_gap_chunk
 
 
 def _sha256(path: Path) -> str:
@@ -40,6 +40,7 @@ def evaluate_trajectory_gaps(
     task_index: int,
     checkpoint: str = "polar-1-l",
     device: str = "cpu",
+    gap_batch_size: int = 5,
 ) -> dict[str, Any]:
     try:
         from ase.io import read
@@ -84,7 +85,7 @@ def evaluate_trajectory_gaps(
         if len(frames) != int(chunk["production_samples"]):
             raise RuntimeError("trajectory frame count differs from chunk receipt")
         restraint = restraint_from_task(frames[0], task)
-        batch = evaluate_gap_batch(
+        batch = evaluate_gap_batch_chunked(
             backend=calculator.backend,
             atoms_batch=frames,
             lower_charge=lower_charge,
@@ -92,6 +93,7 @@ def evaluate_trajectory_gaps(
             oxidized_charge=oxidized_charge,
             oxidized_spin=oxidized_spin,
             restraint=restraint,
+            batch_size=gap_batch_size,
         )
         output_path = gap_dir / f"gap-{int(chunk['chunk_index']):04d}.npz"
         digest = write_gap_chunk(output_path, batch)
@@ -116,6 +118,7 @@ def evaluate_trajectory_gaps(
         "oxidized_charge": oxidized_charge,
         "oxidized_spin": oxidized_spin,
         "sample_count": observed,
+        "gap_batch_size": gap_batch_size,
         "gap_chunks": gap_chunks,
         "calculator": calculator.provenance_dict(),
         "wallclock_seconds": time.monotonic() - started,
@@ -191,6 +194,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     evaluate.add_argument("--task-index", type=int, required=True)
     evaluate.add_argument("--checkpoint", default="polar-1-l")
     evaluate.add_argument("--device", default="cpu")
+    evaluate.add_argument("--gap-batch-size", type=int, default=5)
     collect = sub.add_parser("assemble-marcus")
     collect.add_argument("--raw-root", type=Path, required=True)
     collect.add_argument("--mode", choices=TRAJECTORY_SCOPES, required=True)
@@ -202,6 +206,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             task_index=args.task_index,
             checkpoint=args.checkpoint,
             device=args.device,
+            gap_batch_size=args.gap_batch_size,
         )
     else:
         seeds, systems = collect_gap_summaries(raw_root=args.raw_root, mode=args.mode)
