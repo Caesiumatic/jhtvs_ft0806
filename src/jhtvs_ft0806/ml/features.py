@@ -630,6 +630,17 @@ class PolarMACEBackend:
             raise FeatureExtractionError("ASE is required for feature extraction") from exc
 
         atoms = read_atoms(xyz_path, index=0)
+        return self.build_graph_from_atoms(
+            atoms=atoms, formal_charge=formal_charge, multiplicity=multiplicity
+        )
+
+    def build_graph_from_atoms(
+        self,
+        *,
+        atoms: Any,
+        formal_charge: int,
+        multiplicity: int,
+    ) -> Any:
         atoms.info["charge"] = int(formal_charge)
         atoms.info["spin"] = int(multiplicity)
         atoms.info["external_field"] = np.zeros(3, dtype=np.float64)
