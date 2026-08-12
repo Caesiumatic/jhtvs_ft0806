@@ -147,6 +147,7 @@ def _system_row(
     solvent_name: str,
     solvent_smiles: str,
     source_records: Sequence[str],
+    scope: str = "val",
 ) -> dict[str, object]:
     species_canonical = canonical_smiles(species_smiles)
     solvent_canonical = canonical_smiles(solvent_smiles)
@@ -154,7 +155,7 @@ def _system_row(
     if formal_charge(species_canonical) != expected_charge:
         raise ValueError(f"charge mismatch for {species_id}: expected {expected_charge}")
     canonical_key = f"{class_name}|{species_canonical}|{solvent_canonical}"
-    system_id = f"val-{class_name[:3]}-{species_id.lower()}-{hashlib.sha256(canonical_key.encode()).hexdigest()[:8]}"
+    system_id = f"{scope}-{class_name[:3]}-{species_id.lower()}-{hashlib.sha256(canonical_key.encode()).hexdigest()[:8]}"
     state = STATE_MATRIX[class_name]
     return {
         "system_id": system_id,
