@@ -7,6 +7,29 @@
     "maximum_force_component_difference_eV_A": 1.95993221652202e-12,
     "status": "PASS"
   },
+  "steady_state_benchmark": {
+    "comparison": {
+      "energy_difference_eV": 0.0,
+      "maximum_force_component_difference_eV_A": 1.8670620605121258e-12,
+      "status": "PASS"
+    },
+    "coordinate_evaluations": 11,
+    "cpu": {
+      "evaluation_seconds_total": 49.74482646211982,
+      "hostname": "compute-1-8.local",
+      "job_id": "423767",
+      "maxvmem": "2.954GB",
+      "warm_evaluation_seconds_mean": 4.51368106380105
+    },
+    "gpu": {
+      "evaluation_seconds_last_five_mean": 0.6856134749948978,
+      "evaluation_seconds_total": 17.745746333152056,
+      "hostname": "compute-1-22.local",
+      "job_id": "423768",
+      "maxvmem": "1.615GB",
+      "warm_evaluation_seconds_mean": 1.1982169192284347
+    }
+  },
   "cpu": {
     "device": "cpu",
     "evaluation_seconds": 3.652436800301075,
@@ -27,6 +50,6 @@
     "torch_version": "2.1.2+cu118"
   },
   "mace_version": "0.3.16",
-  "selected_production_device": "cpu",
-  "selection_basis": "The identical single-point evaluation was faster on the CPU probe; CUDA remains a numerically validated fallback."
+  "selected_production_device": "cuda",
+  "selection_basis": "The identical 11-coordinate steady-state benchmark was numerically equivalent and substantially faster on the K80 GPU; the one-coordinate startup probe was retained separately."
 }
