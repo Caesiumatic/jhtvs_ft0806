@@ -53,9 +53,12 @@ def submit_array(
     execute: bool,
     max_concurrent: int = 8,
     slots: int = 8,
+    device: str = "cpu",
 ) -> dict[str, Any]:
     if stage not in {"trajectory", "gap"}:
         raise ValueError("submission stage must be trajectory or gap")
+    if device not in {"cpu", "cuda"}:
+        raise ValueError("submission device must be cpu or cuda")
     table = _task_table(raw_root, scope)
     tasks = _read_tsv(table)
     if not tasks:
@@ -83,17 +86,22 @@ def submit_array(
         f"1-{len(tasks)}",
         "-tc",
         str(max_concurrent),
-        "-pe",
-        "smp",
-        str(slots),
+    ]
+    if device == "cuda":
+        command.extend(["-q", "gpu1,gpu2", "-l", "gpu=1,slots_gpu=1", "-pe", "cuda", "1"])
+        conda_environment = "jhtvs-ft0806-gpu"
+    else:
+        command.extend(["-pe", "smp", str(slots)])
+        conda_environment = "jhtvs-ft0806"
+    command.extend([
         "-N",
         job_name,
         "-o",
         str(log_dir),
         "-v",
-        f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest}",
+        f"RAW_ROOT={raw_root.resolve()},TRAJECTORY_MODE={scope},TASK_TABLE_SHA256={digest},CONDA_ENV_NAME={conda_environment},MACE_DEVICE={device}",
         str(script),
-    ]
+    ])
     payload: dict[str, Any] = {
         "status": "PREPARED",
         "scope": scope,
@@ -102,6 +110,7 @@ def submit_array(
         "task_table_sha256": digest,
         "max_concurrent": max_concurrent,
         "slots": slots,
+        "device": device,
         "command": shlex.join(command),
     }
     if not execute:
@@ -137,6 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     submit.add_argument("--stage", choices=("trajectory", "gap"), default="trajectory")
     submit.add_argument("--max-concurrent", type=int, default=8)
     submit.add_argument("--slots", type=int, default=8)
+    submit.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     submit.add_argument("--execute", action="store_true")
     args = parser.parse_args(argv)
     if args.command in {"status", "resume"}:
@@ -149,6 +159,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             execute=args.execute,
             max_concurrent=args.max_concurrent,
             slots=args.slots,
+            device=args.device,
         )
     print(json.dumps(payload, sort_keys=True))
     return 0

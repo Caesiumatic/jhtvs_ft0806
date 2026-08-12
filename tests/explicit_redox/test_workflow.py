@@ -35,3 +35,13 @@ def test_status_and_submission_preflight_are_task_hash_scoped(tmp_path: Path) ->
     assert prepared["status"] == "PREPARED"
     assert prepared["task_count"] == 2
     assert "TASK_TABLE_SHA256=" + prepared["task_table_sha256"] in prepared["command"]
+    gpu = submit_array(
+        raw_root=raw,
+        scope="pilot",
+        stage="gap",
+        execute=False,
+        max_concurrent=4,
+        device="cuda",
+    )
+    assert "-l gpu=1,slots_gpu=1" in gpu["command"]
+    assert "MACE_DEVICE=cuda" in gpu["command"]

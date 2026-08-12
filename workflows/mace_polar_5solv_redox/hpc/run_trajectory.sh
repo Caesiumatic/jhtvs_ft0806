@@ -8,9 +8,15 @@ set -euo pipefail
 : "${RAW_ROOT:?set RAW_ROOT to the non-Git workflow data root}"
 : "${TRAJECTORY_MODE:?set TRAJECTORY_MODE to pilot or production}"
 : "${TASK_TABLE_SHA256:?set the frozen task-table SHA256}"
+CONDA_ENV_NAME="${CONDA_ENV_NAME:-jhtvs-ft0806}"
+MACE_DEVICE="${MACE_DEVICE:-cpu}"
 
 case "$TRAJECTORY_MODE" in
   pilot|calibration|validation|production) ;;
+  *) exit 64 ;;
+esac
+case "$MACE_DEVICE" in
+  cpu|cuda) ;;
   *) exit 64 ;;
 esac
 
@@ -26,7 +32,7 @@ source /etc/profile.d/modules.sh
 module load miniforge3/23.3.1
 source "$(conda info --base)/etc/profile.d/conda.sh"
 set +u
-conda activate jhtvs-ft0806
+conda activate "$CONDA_ENV_NAME"
 set -u
 cd "$REPO_ROOT"
 
@@ -45,4 +51,4 @@ PYTHONPATH=src python -m jhtvs_ft0806.explicit_redox.trajectory run-task \
   --mode "$TRAJECTORY_MODE" \
   --task-index "$SGE_TASK_ID" \
   --checkpoint polar-1-l \
-  --device cpu
+  --device "$MACE_DEVICE"
