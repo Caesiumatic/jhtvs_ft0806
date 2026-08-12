@@ -33,6 +33,7 @@ TASK_FIELDS = (
     "velocity_seed",
     "mode",
 )
+TRAJECTORY_SCOPES = ("pilot", "calibration", "validation", "production")
 
 
 def _read(path: Path) -> list[dict[str, str]]:
@@ -49,8 +50,8 @@ def _velocity_seed(logical_id: str) -> int:
 def prepare_trajectory_tasks(
     *, cluster_manifest: Path, raw_root: Path, mode: str
 ) -> list[dict[str, object]]:
-    if mode not in {"pilot", "production"}:
-        raise ValueError("trajectory mode must be pilot or production")
+    if mode not in TRAJECTORY_SCOPES:
+        raise ValueError(f"trajectory mode must be one of {TRAJECTORY_SCOPES}")
     rows: list[dict[str, object]] = []
     for cluster in _read(cluster_manifest):
         if cluster["status"] != "clean":
@@ -202,10 +203,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     prepare = sub.add_parser("prepare")
     prepare.add_argument("--cluster-manifest", type=Path, required=True)
     prepare.add_argument("--raw-root", type=Path, required=True)
-    prepare.add_argument("--mode", choices=("pilot", "production"), required=True)
+    prepare.add_argument("--mode", choices=TRAJECTORY_SCOPES, required=True)
     run = sub.add_parser("run-task")
     run.add_argument("--raw-root", type=Path, required=True)
-    run.add_argument("--mode", choices=("pilot", "production"), required=True)
+    run.add_argument("--mode", choices=TRAJECTORY_SCOPES, required=True)
     run.add_argument("--task-index", type=int, required=True)
     run.add_argument("--checkpoint", default="polar-1-l")
     run.add_argument("--device", default="cpu")

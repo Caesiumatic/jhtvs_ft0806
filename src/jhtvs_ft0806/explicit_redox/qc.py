@@ -12,7 +12,7 @@ from jhtvs_ft0806.geometry.xyz import XYZAtom, inferred_bonds
 
 from .analysis import _gaps
 from .marcus import block_statistics
-from .trajectory import _read_tsv
+from .trajectory import TRAJECTORY_SCOPES, _read_tsv
 
 
 def _fragment_bonds(symbols: Sequence[str], positions: np.ndarray) -> set[frozenset[int]]:
@@ -159,7 +159,7 @@ def collect_trajectory_qc(*, raw_root: Path, mode: str) -> list[dict[str, Any]]:
         if not shell_retained:
             flags.append("shell_escape")
         gap_values = _gaps(raw_root, gap)
-        if mode == "production":
+        if mode != "pilot":
             stats = block_statistics(gap_values)
             if stats.multimodal:
                 flags.append("multimodal_gap")
@@ -227,7 +227,7 @@ def collect_trajectory_qc(*, raw_root: Path, mode: str) -> list[dict[str, Any]]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw-root", type=Path, required=True)
-    parser.add_argument("--mode", choices=("pilot", "production"), required=True)
+    parser.add_argument("--mode", choices=TRAJECTORY_SCOPES, required=True)
     args = parser.parse_args(argv)
     rows = collect_trajectory_qc(raw_root=args.raw_root, mode=args.mode)
     print(json.dumps({"status": "PASS", "rows": len(rows)}, sort_keys=True))

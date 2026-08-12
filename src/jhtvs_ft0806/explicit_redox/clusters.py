@@ -61,6 +61,7 @@ def pack_systems(
     raw_root: Path,
     executable: str = "packmol",
     seed_limit: int = 5,
+    output_name: str = "cluster_manifest.csv",
 ) -> list[dict[str, object]]:
     systems = _read(manifest)
     entities = _entity_by_smiles(raw_root)
@@ -118,7 +119,7 @@ def pack_systems(
                 json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
             rows.append(payload)
-    output = raw_root / "cluster_manifest.csv"
+    output = raw_root / output_name
     with output.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=CLUSTER_FIELDS, lineterminator="\n")
         writer.writeheader()
@@ -132,12 +133,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--raw-root", type=Path, required=True)
     parser.add_argument("--packmol", default="packmol")
     parser.add_argument("--seed-limit", type=int, default=5)
+    parser.add_argument("--output-name", default="cluster_manifest.csv")
     args = parser.parse_args(argv)
     rows = pack_systems(
         manifest=args.manifest,
         raw_root=args.raw_root,
         executable=args.packmol,
         seed_limit=args.seed_limit,
+        output_name=args.output_name,
     )
     print(json.dumps({"status": "PASS", "clusters": len(rows)}, sort_keys=True))
     return 0

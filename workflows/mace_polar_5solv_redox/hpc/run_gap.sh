@@ -10,7 +10,7 @@ set -euo pipefail
 : "${TASK_TABLE_SHA256:?set the frozen task-table SHA256}"
 
 case "$TRAJECTORY_MODE" in
-  pilot|production) ;;
+  pilot|calibration|validation|production) ;;
   *) exit 64 ;;
 esac
 

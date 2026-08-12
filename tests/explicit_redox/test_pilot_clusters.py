@@ -79,6 +79,12 @@ def test_cluster_packing_uses_round_robin_selected_conformers(tmp_path: Path) ->
                 "lower_spin": 1, "oxidized_charge": 1, "oxidized_spin": 2,
             }
         )
-    rows = pack_systems(manifest=manifest, raw_root=raw, seed_limit=2)
+    rows = pack_systems(
+        manifest=manifest,
+        raw_root=raw,
+        seed_limit=2,
+        output_name="pilot_cluster_manifest.csv",
+    )
     assert [row["target_conformer_rank"] for row in rows] == ["0", "1"]
     assert all(row["solvent_count"] == 5 and row["status"] == "clean" for row in rows)
+    assert (raw / "pilot_cluster_manifest.csv").is_file()

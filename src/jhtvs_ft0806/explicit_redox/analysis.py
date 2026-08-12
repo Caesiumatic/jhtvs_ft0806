@@ -13,7 +13,7 @@ import numpy as np
 
 from .calculator import PolarMACEStateCalculator
 from .marcus import assemble_seed, assemble_system
-from .trajectory import _read_tsv, _task, restraint_from_task
+from .trajectory import TRAJECTORY_SCOPES, _read_tsv, _task, restraint_from_task
 from .vertical_gap import evaluate_gap_batch, read_gap_chunks, write_gap_chunk
 
 
@@ -160,7 +160,7 @@ def collect_gap_summaries(*, raw_root: Path, mode: str) -> tuple[list[dict[str, 
             "lower_sd_eV": float(lower.std(ddof=1)) if lower.size > 1 else 0.0,
             "oxidized_sd_eV": float(oxidized.std(ddof=1)) if oxidized.size > 1 else 0.0,
         }
-        if mode == "production":
+        if mode != "pilot":
             seed = assemble_seed(lower, oxidized)
             base.update(asdict(seed))
             seed_objects.setdefault(system_id, []).append(seed)
@@ -171,10 +171,10 @@ def collect_gap_summaries(*, raw_root: Path, mode: str) -> tuple[list[dict[str, 
         writer.writeheader()
         writer.writerows(seed_rows)
     system_rows: list[dict[str, Any]] = []
-    if mode == "production":
+    if mode != "pilot":
         for system_id, seeds in sorted(seed_objects.items()):
             system_rows.append({"system_id": system_id, **asdict(assemble_system(seeds))})
-        system_path = raw_root / "production_system_raw_predictions.csv"
+        system_path = raw_root / f"{mode}_system_raw_predictions.csv"
         with system_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=tuple(system_rows[0]), lineterminator="\n")
             writer.writeheader()
@@ -187,13 +187,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     evaluate = sub.add_parser("evaluate-gaps")
     evaluate.add_argument("--raw-root", type=Path, required=True)
-    evaluate.add_argument("--mode", choices=("pilot", "production"), required=True)
+    evaluate.add_argument("--mode", choices=TRAJECTORY_SCOPES, required=True)
     evaluate.add_argument("--task-index", type=int, required=True)
     evaluate.add_argument("--checkpoint", default="polar-1-l")
     evaluate.add_argument("--device", default="cpu")
     collect = sub.add_parser("assemble-marcus")
     collect.add_argument("--raw-root", type=Path, required=True)
-    collect.add_argument("--mode", choices=("pilot", "production"), required=True)
+    collect.add_argument("--mode", choices=TRAJECTORY_SCOPES, required=True)
     args = parser.parse_args(argv)
     if args.command == "evaluate-gaps":
         payload = evaluate_trajectory_gaps(
