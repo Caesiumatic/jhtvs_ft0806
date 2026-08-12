@@ -226,9 +226,11 @@ def test_md_smoke_writes_exact_sample_count_and_restart_receipt(tmp_path: Path) 
         production_ps=0.001,
         checkpoint_ps=0.001,
         sample_interval_fs=0.5,
+        max_new_chunks=1,
     )
-    assert result["status"] == "complete"
-    assert result["completed_production_samples"] == 2
+    assert result["status"] == "incomplete"
+    assert result["completed_chunks"] == 1
+    assert result["completed_production_samples"] == 0
     assert result["temperature_mean_K"] > 0.0
     restarted = run_md(
         logical_id="smoke",
@@ -243,5 +245,24 @@ def test_md_smoke_writes_exact_sample_count_and_restart_receipt(tmp_path: Path) 
         production_ps=0.001,
         checkpoint_ps=0.001,
         sample_interval_fs=0.5,
+        max_new_chunks=1,
     )
-    assert restarted["new_production_samples"] == 0
+    assert restarted["status"] == "complete"
+    assert restarted["completed_chunks"] == 2
+    assert restarted["completed_production_samples"] == 2
+    completed = run_md(
+        logical_id="smoke",
+        atoms=atoms,
+        model_calculator=Harmonic(),
+        restraint=restraint,
+        charge=0,
+        spin=1,
+        velocity_seed=12345,
+        output_dir=tmp_path,
+        equilibration_ps=0.001,
+        production_ps=0.001,
+        checkpoint_ps=0.001,
+        sample_interval_fs=0.5,
+        max_new_chunks=1,
+    )
+    assert completed["new_production_samples"] == 0
