@@ -50,7 +50,6 @@ def test_status_and_submission_preflight_are_task_hash_scoped(tmp_path: Path) ->
         device="cuda",
     )
     assert "-l gpu=1,slots_gpu=1" in gpu["command"]
-    assert "-l exclusive=true" in gpu["command"]
     assert "gpu1@compute-1-21.local" in gpu["command"]
     assert "gpu2@compute-1-22.local" in gpu["command"]
     assert "MACE_DEVICE=cuda" in gpu["command"]
@@ -98,7 +97,7 @@ def test_full_trajectory_submission_is_an_idempotent_twenty_wave_dependency_chai
     assert len(commands) == 20
 
 
-def test_resume_submits_only_pending_indices_once_on_safe_exclusive_gpus(
+def test_resume_submits_only_pending_indices_once_on_safe_gpus(
     tmp_path: Path, monkeypatch
 ) -> None:
     raw = tmp_path / "raw"
@@ -137,7 +136,7 @@ def test_resume_submits_only_pending_indices_once_on_safe_exclusive_gpus(
     )
     assert submitted["pending_indices"] == [2]
     assert commands[0][commands[0].index("-t") + 1] == "2"
-    assert "exclusive=true" in commands[0]
+    assert any("gpu1@compute-1-21.local" in part for part in commands[0])
     again = resume_array(
         raw_root=raw,
         scope="pilot",

@@ -25,6 +25,8 @@ def test_trajectory_launcher_is_fail_closed_and_mode_scoped() -> None:
     assert '${TRAJECTORY_MODE}_trajectory_tasks.tsv' in text
     assert "TASK_TABLE_SHA256" in text
     assert "REPOSITORY_COMMIT" in text
+    assert "CUDA_VISIBLE_DEVICES" in text
+    assert "flock -n" in text
     assert '"$SGE_TASK_ID"' in text
     assert "polar-1-l" in text
     assert "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b" in text
@@ -39,6 +41,8 @@ def test_gap_launcher_uses_same_frozen_trajectory_identity() -> None:
     assert '"$SGE_TASK_ID"' in text
     assert "evaluate-gaps" in text
     assert "MACE_DEVICE" in text
+    assert "CUDA_VISIBLE_DEVICES" in text
+    assert "flock -n" in text
 
 
 def test_device_probe_launcher_activates_requested_isolated_environment() -> None:

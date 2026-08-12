@@ -22,6 +22,26 @@ case "$MACE_DEVICE" in
   *) exit 64 ;;
 esac
 
+if [ "$MACE_DEVICE" = "cuda" ]; then
+  GPU_LOCK_FD=""
+  for gpu_index in 0 1 2 3; do
+    lock_file="/tmp/jhtvs-mace-gpu-${HOSTNAME}-${gpu_index}.lock"
+    exec {candidate_fd}>"$lock_file"
+    if flock -n "$candidate_fd"; then
+      memory_used_mib="$(nvidia-smi -i "$gpu_index" --query-gpu=memory.used --format=csv,noheader,nounits)"
+      if [ "$memory_used_mib" -le 128 ]; then
+        export CUDA_VISIBLE_DEVICES="$gpu_index"
+        GPU_LOCK_FD="$candidate_fd"
+        break
+      fi
+      flock -u "$candidate_fd"
+    fi
+    eval "exec ${candidate_fd}>&-"
+  done
+  [ -n "$GPU_LOCK_FD" ]
+  echo "MACE CUDA assignment host=$HOSTNAME physical_gpu=$CUDA_VISIBLE_DEVICES lock_fd=$GPU_LOCK_FD"
+fi
+
 REPO_ROOT="${SGE_O_WORKDIR:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
 RAW_ROOT="$(cd "$RAW_ROOT" && pwd)"

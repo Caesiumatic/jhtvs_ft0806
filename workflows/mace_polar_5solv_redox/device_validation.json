@@ -54,7 +54,7 @@
     "compute-1-21.local": "4 x NVIDIA GeForce GTX TITAN X, 12212 MiB each",
     "compute-1-22.local": "4 x NVIDIA Tesla K80, 11441 MiB each",
     "compute-1-23.local": "4 x NVIDIA Tesla K80, 11441 MiB each",
-    "scheduler_constraint": "One exclusive MACE process per host because Lop did not assign distinct CUDA_VISIBLE_DEVICES to simultaneous slots_gpu jobs on the same host."
+    "scheduler_constraint": "Lop slots_gpu did not assign distinct CUDA_VISIBLE_DEVICES. The workflow therefore acquires one host-local lock per physical GPU, rejects devices with more than 128 MiB already in use, and records the selected physical index."
   },
   "mace_version": "0.3.16",
   "selected_production_device": "cuda",

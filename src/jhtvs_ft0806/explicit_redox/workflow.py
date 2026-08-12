@@ -91,8 +91,6 @@ def _resource_arguments(device: str, slots: int) -> tuple[list[str], str]:
                 SAFE_GPU_QUEUES,
                 "-l",
                 "gpu=1,slots_gpu=1",
-                "-l",
-                "exclusive=true",
                 "-pe",
                 "cuda",
                 "1",
