@@ -1,0 +1,52 @@
+protocol_id: mace-polar-5solv-redox-v1
+base_commit: a6374267297c6c65e01934863e3e29651fe4ab4d
+source_packages:
+  validation_plots_bundle_sha256: 40ddc60fc6044d992a747be0397aff92b9ac072260a734f482cb24d248d9e822
+  primary_audited_eox_validation_v2_bundle_sha256: 0871d1434675e10bffd56c5a25d15aaafb2c9f30568dcddf42642e33a19f37ce
+model:
+  selector: polar-1-l
+  mace_torch: 0.3.16
+  graph_electrostatics: 0.4.0
+  checkpoint_sha256: 9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b
+  default_dtype: float64
+  external_field: [0.0, 0.0, 0.0]
+  periodic: false
+  implicit_solvent: false
+structure_generation:
+  rdkit_conformers: 50
+  embed_method: ETKDGv3
+  minimization: MMFF94_or_MMFF94s_when_available
+  deduplicate: heavy_atom_rmsd
+  retain_count: 3
+  retain_window_eV: 0.25
+  solvent_shell_count: 5
+  packmol_tolerance_A: 2.0
+restraint:
+  form: 0.5*k*max(0,d-R0)^2
+  centroid: target_heavy_atom_centroid
+  R0: target_initial_max_radius_plus_4.5_A
+  k_eV_A2: 0.5
+optimization:
+  optimizer: ASE_FIRE
+  fmax_eV_A: 0.02
+  independent_charge_states: true
+dynamics:
+  ensemble: Langevin_NVT
+  temperature_K: 300
+  timestep_fs: 0.5
+  friction_fs_inverse: 0.01
+  fixcm: true
+  equilibration_ps: 50
+  production_ps: 150
+  sample_interval_fs: 20
+  checkpoint_interval_ps: 1
+sampling:
+  shell_seeds_per_system: 5
+  validation_systems: 21
+  validation_trajectories: 210
+  block_length_ps: 5
+alignment:
+  type: single_global_intercept
+  slope: 1.0
+  reference: Ag/AgCl
+  validation_excluded_from_fit: true

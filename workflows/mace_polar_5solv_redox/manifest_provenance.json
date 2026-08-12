@@ -1,0 +1,17 @@
+{
+  "base_commit": "a6374267297c6c65e01934863e3e29651fe4ab4d",
+  "observation_count": 32,
+  "sources": {
+    "calibration_registry.csv": "35050ec66e79722196835fa078dc03d2930d0b2f5e496822a7236e5c76fe980d",
+    "legacy_validation_points_audit.csv": "07d022ce11dc5456ea0c8d623567b1dffb41193598bf90631c9d53ebd0b5c94e",
+    "primary_audited_v2_core_primary_eox.csv": "b295d7b6f12ce6968124fa289dc3278b2394bf5d66036be445f678f205f590a4",
+    "source_fullspace_monomers.csv": "a7781bfb8860257e1817131466ffa686c910c9c9ef7a428975924fcda5fdb3ed",
+    "source_fullspace_solvents.csv": "c61f926a3aae371cab69209a43e333fd14f2c98e7b934d450d3463932cb0dc8f"
+  },
+  "validation_counts": {
+    "anion": 5,
+    "monomer": 9,
+    "solvent": 7
+  },
+  "validation_system_count": 21
+}
