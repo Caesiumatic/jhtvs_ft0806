@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/clo4__propylene_carbonate_R5.xyz
+seed 390256912
+
+structure source_geometries/validation_clo4_pc_qm1.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/validation_propylene_carbonate_q0.xyz
+  number 5
+  inside box -7.300 -7.300 -7.300 7.300 7.300 7.300
+end structure

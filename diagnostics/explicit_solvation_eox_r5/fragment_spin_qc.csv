@@ -1,0 +1,7 @@
+calculation_key,job_id,molecule_index,fragment_role,hirshfeld_spin,spin_fraction,target_spin_fraction,dominant_spin_fragment,total_hirshfeld_spin,oxidation_identity_status,qc_status
+acetonitrile__self,R5EOX_A01_OX,,,,,,,,missing,missing
+clo4__acetonitrile,R5EOX_A04_OX,,,,,,,,missing,missing
+clo4__propylene_carbonate,R5EOX_A06_OX,,,,,,,,missing,missing
+gamma_butyrolactone__self,R5EOX_A03_OX,,,,,,,,missing,missing
+propylene_carbonate__self,R5EOX_A02_OX,,,,,,,,missing,missing
+tfsi__acetonitrile,R5EOX_A05_OX,,,,,,,,missing,missing

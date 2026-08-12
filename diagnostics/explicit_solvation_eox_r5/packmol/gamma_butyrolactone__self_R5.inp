@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/gamma_butyrolactone__self_R5.xyz
+seed 742296423
+
+structure source_geometries/validation_gbl_q0.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/validation_gbl_q0.xyz
+  number 5
+  inside box -6.700 -6.700 -6.700 6.700 6.700 6.700
+end structure

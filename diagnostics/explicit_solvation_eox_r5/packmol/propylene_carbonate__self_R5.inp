@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/propylene_carbonate__self_R5.xyz
+seed 450641863
+
+structure source_geometries/validation_propylene_carbonate_q0.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/validation_propylene_carbonate_q0.xyz
+  number 5
+  inside box -7.400 -7.400 -7.400 7.400 7.400 7.400
+end structure

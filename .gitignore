@@ -21,3 +21,16 @@ diagnostics/explicit_solvation_sp/orca/jobs/**/*.bibtex
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.property.txt
 diagnostics/explicit_solvation_sp/orca/scheduler_logs/
 diagnostics/explicit_solvation_sp/mace/sge*.log
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.out
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.gbw
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.tmp
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.densities
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.densitiesinfo
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.bibtex
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.property.txt
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.engrad
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.hess
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.trj
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*.opt
+diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*_Compound_*.xyz
+diagnostics/explicit_solvation_eox_r5/orca/scheduler_logs/

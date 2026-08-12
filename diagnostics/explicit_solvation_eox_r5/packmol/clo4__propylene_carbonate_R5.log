@@ -1,0 +1,160 @@
+
+################################################################################
+
+ PACKMOL - Packing optimization for the automated generation of
+ starting configurations for molecular dynamics simulations.
+ 
+                                                             Version 21.2.3 
+
+################################################################################
+
+  Packmol must be run with: packmol < inputfile.inp 
+
+  Userguide at: http://m3g.iqm.unicamp.br/packmol 
+
+  Reading input file... (Control-C aborts)
+  Types of coordinate files specified: xyz
+  Seed for random number generator:    390256912
+  Output file: clusters/clo4__propylene_carbonate_R5.xyz
+  Reading coordinate file: source_geometries/validation_clo4_pc_qm1.xyz
+  Reading coordinate file: source_geometries/validation_propylene_carbonate_q0.xyz
+  Number of independent structures:            2
+  The structures are: 
+  Structure            1 :extracted from validation/runs/20260726-jhtvs-validation-redox-custom-smd-v2/tier2/baseline/jv-aeox-002_q-1/jv-aeox-002_q-1__baseline-v1.out(           5  atoms)
+  Structure            2 :extracted from validation/runs/20260726-jhtvs-validation-redox-custom-smd-v2/tier2/baseline/jv-seox-002_q0/jv-seox-002_q0__baseline-v1.out(          13  atoms)
+  Maximum number of GENCAN loops for all molecule packing:          400
+  Distance tolerance:    2.0000000000000000     
+  Number of molecules of type            1 :            1
+  Number of molecules of type            2 :            5
+  Total number of restrictions:            2
+  Total number of atoms:           70
+  Molecule extracted from validation/runs/20260726-jhtvs-validation-redox-custom-smd-v2/tier2/baseline/jv-aeox-002_q-1/jv-aeox-002_q-1__baseline-v1.out(           1 ) will be fixed.
+  Total number of molecules:            6
+  Number of fixed molecules:            1
+  Number of free molecules:            5
+  Number of variables:           30
+  Total number of fixed atoms:            5
+  Maximum internal distance of type            1 :    5.4578934002960340     
+  All atoms must be within these coordinates: 
+   x: [   -1000.0000000000000      ,    1000.0000000000000       ] 
+   y: [   -1000.0000000000000      ,    1000.0000000000000       ] 
+   z: [   -1000.0000000000000      ,    1000.0000000000000       ] 
+  If the system is larger than this, increase the sidemax parameter. 
+
+################################################################################
+
+  Building initial approximation ... 
+
+################################################################################
+
+  Adjusting initial point to fit the constraints 
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+  Molecules of type:            2
+
+  Packing:|0                                                        100%|
+          |******************************
+
+  Restraint-only function value:    9.9627942614505752E-003
+  Maximum violation of the restraints:    8.0625790681451460E-003
+
+--------------------------------------------------------------------------------
+
+  Rescaling maximum and minimum coordinates... 
+  Minimum and maximum coordinates after constraint fitting: 
+   x: [   -7.2802498444496759      ,    7.3309908521420937       ] 
+   y: [   -7.3897918652671004      ,    7.3306558685541985       ] 
+   z: [   -7.2806036726920675      ,    7.2120489656623503       ] 
+  Computing size of patches... 
+  Number of cells in each direction and cell sides: 
+   x:            8  cells of size    2.3764050870739712     
+   y:            8  cells of size    2.3900559667276626     
+   z:            8  cells of size    2.3615815797943025     
+  Cell-system length:   19.01124  19.12045  18.89265
+  Add fixed molecules to permanent arrays... 
+  Reseting center of mass... 
+
+--------------------------------------------------------------------------------
+
+  Setting initial trial coordinates ... 
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+  Molecules of type:            2
+  Adjusting random positions to fit the constraints. 
+  Restraint-only function value:    0.0000000000000000     
+  Maximum violation of the restraints:    0.0000000000000000     
+
+################################################################################
+
+  Objective function at initial point:    19.074770270269532     
+
+################################################################################
+
+  Packing molecules of type:            2
+
+################################################################################
+
+
+--------------------------------------------------------------------------------
+
+  Starting GENCAN loop:            0
+  Scaling radii by:    1.1000000000000001     
+
+  Packing:|0                                                        100%|
+          |************
+
+  Function value from last GENCAN loop: f = .00000E+00
+  Best function value before: f = .19075E+02
+  Improvement from best function value:    99.99 %
+  Improvement from last loop:    99.99 %
+  Maximum violation of target distance:     0.000000
+  Maximum violation of the constraints: .00000E+00
+  Current structure written to file: clusters/clo4__propylene_carbonate_R5.xyz
+--------------------------------------------------------------------------------
+  Packing solved for molecules of type           2
+  Objective function value:    0.0000000000000000     
+  Maximum violation of target distance:    0.0000000000000000     
+  Max. constraint violation:    0.0000000000000000     
+--------------------------------------------------------------------------------
+
+################################################################################
+
+  Packing all molecules together 
+
+################################################################################
+
+
+  Initial approximation is a solution. Nothing to do. 
+
+  Solution written to file: clusters/clo4__propylene_carbonate_R5.xyz
+
+################################################################################
+
+                                 Success! 
+              Final objective function value: .00000E+00
+              Maximum violation of target distance:   0.000000
+              Maximum violation of the constraints: .00000E+00
+
+--------------------------------------------------------------------------------
+
+              Please cite this work if Packmol was useful: 
+
+           L. Martinez, R. Andrade, E. G. Birgin, J. M. Martinez, 
+         PACKMOL: A package for building initial configurations for
+                   molecular dynamics simulations. 
+        Journal of Computational Chemistry, 30(13) pp. 2157-2164, 2009.
+                  https://doi.org/10.1002/jcc.21224
+
+################################################################################
+
+   Running time:    1.51799992E-03  seconds. 
+
+--------------------------------------------------------------------------------
+
+

@@ -2,3 +2,6 @@
 /spec/** -text
 /diagnostics/explicit_solvation_sp/clusters/*.xyz -whitespace
 /diagnostics/explicit_solvation_sp/packmol/*.log -whitespace
+/diagnostics/explicit_solvation_eox_r5/input_files/*.csv -whitespace
+/diagnostics/explicit_solvation_eox_r5/clusters/*.xyz -whitespace
+/diagnostics/explicit_solvation_eox_r5/packmol/*.log -whitespace

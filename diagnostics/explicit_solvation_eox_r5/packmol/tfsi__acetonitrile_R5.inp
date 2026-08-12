@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/tfsi__acetonitrile_R5.xyz
+seed 16700329
+
+structure source_geometries/current_tfsi_acetonitrile_qm1.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/current_acetonitrile_q0.xyz
+  number 5
+  inside box -5.850 -5.850 -5.850 5.850 5.850 5.850
+end structure

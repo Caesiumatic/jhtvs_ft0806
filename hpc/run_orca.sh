@@ -55,12 +55,14 @@ for TASK_ROW in "${TASK_ROWS[@]}"; do
   case "$JOB_CLASS:$INPUT_REL" in
     diagnostic_gas_sp:runs/orca/sp/*/*.inp|smd_energy_sp:runs/orca/sp/*/*.inp) ;;
     diagnostic_gas_sp:diagnostics/explicit_solvation_sp/orca/jobs/*/*.inp) ;;
+    optfreq:diagnostics/explicit_solvation_eox_r5/orca/jobs/*/*.inp) ;;
     optfreq:runs/orca/optfreq/*/*.inp) ;;
     *) echo "unsafe ORCA input path for $LOGICAL_JOB_ID: $INPUT_REL" >&2; exit 2 ;;
   esac
   case "$OUTPUT_REL" in
     runs/orca/sp/*/*.out|runs/orca/optfreq/*/*.out) ;;
     diagnostics/explicit_solvation_sp/orca/jobs/*/*.out) ;;
+    diagnostics/explicit_solvation_eox_r5/orca/jobs/*/*.out) ;;
     *) echo "unsafe ORCA output path for $LOGICAL_JOB_ID: $OUTPUT_REL" >&2; exit 2 ;;
   esac
   [ "$OUTPUT_REL" = "${INPUT_REL%.inp}.out" ] || {

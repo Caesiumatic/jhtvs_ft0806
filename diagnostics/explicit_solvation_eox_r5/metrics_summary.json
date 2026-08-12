@@ -1,0 +1,15 @@
+{
+  "shared_completed_clean_subset": {
+    "anion": {
+      "n_experimental_records": 0,
+      "n_unique_calculation_keys": 0,
+      "record_level": {},
+      "unique_calculation_macro": {}
+    },
+    "solvent": {
+      "n_experimental_records": 0,
+      "n_unique_calculation_keys": 0,
+      "record_level": {}
+    }
+  }
+}

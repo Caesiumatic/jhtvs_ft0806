@@ -1,0 +1,14 @@
+tolerance 2.000
+filetype xyz
+output clusters/acetonitrile__self_R5.xyz
+seed 718323873
+
+structure source_geometries/validation_acetonitrile_q0.xyz
+  number 1
+  fixed 0.000 0.000 0.000 0.000 0.000 0.000
+end structure
+
+structure source_geometries/validation_acetonitrile_q0.xyz
+  number 5
+  inside box -5.550 -5.550 -5.550 5.550 5.550 5.550
+end structure

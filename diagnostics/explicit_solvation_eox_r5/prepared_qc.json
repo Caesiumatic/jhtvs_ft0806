@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "array_task_count": 6,
+    "cluster_count": 6,
+    "eligible_record_count": 15,
+    "forbidden_ml_imports": [],
+    "input_file_count": 7,
+    "orca_job_count": 12,
+    "phase_a_unique_key_count": 6,
+    "task_row_count": 12
+  },
+  "issues": [],
+  "status": "PASS",
+  "workflow_revision": "jhtvs-ft0806-explicit-r5-eox-v1"
+}

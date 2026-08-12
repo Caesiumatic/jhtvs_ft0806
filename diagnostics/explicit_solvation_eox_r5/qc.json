@@ -1,0 +1,21 @@
+{
+  "attempted_unique_systems": 0,
+  "completed_clean_unique_systems": 0,
+  "flagged_unique_systems": [],
+  "missing_unique_systems": [
+    "acetonitrile__self",
+    "propylene_carbonate__self",
+    "gamma_butyrolactone__self",
+    "clo4__acetonitrile",
+    "tfsi__acetonitrile",
+    "clo4__propylene_carbonate"
+  ],
+  "primary_metric_policy": "completed-clean shared subset; anion requires target-dominant oxidized Hirshfeld spin",
+  "state_counts": {
+    "clean": 0,
+    "flagged": 0,
+    "missing": 12
+  },
+  "status": "INCOMPLETE",
+  "workflow_revision": "jhtvs-ft0806-explicit-r5-eox-v1"
+}
