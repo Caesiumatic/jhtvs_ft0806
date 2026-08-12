@@ -14,28 +14,43 @@ from .optimize import atoms_geometry_sha256
 
 
 def probe_device(
-    *, geometry: Path, charge: int, spin: int, device: str, output: Path
+    *,
+    geometry: Path,
+    charge: int,
+    spin: int,
+    device: str,
+    output: Path,
+    evaluations: int = 1,
 ) -> dict[str, object]:
     try:
         from ase.io import read
     except ImportError as exc:  # pragma: no cover - execution dependency
         raise RuntimeError("ASE is required for the device probe") from exc
     atoms = read(geometry)
+    if evaluations < 1:
+        raise ValueError("device probe evaluations must be positive")
+    input_geometry_sha256 = atoms_geometry_sha256(atoms)
     started = time.monotonic()
     calculator = PolarMACEStateCalculator(
         checkpoint="polar-1-l", charge=charge, spin=spin, device=device
     )
     load_seconds = time.monotonic() - started
-    started = time.monotonic()
-    energy = calculator.get_potential_energy(atoms)
-    forces = calculator.get_forces(atoms)
-    evaluation_seconds = time.monotonic() - started
+    evaluation_timings = []
+    for index in range(evaluations):
+        if index:
+            atoms.positions[0, 0] += 1e-6
+        started = time.monotonic()
+        energy = calculator.get_potential_energy(atoms)
+        forces = calculator.get_forces(atoms)
+        evaluation_timings.append(time.monotonic() - started)
+    evaluation_seconds = sum(evaluation_timings)
     calculator.assert_model_unchanged()
     payload: dict[str, object] = {
         "status": "PASS",
         "device": device,
         "geometry": geometry.as_posix(),
-        "geometry_sha256": atoms_geometry_sha256(atoms),
+        "geometry_sha256": input_geometry_sha256,
+        "final_evaluation_geometry_sha256": atoms_geometry_sha256(atoms),
         "charge": charge,
         "spin": spin,
         "energy_eV": energy,
@@ -44,6 +59,11 @@ def probe_device(
         "forces_eV_A": np.asarray(forces).tolist(),
         "model_load_seconds": load_seconds,
         "evaluation_seconds": evaluation_seconds,
+        "evaluation_count": evaluations,
+        "evaluation_seconds_each": evaluation_timings,
+        "warm_evaluation_seconds_mean": float(np.mean(evaluation_timings[1:]))
+        if evaluations > 1
+        else evaluation_timings[0],
         "calculator": calculator.provenance_dict(),
     }
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -89,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--spin", type=int, required=True)
     run.add_argument("--device", choices=("cpu", "cuda"), required=True)
     run.add_argument("--output", type=Path, required=True)
+    run.add_argument("--evaluations", type=int, default=1)
     compare = sub.add_parser("compare")
     compare.add_argument("--cpu", type=Path, required=True)
     compare.add_argument("--gpu", type=Path, required=True)
@@ -100,6 +121,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             spin=args.spin,
             device=args.device,
             output=args.output,
+            evaluations=args.evaluations,
         )
     else:
         payload = compare_probes(args.cpu, args.gpu)
