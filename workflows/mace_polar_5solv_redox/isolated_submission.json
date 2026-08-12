@@ -1,0 +1,18 @@
+{
+  "array_task_count": 120,
+  "checkpoint_sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+  "execution_checkout": "/home/shic4/jhtvs_ft0806_explicit_redox",
+  "execution_commit": "16c6467c85865e1084aed46096ebf935c062d578",
+  "graph_electrostatics_version": "0.4.0",
+  "mace_torch_version": "0.3.16",
+  "max_concurrent_tasks": 8,
+  "parallel_environment": "smp",
+  "raw_candidate_archive_sha256": "777b0e878c1e5fc935ec8f7751b6e910ce192dcc5a23f450f219e41e7c382cea",
+  "scheduler": "SGE",
+  "scheduler_job_id": "423754",
+  "slots_per_task": 8,
+  "status": "submitted",
+  "submitted_at_cluster_local": "2026-08-11T20:10:31-05:00",
+  "task_table_sha256": "2d156affd73f8518ea978c87f0d761ea0d7cfcae7c963348009875ceca0f08cc",
+  "workflow_stage": "isolated_lower_charge_conformer_optimization"
+}

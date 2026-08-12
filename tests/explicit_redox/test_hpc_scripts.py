@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -11,3 +12,12 @@ def test_isolated_launcher_is_fail_closed_and_uses_array_identity() -> None:
     assert '"$SGE_TASK_ID"' in text
     assert "polar-1-l" in text
     assert "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b" in text
+
+
+def test_isolated_submission_matches_frozen_task_scope() -> None:
+    payload = json.loads(
+        (ROOT / "workflows" / "mace_polar_5solv_redox" / "isolated_submission.json").read_text()
+    )
+    assert payload["array_task_count"] == 120
+    assert payload["scheduler_job_id"].isdecimal()
+    assert payload["task_table_sha256"] == "2d156affd73f8518ea978c87f0d761ea0d7cfcae7c963348009875ceca0f08cc"
