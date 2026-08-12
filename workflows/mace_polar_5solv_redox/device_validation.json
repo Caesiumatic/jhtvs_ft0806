@@ -1,0 +1,32 @@
+{
+  "checkpoint_sha256": "9f65f8dc6ddaff1d631e299cb531376a7da5e68d1bef04f34a2d5073d5ef114b",
+  "comparison": {
+    "energy_atol_eV": 1e-08,
+    "energy_difference_eV": 0.0,
+    "force_atol_eV_A": 1e-07,
+    "maximum_force_component_difference_eV_A": 1.95993221652202e-12,
+    "status": "PASS"
+  },
+  "cpu": {
+    "device": "cpu",
+    "evaluation_seconds": 3.652436800301075,
+    "hostname": "compute-3-1.local",
+    "job_id": "423760",
+    "maxvmem": "2.809GB",
+    "torch_version": "2.6.0"
+  },
+  "geometry": "diagnostics/explicit_solvation_sp/clusters/thiophene_acetonitrile_R5.xyz",
+  "gpu": {
+    "cuda_version": "11.8",
+    "device": "cuda",
+    "evaluation_seconds": 6.228510558605194,
+    "gpu_model": "Tesla K80",
+    "hostname": "compute-1-20.local",
+    "job_id": "423765",
+    "maxvmem": "1.886GB",
+    "torch_version": "2.1.2+cu118"
+  },
+  "mace_version": "0.3.16",
+  "selected_production_device": "cpu",
+  "selection_basis": "The identical single-point evaluation was faster on the CPU probe; CUDA remains a numerically validated fallback."
+}
