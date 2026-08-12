@@ -12,6 +12,7 @@
   },
   "packmol": {
     "tolerance_A": 2.0,
+    "packmol_containment_numerical_tolerance_A": 0.1,
     "n_shell": 5,
     "region": "centered cubic all-atom containment box",
     "seed_rule": "first 8 hex digits of SHA256(calculation_key), mapped to positive 31-bit integer",

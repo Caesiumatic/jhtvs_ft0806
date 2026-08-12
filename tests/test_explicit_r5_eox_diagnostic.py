@@ -58,6 +58,8 @@ def test_packmol_clusters_have_one_target_and_exactly_five_shell_molecules() -> 
     assert all(row["molecule_count"] == "6" for row in rows)
     assert all(row["status"] == "clean" for row in rows)
     assert all(float(row["minimum_intermolecular_distance_A"]) >= 1.99 for row in rows)
+    assert all(row["containment_qc"] == "pass" for row in rows)
+    assert all(float(row["max_shell_box_violation_A"]) <= 0.1 for row in rows)
 
 
 def test_seeds_and_boxes_are_derived_from_stable_keys_and_source_geometry() -> None:

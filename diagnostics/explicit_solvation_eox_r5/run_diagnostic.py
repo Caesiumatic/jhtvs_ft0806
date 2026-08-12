@@ -85,8 +85,8 @@ CLUSTER_FIELDS = (
     "packmol_input_path", "packmol_input_sha256", "packmol_log_path",
     "packmol_log_sha256", "packmol_executable", "packmol_executable_sha256",
     "packmol_version", "geometry_path", "geometry_sha256",
-    "minimum_intermolecular_distance_A", "molecule_count_qc", "atom_order_qc",
-    "overlap_qc", "status",
+    "minimum_intermolecular_distance_A", "max_shell_box_violation_A",
+    "molecule_count_qc", "atom_order_qc", "overlap_qc", "containment_qc", "status",
 )
 ORCA_FIELDS = (
     "phase", "calculation_key", "state_role", "job_id", "job_class",
@@ -671,6 +671,9 @@ def run_packmol(executable: str) -> list[dict[str, str]]:
     sources = _source_rows()
     rows: list[dict[str, str]] = []
     tolerance = float(protocol["packmol"]["tolerance_A"])
+    containment_tolerance = float(
+        protocol["packmol"]["packmol_containment_numerical_tolerance_A"]
+    )
     for system in protocol["systems"]:
         key = system["calculation_key"]
         target = read_xyz(REPOSITORY_ROOT / sources[system["target_geometry_source"]]["snapshot_path"])
@@ -688,11 +691,19 @@ def run_packmol(executable: str) -> list[dict[str, str]]:
         ranges = _molecule_ranges(len(target), len(shell), n_shell)
         minimum = _minimum_intermolecular_distance(atoms, ranges)
         overlap_ok = minimum >= tolerance - 0.01
-        if not (count_ok and order_ok and overlap_ok):
-            raise DiagnosticError(
-                f"cluster QC failed for {key}: count={count_ok}, order={order_ok}, min={minimum}"
-            )
         half = float(system["box_side_A"]) / 2.0
+        shell_atom_indices = [index for atom_range in ranges[1:] for index in atom_range]
+        max_violation = max(
+            max(abs(value) - half, 0.0)
+            for index in shell_atom_indices
+            for value in atoms[index].coordinates
+        )
+        containment_ok = max_violation <= containment_tolerance + 1e-9
+        if not (count_ok and order_ok and overlap_ok and containment_ok):
+            raise DiagnosticError(
+                f"cluster QC failed for {key}: count={count_ok}, order={order_ok}, "
+                f"min={minimum}, max_box_violation={max_violation}"
+            )
         log_text = log_path.read_text(encoding="utf-8", errors="replace")
         rows.append(
             {
@@ -720,9 +731,11 @@ def run_packmol(executable: str) -> list[dict[str, str]]:
                 "geometry_path": _repo_relative(cluster_path),
                 "geometry_sha256": sha256_file(cluster_path),
                 "minimum_intermolecular_distance_A": f"{minimum:.10f}",
+                "max_shell_box_violation_A": f"{max_violation:.10f}",
                 "molecule_count_qc": "pass" if count_ok else "fail",
                 "atom_order_qc": "pass" if order_ok else "fail",
                 "overlap_qc": "pass" if overlap_ok else "fail",
+                "containment_qc": "pass" if containment_ok else "fail",
                 "status": "clean",
             }
         )
@@ -905,6 +918,8 @@ def validate_prepared() -> dict[str, Any]:
             issues.append(f"cluster_composition:{row['calculation_key']}")
         if row["status"] != "clean":
             issues.append(f"cluster_qc:{row['calculation_key']}")
+        if row["containment_qc"] != "pass":
+            issues.append(f"cluster_containment:{row['calculation_key']}")
 
     solvent_rows = {
         row["solvent_id"]: row
