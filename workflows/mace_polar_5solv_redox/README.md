@@ -9,6 +9,11 @@ validation-plot audit with the primary-audited v2 solvent/anion core. The latter
 seven solvent identities and five anion/environment identities; repeated anion observations
 map to one system prediction.
 
+Shell-retention QC distinguishes normal restraint activation from escape. A solvent is marked
+escaped only after its COM remains beyond `R0 + 2.0 Å` for at least 50 consecutive saved
+production frames (1.0 ps at 20 fs spacing). Crossing `R0`, including in the final frame, is
+recorded as restraint activation and does not itself fail QC.
+
 Generate the frozen manifests:
 
 ```bash

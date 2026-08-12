@@ -15,6 +15,11 @@ from .marcus import block_statistics
 from .trajectory import TRAJECTORY_SCOPES, _read_tsv
 
 
+SHELL_ESCAPE_MARGIN_A = 2.0
+SHELL_ESCAPE_DURATION_PS = 1.0
+PRODUCTION_SAMPLE_INTERVAL_FS = 20.0
+
+
 def _fragment_bonds(symbols: Sequence[str], positions: np.ndarray) -> set[frozenset[int]]:
     atoms = tuple(
         XYZAtom(symbol, float(position[0]), float(position[1]), float(position[2]))
@@ -70,6 +75,87 @@ def final_shell_distances_A(atoms: Any, *, target_atoms: int, solvent_atoms: int
     return distances
 
 
+def solvent_shell_diagnostics(
+    distance_chunks_A: Sequence[np.ndarray],
+    *,
+    R0_A: float,
+    sample_interval_fs: float = PRODUCTION_SAMPLE_INTERVAL_FS,
+    escape_margin_A: float = SHELL_ESCAPE_MARGIN_A,
+    escape_duration_ps: float = SHELL_ESCAPE_DURATION_PS,
+) -> list[dict[str, float | int | bool]]:
+    """Summarize per-solvent shell behavior while preserving chunk-boundary continuity."""
+    if R0_A <= 0 or sample_interval_fs <= 0 or escape_margin_A <= 0 or escape_duration_ps <= 0:
+        raise ValueError("shell-retention parameters must be positive")
+    chunks = [np.asarray(chunk, dtype=np.float64) for chunk in distance_chunks_A]
+    if not chunks or any(chunk.ndim != 2 for chunk in chunks):
+        raise ValueError("shell distances must contain at least one two-dimensional chunk")
+    solvent_count = chunks[0].shape[1]
+    if solvent_count < 1 or any(chunk.shape[1] != solvent_count for chunk in chunks):
+        raise ValueError("shell-distance chunks must have one consistent solvent dimension")
+    distances = np.concatenate(chunks, axis=0)
+    if distances.shape[0] < 1 or not np.all(np.isfinite(distances)):
+        raise ValueError("shell distances must contain finite production samples")
+    escape_frames = round(escape_duration_ps * 1000.0 / sample_interval_fs)
+    if escape_frames < 1 or not np.isclose(
+        escape_frames * sample_interval_fs, escape_duration_ps * 1000.0
+    ):
+        raise ValueError("escape duration must be an integer number of saved frames")
+    rows: list[dict[str, float | int | bool]] = []
+    for solvent_index in range(solvent_count):
+        values = distances[:, solvent_index]
+        active = values > R0_A
+        beyond_escape_boundary = values > R0_A + escape_margin_A
+        longest_run = current_run = 0
+        for exceeded in beyond_escape_boundary:
+            current_run = current_run + 1 if exceeded else 0
+            longest_run = max(longest_run, current_run)
+        rows.append(
+            {
+                "solvent_index": solvent_index + 1,
+                "restraint_activation_fraction": float(np.mean(active)),
+                "maximum_COM_distance_A": float(np.max(values)),
+                "max_excess_over_R0_A": max(0.0, float(np.max(values) - R0_A)),
+                "longest_continuous_exceedance_over_R0_plus_2A_ps": (
+                    longest_run * sample_interval_fs / 1000.0
+                ),
+                "shell_escape": longest_run >= escape_frames,
+            }
+        )
+    return rows
+
+
+def production_shell_distance_chunks_A(
+    md_directory: Path, *, target_atoms: int, solvent_atoms: int
+) -> list[np.ndarray]:
+    try:
+        from ase.io import read
+    except ImportError as exc:  # pragma: no cover - execution dependency
+        raise RuntimeError("ASE is required for trajectory QC") from exc
+    chunks: list[np.ndarray] = []
+    for receipt_path in sorted(md_directory.glob("chunk-*.json")):
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt.get("status") != "complete" or receipt.get("phase") != "production":
+            continue
+        trajectory_path = receipt_path.with_suffix(".traj")
+        frames = read(trajectory_path, index=":")
+        if len(frames) != int(receipt["production_samples"]):
+            raise RuntimeError(f"production sample count drift: {trajectory_path}")
+        chunks.append(
+            np.asarray(
+                [
+                    final_shell_distances_A(
+                        frame, target_atoms=target_atoms, solvent_atoms=solvent_atoms
+                    )
+                    for frame in frames
+                ],
+                dtype=np.float64,
+            )
+        )
+    if not chunks:
+        raise RuntimeError(f"no completed production chunks: {md_directory}")
+    return chunks
+
+
 def localization_diagnostics(paths: Sequence[Path], *, target_atoms: int) -> dict[str, float]:
     target_density = solvent_density = target_spin = solvent_spin = 0.0
     for path in paths:
@@ -109,6 +195,7 @@ def collect_trajectory_qc(*, raw_root: Path, mode: str) -> list[dict[str, Any]]:
     except ImportError as exc:  # pragma: no cover - execution dependency
         raise RuntimeError("ASE is required for trajectory QC") from exc
     rows: list[dict[str, Any]] = []
+    solvent_rows: list[dict[str, Any]] = []
     for task in _read_tsv(raw_root / f"{mode}_trajectory_tasks.tsv"):
         trajectory_dir = raw_root / "trajectories" / task["logical_trajectory_id"]
         trajectory_path = trajectory_dir / "trajectory.json"
@@ -150,13 +237,34 @@ def collect_trajectory_qc(*, raw_root: Path, mode: str) -> list[dict[str, Any]]:
         )
         if not complete_sampling:
             flags.append("incomplete_sampling")
-        shell_distances = final_shell_distances_A(
+        shell_diagnostics = solvent_shell_diagnostics(
+            production_shell_distance_chunks_A(
+                trajectory_dir / "md",
+                target_atoms=int(task["target_atoms"]),
+                solvent_atoms=int(task["solvent_atoms"]),
+            ),
+            R0_A=float(task["R0_A"]),
+        )
+        for diagnostic in shell_diagnostics:
+            solvent_rows.append(
+                {
+                    "logical_trajectory_id": task["logical_trajectory_id"],
+                    "system_id": task["system_id"],
+                    "seed_index": int(task["seed_index"]),
+                    "state": task["state"],
+                    "R0_A": float(task["R0_A"]),
+                    "escape_boundary_A": float(task["R0_A"]) + SHELL_ESCAPE_MARGIN_A,
+                    "production_samples": int(md["completed_production_samples"]),
+                    **diagnostic,
+                }
+            )
+        final_shell_distances = final_shell_distances_A(
             final,
             target_atoms=int(task["target_atoms"]),
             solvent_atoms=int(task["solvent_atoms"]),
         )
-        shell_retained = max(shell_distances) <= float(task["R0_A"])
-        if not shell_retained:
+        shell_escape = any(bool(row["shell_escape"]) for row in shell_diagnostics)
+        if shell_escape:
             flags.append("shell_escape")
         gap_values = _gaps(raw_root, gap)
         if mode != "pilot":
@@ -196,8 +304,23 @@ def collect_trajectory_qc(*, raw_root: Path, mode: str) -> list[dict[str, Any]]:
                 "qc_status": "clean" if not flags else "flagged",
                 "flags": ";".join(flags) if flags else "clean",
                 **changes,
-                "shell_retained_at_final": shell_retained,
-                "final_maximum_solvent_com_distance_A": max(shell_distances),
+                "shell_escape": shell_escape,
+                "restraint_activation_fraction": float(
+                    np.mean(
+                        [float(row["restraint_activation_fraction"]) for row in shell_diagnostics]
+                    )
+                ),
+                "maximum_COM_distance_A": max(
+                    float(row["maximum_COM_distance_A"]) for row in shell_diagnostics
+                ),
+                "max_excess_over_R0_A": max(
+                    float(row["max_excess_over_R0_A"]) for row in shell_diagnostics
+                ),
+                "longest_continuous_exceedance_over_R0_plus_2A_ps": max(
+                    float(row["longest_continuous_exceedance_over_R0_plus_2A_ps"])
+                    for row in shell_diagnostics
+                ),
+                "final_maximum_solvent_com_distance_A": max(final_shell_distances),
                 "restraint_activation_samples": md["restraint_activation_samples"],
                 "maximum_excursion_A": md["maximum_excursion_A"],
                 "temperature_mean_K": md["temperature_mean_K"],
@@ -221,6 +344,14 @@ def collect_trajectory_qc(*, raw_root: Path, mode: str) -> list[dict[str, Any]]:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
+    solvent_output = raw_root / f"{mode}_solvent_shell_qc.csv"
+    solvent_fields = list(dict.fromkeys(key for row in solvent_rows for key in row))
+    with solvent_output.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=solvent_fields, lineterminator="\n", extrasaction="ignore"
+        )
+        writer.writeheader()
+        writer.writerows(solvent_rows)
     return rows
 
 

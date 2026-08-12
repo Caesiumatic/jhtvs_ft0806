@@ -28,6 +28,7 @@ def test_pilot_report_requires_complete_four_system_two_state_scope(tmp_path: Pa
     clusters = []
     tasks = []
     qc = []
+    solvent_shell_qc = []
     seeds = []
     for system_index, role in enumerate(roles):
         system_id = f"system-{system_index}"
@@ -54,7 +55,29 @@ def test_pilot_report_requires_complete_four_system_two_state_scope(tmp_path: Pa
                     "spin": spin,
                 }
             )
-            qc.append({"logical_trajectory_id": logical_id, "flags": "clean"})
+            qc.append(
+                {
+                    "logical_trajectory_id": logical_id,
+                    "flags": "clean",
+                    "restraint_activation_fraction": 0.0,
+                    "maximum_COM_distance_A": 8.0,
+                    "max_excess_over_R0_A": 0.0,
+                    "longest_continuous_exceedance_over_R0_plus_2A_ps": 0.0,
+                    "shell_escape": False,
+                }
+            )
+            for solvent_index in range(5):
+                solvent_shell_qc.append(
+                    {
+                        "logical_trajectory_id": logical_id,
+                        "solvent_index": solvent_index,
+                        "restraint_activation_fraction": 0.0,
+                        "maximum_COM_distance_A": 8.0,
+                        "max_excess_over_R0_A": 0.0,
+                        "longest_continuous_exceedance_over_R0_plus_2A_ps": 0.0,
+                        "shell_escape": False,
+                    }
+                )
             trajectory_dir = raw / "trajectories" / logical_id
             gap_dir = raw / "gaps" / logical_id
             trajectory_dir.mkdir(parents=True)
@@ -99,6 +122,7 @@ def test_pilot_report_requires_complete_four_system_two_state_scope(tmp_path: Pa
     _write_csv(raw / "pilot_cluster_manifest.csv", clusters)
     _write_csv(raw / "pilot_trajectory_tasks.tsv", tasks, delimiter="\t")
     _write_csv(raw / "pilot_trajectory_qc.csv", qc)
+    _write_csv(raw / "pilot_solvent_shell_qc.csv", solvent_shell_qc)
     _write_csv(raw / "pilot_seed_gap_summary.csv", seeds)
     submissions = raw / "submissions"
     submissions.mkdir()

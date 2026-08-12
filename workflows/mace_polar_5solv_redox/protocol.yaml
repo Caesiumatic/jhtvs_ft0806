@@ -26,6 +26,13 @@ restraint:
   centroid: target_heavy_atom_centroid
   R0: target_initial_max_radius_plus_4.5_A
   k_eV_A2: 0.5
+shell_retention_qc:
+  restraint_active: d_j_gt_R0
+  escape_distance: d_j_gt_R0_plus_2.0_A
+  escape_continuous_duration_ps: 1.0
+  production_sample_interval_fs: 20
+  escape_consecutive_saved_frames: 50
+  final_frame_exceedance_alone_is_escape: false
 optimization:
   optimizer: ASE_FIRE
   fmax_eV_A: 0.02

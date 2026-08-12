@@ -32,6 +32,7 @@ def write_pilot_report(
     clusters = _read_csv(raw_root / "pilot_cluster_manifest.csv")
     tasks = _read_csv(raw_root / "pilot_trajectory_tasks.tsv", delimiter="\t")
     qc_rows = _read_csv(raw_root / "pilot_trajectory_qc.csv")
+    solvent_shell_rows = _read_csv(raw_root / "pilot_solvent_shell_qc.csv")
     seed_rows = _read_csv(raw_root / "pilot_seed_gap_summary.csv")
     if len(manifest) != 4 or len(clusters) != 4 or len(tasks) != 8:
         raise RuntimeError("pilot scope must contain four systems, four clusters and eight states")
@@ -43,10 +44,11 @@ def write_pilot_report(
     }
     if {row["pilot_role"] for row in manifest} != expected_roles:
         raise RuntimeError("pilot role coverage drift")
-    if len(qc_rows) != 8 or len(seed_rows) != 4:
+    if len(qc_rows) != 8 or len(solvent_shell_rows) != 40 or len(seed_rows) != 4:
         raise RuntimeError("pilot gap/QC scope is incomplete")
 
     manifest_by_system = {row["system_id"]: row for row in manifest}
+    qc_by_trajectory = {row["logical_trajectory_id"]: row for row in qc_rows}
     critical_flags: set[str] = set()
     trajectory_wallclock = 0.0
     gap_wallclock = 0.0
@@ -66,6 +68,7 @@ def write_pilot_report(
         trajectory_wallclock += float(trajectory["wallclock_seconds"])
         gap_wallclock += float(gap["wallclock_seconds"])
         md = trajectory["md"]
+        trajectory_qc = qc_by_trajectory[logical_id]
         optimization = trajectory["optimization"]
         finite = finite and all(
             math.isfinite(float(value))
@@ -105,8 +108,17 @@ def write_pilot_report(
                 "maximum_force_eV_A": md["maximum_force_eV_A"],
                 "production_samples": gap["sample_count"],
                 "temperature_mean_K": md["temperature_mean_K"],
-                "restraint_activation_samples": md["restraint_activation_samples"],
-                "maximum_excursion_A": md["maximum_excursion_A"],
+                "restraint_activation_fraction": float(
+                    trajectory_qc["restraint_activation_fraction"]
+                ),
+                "maximum_COM_distance_A": float(trajectory_qc["maximum_COM_distance_A"]),
+                "max_excess_over_R0_A": float(trajectory_qc["max_excess_over_R0_A"]),
+                "longest_escape_duration_ps": float(
+                    trajectory_qc[
+                        "longest_continuous_exceedance_over_R0_plus_2A_ps"
+                    ]
+                ),
+                "shell_escape": trajectory_qc["shell_escape"] == "True",
                 "trajectory_wallclock_seconds": trajectory["wallclock_seconds"],
                 "gap_wallclock_seconds": gap["wallclock_seconds"],
             }
@@ -121,7 +133,17 @@ def write_pilot_report(
         "exact_five_solvent_clusters": all(
             row["status"] == "clean" and int(row["solvent_count"]) == 5 for row in clusters
         ),
-        "molecule_count_and_atom_order_qc": len(qc_rows) == len(tasks),
+        "molecule_count_and_atom_order_qc": (
+            len(qc_rows) == len(tasks)
+            and all(
+                sum(
+                    row["logical_trajectory_id"] == task["logical_trajectory_id"]
+                    for row in solvent_shell_rows
+                )
+                == 5
+                for task in tasks
+            )
+        ),
         "no_immediate_fragmentation_or_shell_loss": not critical_flags,
         "restraint_force_conservation_and_state_cancellation_tests": True,
     }
@@ -144,6 +166,7 @@ def write_pilot_report(
         "status": status,
         "pilot_system_count": len(manifest),
         "pilot_trajectory_count": len(tasks),
+        "pilot_solvent_shell_qc_rows": len(solvent_shell_rows),
         "pilot_roles": sorted(expected_roles),
         "checks": checks,
         "critical_qc_flags": sorted(critical_flags),
@@ -156,11 +179,19 @@ def write_pilot_report(
         "trajectory_wallclock_seconds_sum": trajectory_wallclock,
         "gap_wallclock_seconds_sum": gap_wallclock,
         "pilot_raw_bytes": raw_bytes,
+        "shell_retention_definition": {
+            "restraint_active_when": "d_j > R0",
+            "shell_escape_when": "d_j > R0 + 2.0 A continuously for at least 1.0 ps",
+            "production_sample_interval_fs": 20.0,
+            "required_consecutive_saved_frames": 50,
+            "final_frame_exceedance_alone_is_escape": False,
+        },
         "trajectory_summaries": trajectory_summaries,
         "test_evidence": [
             "tests/explicit_redox/test_structures_packing_restraint.py",
             "tests/explicit_redox/test_calculator_optimize_dynamics.py",
             "tests/explicit_redox/test_vertical_marcus_alignment.py",
+            "tests/explicit_redox/test_qc.py",
         ],
     }
     output_json.parent.mkdir(parents=True, exist_ok=True)
@@ -174,6 +205,8 @@ def write_pilot_report(
         f"- Summed wallclock: trajectory {trajectory_wallclock / 3600.0:.2f} h; gap {gap_wallclock / 3600.0:.2f} h",
         f"- Raw pilot storage: {raw_bytes / 1024.0**2:.2f} MiB",
         f"- Critical QC flags: {', '.join(sorted(critical_flags)) if critical_flags else 'none'}",
+        "- Restraint activation: solvent COM distance `d_j > R0` (diagnostic only)",
+        "- Shell escape: `d_j > R0 + 2.0 Å` for at least 50 consecutive saved frames (1.0 ps)",
         "",
         "## Integrity checks",
         "",
