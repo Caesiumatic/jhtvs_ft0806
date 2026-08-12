@@ -6,7 +6,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from jhtvs_ft0806.explicit_redox.workflow import (
+    _active_array_indices,
     _array_range,
+    _expand_sge_task_spec,
     resume_array,
     submit_array,
     workflow_status,
@@ -149,3 +151,72 @@ def test_resume_submits_only_pending_indices_once_on_safe_gpus(
 
 def test_scheduler_array_range_compresses_only_contiguous_indices() -> None:
     assert _array_range([1, 2, 3, 5, 7, 8]) == "1-3,5,7-8"
+
+
+def test_scheduler_task_spec_expansion() -> None:
+    assert _expand_sge_task_spec("1,3-7:2,9-10") == {1, 3, 5, 7, 9, 10}
+
+
+def test_active_array_indices_are_read_from_qstat_xml(monkeypatch) -> None:
+    xml = """<?xml version='1.0'?>
+<job_info><queue_info>
+<job_list><JB_job_number>123</JB_job_number><tasks>1</tasks></job_list>
+<job_list><JB_job_number>123</JB_job_number><tasks>3-5:2</tasks></job_list>
+<job_list><JB_job_number>999</JB_job_number><tasks>7</tasks></job_list>
+</queue_info><job_info /></job_info>
+"""
+
+    def fake_run(command, **_kwargs):
+        assert command == ["qstat", "-xml"]
+        return SimpleNamespace(stdout=xml, stderr="", returncode=0)
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    assert _active_array_indices(["123"]) == {1, 3, 5}
+
+
+def test_resume_excludes_indices_still_active_in_base_array(
+    tmp_path: Path, monkeypatch
+) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    _tasks(raw)
+    digest = __import__("hashlib").sha256(
+        (raw / "pilot_trajectory_tasks.tsv").read_bytes()
+    ).hexdigest()
+    submissions = raw / "submissions"
+    submissions.mkdir()
+    (submissions / "pilot_trajectory.json").write_text(
+        json.dumps(
+            {
+                "status": "SUBMITTED",
+                "task_table_sha256": digest,
+                "scheduler_job_ids": ["123"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    commands = []
+    xml = """<?xml version='1.0'?>
+<job_info><queue_info>
+<job_list><JB_job_number>123</JB_job_number><tasks>1</tasks></job_list>
+</queue_info><job_info /></job_info>
+"""
+
+    def fake_run(command, **_kwargs):
+        if command[:2] == ["qstat", "-xml"]:
+            return SimpleNamespace(stdout=xml, stderr="", returncode=0)
+        if command[:2] == ["git", "rev-parse"]:
+            return SimpleNamespace(stdout="c" * 40 + "\n", returncode=0)
+        commands.append(command)
+        return SimpleNamespace(stdout="2002.2\n", returncode=0)
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    submitted = resume_array(
+        raw_root=raw,
+        scope="pilot",
+        stage="trajectory",
+        execute=True,
+    )
+    assert submitted["pending_indices"] == [2]
+    assert submitted["active_indices_excluded"] == [1]
+    assert commands[0][commands[0].index("-t") + 1] == "2"

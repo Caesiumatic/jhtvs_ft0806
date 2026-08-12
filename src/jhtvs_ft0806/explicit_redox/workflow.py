@@ -5,6 +5,7 @@ import hashlib
 import json
 import shlex
 import subprocess
+import xml.etree.ElementTree as ET
 from math import ceil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -81,6 +82,36 @@ def _array_range(indices: Sequence[int]) -> str:
         start = previous = index
     groups.append(str(start) if start == previous else f"{start}-{previous}")
     return ",".join(groups)
+
+
+def _expand_sge_task_spec(specification: str) -> set[int]:
+    indices: set[int] = set()
+    for group in specification.split(","):
+        bounds, _, stride_text = group.partition(":")
+        stride = int(stride_text) if stride_text else 1
+        start_text, separator, end_text = bounds.partition("-")
+        start = int(start_text)
+        end = int(end_text) if separator else start
+        indices.update(range(start, end + 1, stride))
+    return indices
+
+
+def _active_array_indices(job_ids: Sequence[str]) -> set[int]:
+    if not job_ids:
+        return set()
+    result = subprocess.run(
+        ["qstat", "-xml"], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"qstat -xml failed: {result.stderr.strip()}")
+    requested = set(job_ids)
+    active: set[int] = set()
+    for job in ET.fromstring(result.stdout).iter("job_list"):
+        job_number = job.findtext("JB_job_number")
+        task_specification = job.findtext("tasks")
+        if job_number in requested and task_specification:
+            active.update(_expand_sge_task_spec(task_specification))
+    return active
 
 
 def _resource_arguments(device: str, slots: int) -> tuple[list[str], str]:
@@ -276,6 +307,20 @@ def resume_array(
     base_ledger = json.loads(base_ledger_path.read_text(encoding="utf-8"))
     if base_ledger["task_table_sha256"] != digest:
         raise RuntimeError("resume task-table hash drift")
+    active_base_indices = (
+        _active_array_indices(base_ledger.get("scheduler_job_ids", [])) if execute else set()
+    )
+    pending_indices = [
+        index for index in pending_indices if index not in active_base_indices
+    ]
+    if not pending_indices:
+        return {
+            "status": "ACTIVE_TASKS",
+            "scope": scope,
+            "stage": stage,
+            "pending_indices": [],
+            "active_indices_excluded": sorted(active_base_indices),
+        }
     prior_retries = sorted(ledger_dir.glob(f"{scope}_{stage}_retry-*.json"))
     prior_ledger: dict[str, Any] | None = None
     if prior_retries:
@@ -341,6 +386,7 @@ def resume_array(
         "stage": stage,
         "retry_index": retry_index,
         "pending_indices": pending_indices,
+        "active_indices_excluded": sorted(active_base_indices),
         "task_table_sha256": digest,
         "repository_commit": repository_commit,
         "device": device,
