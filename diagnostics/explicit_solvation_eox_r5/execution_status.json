@@ -2,12 +2,16 @@
   "attempted_unique_systems": 6,
   "completed_unique_systems": 0,
   "first_submission_utc": "2026-08-12T20:00:16+00:00",
+  "irrecoverable_unique_systems": [
+    "acetonitrile__self"
+  ],
   "phase": "A",
   "scheduler_job_ids": [
-    "423864.1-6:1"
+    "423864.1-6:1",
+    "423905.1"
   ],
-  "status": "SUBMITTED",
+  "status": "SUBMITTED_WITH_IRRECOVERABLE_FAILURES",
   "task_table_sha256": "373ace5243ba525e0579be1ff7c3dd042a91218afa3939b954d0f0a6216316fe",
-  "updated_at_utc": "2026-08-12T20:00:16+00:00",
+  "updated_at_utc": "2026-08-13T17:20:16+00:00",
   "workflow_revision": "jhtvs-ft0806-explicit-r5-eox-v1"
 }
