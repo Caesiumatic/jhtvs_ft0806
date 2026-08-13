@@ -1,0 +1,81 @@
+# workflow_revision: jhtvs-ft0806-explicit-r5-eox-v1
+# job_id: R5EOX_A01_RED_CONT1
+# job_class: optfreq
+# state_id: acetonitrile__self_reduced_q0_m1
+# solvent_id: S001
+# formal_charge: 0
+# multiplicity: 1
+# geometry_key: continuation1:R5EOX_A01_RED
+# geometry_sha256: a2805b5eb39f0b1731e6334c3019ac0999deb37a41d5d069fd149e8d4e256e33
+# method_id: T2_wB97X-D3_def2-SVP_OptFreq_def2-TZVPD-SP_SMD_ExplicitR5_v1
+# smd_registry_sha256: 2d98f12b7af91524f569c997bafb0e96f3b2d5662ac2d31db41c8afd52a1fda7
+# smd_registry_row_sha256: 33991649687f2d2b981d6e03785961ad9457eb27eac9b175c78aef6ac9c44c11
+# smd_payload_sha256: 2ac42ed3e22fe59dd5791310aba80df0f44a97fce93a0f99bfc908a252e00b57
+# exact_reuse_key: 1c0ef23082f44811187a837242721ffdb42ed703436d7a0a96fb0b4311ef263e
+# thermochemistry_convention_id: orca_298.15K_1atm_QuasiRRHO_project_1M_v1
+%pal nprocs 8 end
+%maxcore 3000
+* xyz 0 1
+C       -0.8093757678      -0.0155726803       1.1250321331
+C        0.2504595434      -0.3831210875       0.1960340908
+N        1.0869546930      -0.6709377246      -0.5498882916
+H       -1.7585093774      -0.4736065157       0.8109014859
+H       -0.5466420604      -0.3586452897       2.1364581769
+H       -0.9123689404       1.0717896732       1.1305986867
+C        4.3771764346       2.3026856613       3.0653791585
+C        3.0997647438       1.7543681165       2.6416951119
+N        2.0865120912       1.3157497850       2.2974448677
+H        4.9209300740       1.5565423171       3.6585118842
+H        4.9773549210       2.5727504807       2.1814449653
+H        4.2123889116       3.2016886282       3.6738754541
+C        3.1251845988      -3.3302046994      -0.1731709213
+C        3.6382118055      -2.3653966952       0.7997036680
+N        4.0662397637      -1.6101623745       1.5649099421
+H        3.7112361413      -4.2585401442      -0.1124392231
+H        2.0667625987      -3.5458872932       0.0609701159
+H        3.2029014586      -2.9203284555      -1.1905977337
+C       -2.0485643173      -3.4662871317       2.7542581141
+C       -0.9428356071      -3.6475035925       1.8194917490
+N       -0.0621722973      -3.7696926404       1.0727845234
+H       -2.2704724791      -4.4196249974       3.2457833885
+H       -1.7532363656      -2.7170130839       3.5111090994
+H       -2.9424982048      -3.1233249987       2.2170332730
+C        1.6915409112       4.6132619435       0.9967555423
+C        0.7540863079       3.7435647921       0.2978724291
+N       -0.0029532716       3.0525946023      -0.2518047674
+H        2.7229440729       4.2929042566       0.7925096283
+H        1.5605157087       5.6555056260       0.6600467906
+H        1.4958214634       4.5610261247       2.0707966906
+C        2.9063230515      -1.1238398481       4.7844658387
+C        1.5179820083      -1.3077094047       4.4021807416
+N        0.4152276759      -1.4514562141       4.0934627682
+H        3.1922700110      -1.8862532826       5.5178156201
+H        3.5435213665      -1.2160177042       3.8947050811
+H        3.0332473322      -0.1291011491       5.2266949182
+*
+%compound
+NewStep
+! wB97X-D3 def2-SVP def2/J RIJCOSX TightSCF DEFGRID3 Opt Freq
+%cpcm
+  smd true
+  SMDsolvent "Acetonitrile"
+end
+%freq
+  Temp 298.15
+  Pressure 1.0
+  QuasiRRHO true
+end
+%geom
+  MaxIter 200
+  Convergence tight
+end
+StepEnd
+NewStep
+! wB97X-D3 def2-TZVPD def2/J RIJCOSX TightSCF DEFGRID3
+%cpcm
+  smd true
+  SMDsolvent "Acetonitrile"
+end
+* xyzfile 0 1 R5EOX_A01_RED_CONT1_Compound_1.xyz
+StepEnd
+End
