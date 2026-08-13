@@ -238,6 +238,49 @@ def test_reduced_state_continuation_serially_preserves_unattempted_oxidized_stat
     assert [row["sequence"] for row in bundled] == ["1", "2"]
 
 
+def test_scheduler_accounting_core_hours_and_maxiter_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = next(
+        row for row in read_csv_rows(SCRIPT.parent / "orca/job_manifest.csv")
+        if row["job_id"] == "R5EOX_A01_RED"
+    )
+    output = tmp_path / "failed.out"
+    output.write_text(
+        "ERROR !!!\nThe optimization did not converge but reached the maximum\n"
+        "****ORCA TERMINATED NORMALLY****\n",
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "job_manifest.csv"
+    patched = dict(original)
+    patched["output_path"] = output.name
+    DIAGNOSTIC.write_csv_deterministic(
+        manifest, DIAGNOSTIC.ORCA_FIELDS, [patched]
+    )
+    status = tmp_path / "execution_status.json"
+    status.write_text('{"scheduler_job_ids": []}\n', encoding="utf-8")
+    monkeypatch.setattr(DIAGNOSTIC, "REPOSITORY_ROOT", tmp_path)
+    monkeypatch.setattr(DIAGNOSTIC, "DIAGNOSTIC_ROOT", tmp_path)
+    monkeypatch.setattr(DIAGNOSTIC, "ORCA_MANIFEST_PATH", manifest)
+    monkeypatch.setattr(DIAGNOSTIC, "ACCOUNTING_PATH", tmp_path / "accounting.csv")
+    monkeypatch.setattr(
+        DIAGNOSTIC, "CONTINUATION_MANIFEST_PATH", tmp_path / "absent.csv"
+    )
+
+    row = DIAGNOSTIC.record_scheduler_accounting(
+        scheduler_job_id="423864", task_id="1", logical_job_id="R5EOX_A01_RED",
+        attempt="0", start_time_iso="2026-08-12T15:00:23-05:00",
+        end_time_iso="2026-08-13T01:47:58-05:00", wallclock_s="38855",
+        slots="8", failed="0", exit_status="2",
+        outcome="optimization_maxiter_200",
+        recorded_at_utc="2026-08-13T17:20:00+00:00",
+    )
+
+    assert row["core_hours"] == "86.344444444444"
+    assert row["output_sha256"] == sha256_file(output)
+    assert read_csv_rows(tmp_path / "accounting.csv") == [row]
+
+
 def test_prepared_artifacts_pass_fail_closed_validation() -> None:
     report = DIAGNOSTIC.validate_prepared()
 

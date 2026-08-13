@@ -45,6 +45,7 @@ ORCA_TASKS_PATH = ORCA_ROOT / "tasks.tsv"
 CONTINUATION_ROOT = DIAGNOSTIC_ROOT / "continuations"
 CONTINUATION_MANIFEST_PATH = ORCA_ROOT / "continuation_manifest.csv"
 CONTINUATION_TASK_ROOT = ORCA_ROOT / "continuation_tasks"
+ACCOUNTING_PATH = ORCA_ROOT / "scheduler_accounting.csv"
 WORKFLOW_REVISION = "jhtvs-ft0806-explicit-r5-eox-v1"
 PACKMOL_SUCCESS = "Success!"
 HARTREE_TO_EV_DECIMAL = Decimal(str(HARTREE_TO_EV))
@@ -110,6 +111,13 @@ CONTINUATION_FIELDS = (
     "coordinate_payload_sha256", "exact_reuse_key", "status",
     "task_path", "task_sha256", "bundled_tail_job_ids", "scheduler_job_id",
     "submitted_at_utc",
+)
+ACCOUNTING_FIELDS = (
+    "scheduler_job_id", "task_id", "logical_job_id", "attempt",
+    "attempt_job_id", "calculation_key", "state_role", "start_time_iso",
+    "end_time_iso", "wallclock_s", "slots", "core_hours", "failed",
+    "exit_status", "outcome", "output_path", "output_sha256",
+    "recorded_at_utc",
 )
 SPIN_FIELDS = (
     "calculation_key", "job_id", "molecule_index", "fragment_role",
@@ -2050,6 +2058,150 @@ def record_continuation_submission(
     return matches[0]
 
 
+def record_scheduler_accounting(
+    *,
+    scheduler_job_id: str,
+    task_id: str,
+    logical_job_id: str,
+    attempt: str,
+    start_time_iso: str,
+    end_time_iso: str,
+    wallclock_s: str,
+    slots: str,
+    failed: str,
+    exit_status: str,
+    outcome: str,
+    recorded_at_utc: str | None = None,
+) -> dict[str, str]:
+    """Record verified SGE accounting and bind it to the stable ORCA output."""
+
+    if not scheduler_job_id.isdigit() or not task_id.isdigit():
+        raise DiagnosticError("scheduler job and task IDs must be positive integers")
+    if attempt not in {"0", "1"}:
+        raise DiagnosticError("accounting attempt must be 0 or 1")
+    if outcome not in {"clean_complete", "optimization_maxiter_200"}:
+        raise DiagnosticError(f"unsupported accounting outcome: {outcome}")
+    originals = {
+        row["job_id"]: row for row in read_csv_rows(ORCA_MANIFEST_PATH)
+    }
+    original = originals.get(logical_job_id)
+    if original is None:
+        raise DiagnosticError(f"unknown logical job: {logical_job_id}")
+    attempt_job_id = logical_job_id
+    output_path_text = original["output_path"]
+    continuation: dict[str, str] | None = None
+    if attempt == "1":
+        matches = [
+            row for row in _continuation_rows()
+            if row["logical_job_id"] == logical_job_id
+        ]
+        if len(matches) != 1:
+            raise DiagnosticError(f"continuation is not unique: {logical_job_id}")
+        continuation = matches[0]
+        attempt_job_id = continuation["attempt_job_id"]
+        output_path_text = continuation["output_path"]
+    output_path = REPOSITORY_ROOT / output_path_text
+    if not output_path.is_file() or output_path.is_symlink():
+        raise DiagnosticError(f"accounting output is missing or unsafe: {output_path}")
+    output_text = output_path.read_text(encoding="utf-8", errors="replace")
+    if outcome == "optimization_maxiter_200":
+        if (
+            "The optimization did not converge but reached the maximum"
+            not in output_text
+            or "ERROR !!!" not in output_text
+            or "THE OPTIMIZATION HAS CONVERGED" in output_text
+        ):
+            raise DiagnosticError("output does not prove a MaxIter failure")
+    elif (
+        "THE OPTIMIZATION HAS CONVERGED" not in output_text
+        or "ORCA TERMINATED NORMALLY" not in output_text
+        or "ERROR !!!" in output_text
+    ):
+        raise DiagnosticError("output does not prove a clean completed state")
+
+    start = datetime.fromisoformat(start_time_iso)
+    end = datetime.fromisoformat(end_time_iso)
+    if start.tzinfo is None or end.tzinfo is None or end <= start:
+        raise DiagnosticError("accounting timestamps must be ordered and timezone-aware")
+    wallclock = int(wallclock_s)
+    slot_count = int(slots)
+    if wallclock <= 0 or slot_count != 8:
+        raise DiagnosticError("accounting requires positive wallclock and exactly 8 slots")
+    elapsed = round((end - start).total_seconds())
+    if abs(elapsed - wallclock) > 2:
+        raise DiagnosticError(
+            f"accounting timestamp/wallclock mismatch: {elapsed} != {wallclock}"
+        )
+    core_hours = Decimal(wallclock * slot_count) / Decimal(3600)
+    row = {
+        "scheduler_job_id": scheduler_job_id,
+        "task_id": task_id,
+        "logical_job_id": logical_job_id,
+        "attempt": attempt,
+        "attempt_job_id": attempt_job_id,
+        "calculation_key": original["calculation_key"],
+        "state_role": original["state_role"],
+        "start_time_iso": start.isoformat(),
+        "end_time_iso": end.isoformat(),
+        "wallclock_s": str(wallclock),
+        "slots": str(slot_count),
+        "core_hours": f"{core_hours:.12f}",
+        "failed": str(int(failed)),
+        "exit_status": str(int(exit_status)),
+        "outcome": outcome,
+        "output_path": output_path_text,
+        "output_sha256": sha256_file(output_path),
+        "recorded_at_utc": recorded_at_utc or datetime.now(UTC).isoformat(),
+    }
+    rows = read_csv_rows(ACCOUNTING_PATH) if ACCOUNTING_PATH.is_file() else []
+    key = (scheduler_job_id, task_id)
+    existing = [
+        prior for prior in rows
+        if (prior["scheduler_job_id"], prior["task_id"]) == key
+    ]
+    if existing:
+        comparable = dict(row)
+        comparable["recorded_at_utc"] = existing[0]["recorded_at_utc"]
+        if existing[0] != comparable:
+            raise DiagnosticError(f"accounting row already differs: {key}")
+        return existing[0]
+    write_csv_deterministic(
+        ACCOUNTING_PATH, ACCOUNTING_FIELDS, rows + [row],
+        sort_by=("scheduler_job_id", "task_id"),
+    )
+
+    if continuation is not None and outcome == "optimization_maxiter_200":
+        continuation_rows = _continuation_rows()
+        match = next(
+            item for item in continuation_rows
+            if item["logical_job_id"] == logical_job_id
+        )
+        match["status"] = "irrecoverable_maxiter_200"
+        write_csv_deterministic(
+            CONTINUATION_MANIFEST_PATH, CONTINUATION_FIELDS, continuation_rows,
+            sort_by=("logical_job_id", "attempt"),
+        )
+        status_path = DIAGNOSTIC_ROOT / "execution_status.json"
+        execution = json.loads(status_path.read_text(encoding="utf-8"))
+        scheduler_ids = list(execution.get("scheduler_job_ids", []))
+        exact_scheduler_id = f"{scheduler_job_id}.{task_id}"
+        if exact_scheduler_id not in scheduler_ids:
+            scheduler_ids.append(exact_scheduler_id)
+        irrecoverable = list(execution.get("irrecoverable_unique_systems", []))
+        if original["calculation_key"] not in irrecoverable:
+            irrecoverable.append(original["calculation_key"])
+        execution.update(
+            {
+                "status": "SUBMITTED_WITH_IRRECOVERABLE_FAILURES",
+                "scheduler_job_ids": scheduler_ids,
+                "irrecoverable_unique_systems": sorted(irrecoverable),
+                "updated_at_utc": row["recorded_at_utc"],
+            }
+        )
+        _write_json(status_path, execution)
+    return row
+
+
 def _cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -2070,6 +2222,14 @@ def _cli() -> argparse.ArgumentParser:
     continuation_submission_parser.add_argument("--logical-job-id", required=True)
     continuation_submission_parser.add_argument("--scheduler-job-id", required=True)
     continuation_submission_parser.add_argument("--submitted-at-utc")
+    accounting_parser = commands.add_parser("record-scheduler-accounting")
+    for name in (
+        "scheduler-job-id", "task-id", "logical-job-id", "attempt",
+        "start-time-iso", "end-time-iso", "wallclock-s", "slots", "failed",
+        "exit-status", "outcome",
+    ):
+        accounting_parser.add_argument(f"--{name}", required=True)
+    accounting_parser.add_argument("--recorded-at-utc")
     return parser
 
 
@@ -2093,6 +2253,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "record-continuation-submission":
         payload = record_continuation_submission(
             args.logical_job_id, args.scheduler_job_id, args.submitted_at_utc
+        )
+    elif args.command == "record-scheduler-accounting":
+        payload = record_scheduler_accounting(
+            scheduler_job_id=args.scheduler_job_id,
+            task_id=args.task_id,
+            logical_job_id=args.logical_job_id,
+            attempt=args.attempt,
+            start_time_iso=args.start_time_iso,
+            end_time_iso=args.end_time_iso,
+            wallclock_s=args.wallclock_s,
+            slots=args.slots,
+            failed=args.failed,
+            exit_status=args.exit_status,
+            outcome=args.outcome,
+            recorded_at_utc=args.recorded_at_utc,
         )
     else:  # pragma: no cover
         raise AssertionError(args.command)
