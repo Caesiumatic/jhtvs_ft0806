@@ -42,6 +42,9 @@ PACKMOL_ROOT = DIAGNOSTIC_ROOT / "packmol"
 ORCA_ROOT = DIAGNOSTIC_ROOT / "orca"
 ORCA_MANIFEST_PATH = ORCA_ROOT / "job_manifest.csv"
 ORCA_TASKS_PATH = ORCA_ROOT / "tasks.tsv"
+CONTINUATION_ROOT = DIAGNOSTIC_ROOT / "continuations"
+CONTINUATION_MANIFEST_PATH = ORCA_ROOT / "continuation_manifest.csv"
+CONTINUATION_TASK_ROOT = ORCA_ROOT / "continuation_tasks"
 WORKFLOW_REVISION = "jhtvs-ft0806-explicit-r5-eox-v1"
 PACKMOL_SUCCESS = "Success!"
 HARTREE_TO_EV_DECIMAL = Decimal(str(HARTREE_TO_EV))
@@ -97,6 +100,15 @@ ORCA_FIELDS = (
     "thermochemistry_convention_id", "functional", "optfreq_basis",
     "final_sp_basis", "final_sp_hirshfeld", "nprocs", "maxcore_mb_per_rank",
     "planning_core_h", "status",
+)
+CONTINUATION_FIELDS = (
+    "logical_job_id", "attempt", "attempt_job_id", "calculation_key",
+    "state_role", "trigger", "trigger_output_path", "trigger_output_sha256",
+    "trigger_geometry_path", "trigger_geometry_sha256", "source_geometry_path",
+    "source_geometry_sha256", "root_initial_cluster_sha256",
+    "input_path", "input_sha256", "output_path", "geometry_key",
+    "coordinate_payload_sha256", "exact_reuse_key", "status",
+    "task_path", "task_sha256", "scheduler_job_id", "submitted_at_utc",
 )
 SPIN_FIELDS = (
     "calculation_key", "job_id", "molecule_index", "fragment_role",
@@ -521,6 +533,45 @@ def _source_path(name: str) -> Path:
     return REPOSITORY_ROOT / _source_rows()[name]["snapshot_path"]
 
 
+def _continuation_rows() -> list[dict[str, str]]:
+    if not CONTINUATION_MANIFEST_PATH.is_file():
+        return []
+    rows = read_csv_rows(CONTINUATION_MANIFEST_PATH)
+    if len({(row["logical_job_id"], row["attempt"]) for row in rows}) != len(rows):
+        raise DiagnosticError("duplicate continuation attempt")
+    if any(row["attempt"] != "1" for row in rows):
+        raise DiagnosticError("only one continuation is permitted per failed state")
+    return rows
+
+
+def _effective_manifests() -> list[dict[str, str]]:
+    """Resolve each logical state to its original or sole continuation attempt."""
+
+    manifests = read_csv_rows(ORCA_MANIFEST_PATH)
+    by_job = {row["job_id"]: dict(row) for row in manifests}
+    for attempt in _continuation_rows():
+        logical_job_id = attempt["logical_job_id"]
+        if logical_job_id not in by_job:
+            raise DiagnosticError(f"continuation references unknown job: {logical_job_id}")
+        effective = by_job[logical_job_id]
+        effective.update(
+            {
+                "job_id": attempt["attempt_job_id"],
+                "input_path": attempt["input_path"],
+                "input_sha256": attempt["input_sha256"],
+                "output_path": attempt["output_path"],
+                "geometry_key": attempt["geometry_key"],
+                "geometry_sha256": attempt["source_geometry_sha256"],
+                "coordinate_payload_sha256": attempt["coordinate_payload_sha256"],
+                "exact_reuse_key": attempt["exact_reuse_key"],
+                "input_geometry_path": attempt["source_geometry_path"],
+                "logical_job_id": logical_job_id,
+                "attempt": attempt["attempt"],
+            }
+        )
+    return list(by_job.values())
+
+
 def _molecule_ranges(
     target_atoms: int, shell_atoms: int, n_shell: int
 ) -> tuple[range, ...]:
@@ -886,6 +937,148 @@ def render_orca_decks() -> list[dict[str, str]]:
     return rows
 
 
+def prepare_continuation(logical_job_id: str) -> dict[str, str]:
+    """Prepare the sole allowed same-method continuation for one failed state."""
+
+    if _continuation_rows():
+        existing = [
+            row for row in _continuation_rows()
+            if row["logical_job_id"] == logical_job_id
+        ]
+        if existing:
+            raise DiagnosticError(f"continuation already exists: {logical_job_id}")
+    originals = {
+        row["job_id"]: row for row in read_csv_rows(ORCA_MANIFEST_PATH)
+    }
+    original = originals.get(logical_job_id)
+    if original is None:
+        raise DiagnosticError(f"unknown logical job: {logical_job_id}")
+    original_input = REPOSITORY_ROOT / original["input_path"]
+    original_output = REPOSITORY_ROOT / original["output_path"]
+    if not original_output.is_file() or original_output.is_symlink():
+        raise DiagnosticError(f"failed output is missing or unsafe: {logical_job_id}")
+    output_text = original_output.read_text(encoding="utf-8", errors="replace")
+    if (
+        "The optimization did not converge but reached the maximum" not in output_text
+        or "ERROR !!!" not in output_text
+        or "THE OPTIMIZATION HAS CONVERGED" in output_text
+    ):
+        raise DiagnosticError(f"continuation trigger is not a MaxIter failure: {logical_job_id}")
+    trigger_geometry = original_input.parent / f"{logical_job_id}_Compound_1.xyz"
+    if not trigger_geometry.is_file() or trigger_geometry.is_symlink():
+        raise DiagnosticError(f"continuation geometry is missing or unsafe: {trigger_geometry}")
+    if [atom.symbol for atom in read_xyz(trigger_geometry)] != [
+        atom.symbol for atom in read_xyz(REPOSITORY_ROOT / _cluster_row(original["calculation_key"])["geometry_path"])
+    ]:
+        raise DiagnosticError(f"continuation geometry composition/order drifted: {logical_job_id}")
+
+    attempt_job_id = f"{logical_job_id}_CONT1"
+    attempt_input = ORCA_ROOT / "jobs" / attempt_job_id / f"{attempt_job_id}.inp"
+    solvent_rows = {
+        row["solvent_id"]: row
+        for row in read_csv_rows(REPOSITORY_ROOT / "spec/solvent_smd_registry.csv")
+    }
+    registry_path = REPOSITORY_ROOT / "spec/solvent_smd_registry.csv"
+    solvent = solvent_rows[original["solvent_id"]]
+    trigger_geometry_sha = sha256_file(trigger_geometry)
+    source_geometry = CONTINUATION_ROOT / f"{attempt_job_id}_source.xyz"
+    _write_immutable_bytes(source_geometry, trigger_geometry.read_bytes())
+    source_sha = sha256_file(source_geometry)
+    if source_sha != trigger_geometry_sha:
+        raise DiagnosticError(f"continuation geometry snapshot hash mismatch: {logical_job_id}")
+    geometry = {
+        "geometry_key": f"continuation1:{logical_job_id}",
+        "xyz_sha256": source_sha,
+    }
+    job = {
+        "workflow_revision": original["workflow_revision"],
+        "job_id": attempt_job_id,
+        "job_class": original["job_class"],
+        "state_id": original["state_id"],
+        "solvent_id": original["solvent_id"],
+        "formal_charge": original["formal_charge"],
+        "multiplicity": original["multiplicity"],
+        "method_id": original["method_id"],
+        "functional": original["functional"],
+        "optfreq_basis": original["optfreq_basis"],
+        "final_sp_basis": original["final_sp_basis"],
+        "final_sp_hirshfeld": original["final_sp_hirshfeld"],
+        "nprocs": original["nprocs"],
+        "maxcore_mb_per_rank": original["maxcore_mb_per_rank"],
+    }
+    solvent_row_sha = csv_record_sha256(
+        registry_path, key_field="solvent_id", key_value=original["solvent_id"]
+    )
+    deck = render_optfreq_deck(
+        job, geometry, source_geometry, solvent,
+        registry_sha256=sha256_file(registry_path),
+        registry_row_sha256=solvent_row_sha,
+    )
+    payload_sha = sha256_bytes(_coordinate_payload(deck).encode("utf-8"))
+    _write_immutable_bytes(attempt_input, deck.encode("utf-8"))
+    task_path = CONTINUATION_TASK_ROOT / f"{attempt_job_id}.tsv"
+    task_row = {
+        "array_task": "1",
+        "sequence": "1",
+        "job_id": attempt_job_id,
+        "job_class": original["job_class"],
+        "input_path": _repo_relative(attempt_input),
+        "input_sha256": sha256_file(attempt_input),
+        "output_path": _repo_relative(attempt_input.with_suffix(".out")),
+        "nprocs": original["nprocs"],
+        "planning_core_h": original["planning_core_h"],
+        "workflow_revision": original["workflow_revision"],
+        "method_id": original["method_id"],
+    }
+    task_text = "\t".join(TASK_FIELDS) + "\n" + "\t".join(
+        task_row[field] for field in TASK_FIELDS
+    ) + "\n"
+    _write_immutable_bytes(task_path, task_text.encode("utf-8"))
+    cluster = _cluster_row(original["calculation_key"])
+    row = {
+        "logical_job_id": logical_job_id,
+        "attempt": "1",
+        "attempt_job_id": attempt_job_id,
+        "calculation_key": original["calculation_key"],
+        "state_role": original["state_role"],
+        "trigger": "optimization_maxiter_200",
+        "trigger_output_path": original["output_path"],
+        "trigger_output_sha256": sha256_file(original_output),
+        "trigger_geometry_path": _repo_relative(trigger_geometry),
+        "trigger_geometry_sha256": trigger_geometry_sha,
+        "source_geometry_path": _repo_relative(source_geometry),
+        "source_geometry_sha256": source_sha,
+        "root_initial_cluster_sha256": cluster["geometry_sha256"],
+        "input_path": task_row["input_path"],
+        "input_sha256": task_row["input_sha256"],
+        "output_path": task_row["output_path"],
+        "geometry_key": geometry["geometry_key"],
+        "coordinate_payload_sha256": payload_sha,
+        "exact_reuse_key": _header_value(deck, "exact_reuse_key"),
+        "status": "prepared_not_submitted",
+        "task_path": _repo_relative(task_path),
+        "task_sha256": sha256_file(task_path),
+        "scheduler_job_id": "",
+        "submitted_at_utc": "",
+    }
+    rows = _continuation_rows() + [row]
+    write_csv_deterministic(
+        CONTINUATION_MANIFEST_PATH, CONTINUATION_FIELDS, rows,
+        sort_by=("logical_job_id", "attempt"),
+    )
+    return row
+
+
+def _cluster_row(calculation_key: str) -> dict[str, str]:
+    matches = [
+        row for row in read_csv_rows(DIAGNOSTIC_ROOT / "cluster_manifest.csv")
+        if row["calculation_key"] == calculation_key
+    ]
+    if len(matches) != 1:
+        raise DiagnosticError(f"cluster manifest row is not unique: {calculation_key}")
+    return matches[0]
+
+
 def validate_prepared() -> dict[str, Any]:
     protocol = _protocol()
     checks: dict[str, Any] = {}
@@ -910,6 +1103,7 @@ def validate_prepared() -> dict[str, Any]:
         issues.append("phase_a_selection")
 
     clusters = read_csv_rows(DIAGNOSTIC_ROOT / "cluster_manifest.csv")
+    clusters_by_key = {row["calculation_key"]: row for row in clusters}
     checks["cluster_count"] = len(clusters)
     if len(clusters) != 6:
         issues.append("cluster_count")
@@ -975,6 +1169,47 @@ def validate_prepared() -> dict[str, Any]:
     checks["array_task_count"] = len({row["array_task"] for row in task_rows})
     if len(task_rows) != 12 or checks["array_task_count"] != 6:
         issues.append("task_table_cardinality")
+
+    continuations = _continuation_rows()
+    checks["continuation_count"] = len(continuations)
+    original_by_job = {row["job_id"]: row for row in manifests}
+    for attempt in continuations:
+        original = original_by_job.get(attempt["logical_job_id"])
+        if original is None:
+            issues.append(f"continuation_unknown_job:{attempt['logical_job_id']}")
+            continue
+        input_path = REPOSITORY_ROOT / attempt["input_path"]
+        source_path = REPOSITORY_ROOT / attempt["source_geometry_path"]
+        task_path = REPOSITORY_ROOT / attempt["task_path"]
+        if not input_path.is_file() or sha256_file(input_path) != attempt["input_sha256"]:
+            issues.append(f"continuation_input_sha:{attempt['attempt_job_id']}")
+            continue
+        if not source_path.is_file() or sha256_file(source_path) != attempt["source_geometry_sha256"]:
+            issues.append(f"continuation_geometry_sha:{attempt['attempt_job_id']}")
+        if not task_path.is_file() or sha256_file(task_path) != attempt["task_sha256"]:
+            issues.append(f"continuation_task_sha:{attempt['attempt_job_id']}")
+        root_cluster = clusters_by_key.get(original["calculation_key"])
+        if (
+            root_cluster is None
+            or attempt["root_initial_cluster_sha256"]
+            != root_cluster["geometry_sha256"]
+        ):
+            issues.append(f"continuation_root_lineage:{attempt['attempt_job_id']}")
+        text = input_path.read_text(encoding="utf-8")
+        for field in ("formal_charge", "multiplicity", "method_id", "solvent_id"):
+            if _header_value(text, field) != original[field]:
+                issues.append(f"continuation_{field}_drift:{attempt['attempt_job_id']}")
+        if f"! {original['functional']} {original['optfreq_basis']} def2/J RIJCOSX TightSCF DEFGRID3 Opt Freq" not in text:
+            issues.append(f"continuation_optfreq_method_drift:{attempt['attempt_job_id']}")
+        if f"! {original['functional']} {original['final_sp_basis']} def2/J RIJCOSX TightSCF DEFGRID3" not in text:
+            issues.append(f"continuation_final_sp_method_drift:{attempt['attempt_job_id']}")
+        solvent = solvent_rows[original["solvent_id"]]
+        if render_smd_block(solvent) not in text or text.count(render_smd_block(solvent)) != 2:
+            issues.append(f"continuation_smd_drift:{attempt['attempt_job_id']}")
+        if ("Hirshfeld" in text) != (original["final_sp_hirshfeld"] == "true"):
+            issues.append(f"continuation_hirshfeld_drift:{attempt['attempt_job_id']}")
+        if sha256_bytes(_coordinate_payload(text).encode("utf-8")) != attempt["coordinate_payload_sha256"]:
+            issues.append(f"continuation_coordinate_payload:{attempt['attempt_job_id']}")
 
     script_text = Path(__file__).read_text(encoding="utf-8")
     imports = [line for line in script_text.splitlines() if line.startswith(("import ", "from "))]
@@ -1387,7 +1622,7 @@ def _write_report(
 def collect(*, source_checkout: Path) -> dict[str, Any]:
     validate_prepared()
     conversion = _pinned_conversion(source_checkout.resolve())
-    manifests = read_csv_rows(ORCA_MANIFEST_PATH)
+    manifests = _effective_manifests()
     clusters = {
         row["calculation_key"]: row
         for row in read_csv_rows(DIAGNOSTIC_ROOT / "cluster_manifest.csv")
@@ -1407,7 +1642,7 @@ def collect(*, source_checkout: Path) -> dict[str, Any]:
         geometry = {
             "geometry_key": manifest["geometry_key"],
             "xyz_sha256": manifest["geometry_sha256"],
-            "xyz_path": cluster["geometry_path"],
+            "xyz_path": manifest.get("input_geometry_path", cluster["geometry_path"]),
         }
         solvent = solvent_rows[manifest["solvent_id"]]
         parsed = parse_job_result(
@@ -1728,6 +1963,32 @@ def record_submission(scheduler_job_id: str, submitted_at_utc: str | None = None
     return payload
 
 
+def record_continuation_submission(
+    logical_job_id: str, scheduler_job_id: str, submitted_at_utc: str | None = None
+) -> dict[str, str]:
+    if not re.fullmatch(r"\d+(?:\.\d+-\d+:\d+)?", scheduler_job_id):
+        raise DiagnosticError(f"invalid scheduler job ID: {scheduler_job_id}")
+    rows = _continuation_rows()
+    matches = [row for row in rows if row["logical_job_id"] == logical_job_id]
+    if len(matches) != 1:
+        raise DiagnosticError(f"prepared continuation is not unique: {logical_job_id}")
+    if matches[0]["scheduler_job_id"]:
+        raise DiagnosticError(f"continuation submission already recorded: {logical_job_id}")
+    timestamp = submitted_at_utc or datetime.now(UTC).isoformat()
+    matches[0].update(
+        {
+            "status": "submitted",
+            "scheduler_job_id": scheduler_job_id,
+            "submitted_at_utc": timestamp,
+        }
+    )
+    write_csv_deterministic(
+        CONTINUATION_MANIFEST_PATH, CONTINUATION_FIELDS, rows,
+        sort_by=("logical_job_id", "attempt"),
+    )
+    return matches[0]
+
+
 def _cli() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -1742,6 +2003,12 @@ def _cli() -> argparse.ArgumentParser:
     submission_parser = commands.add_parser("record-submission")
     submission_parser.add_argument("--scheduler-job-id", required=True)
     submission_parser.add_argument("--submitted-at-utc")
+    continuation_parser = commands.add_parser("prepare-continuation")
+    continuation_parser.add_argument("--logical-job-id", required=True)
+    continuation_submission_parser = commands.add_parser("record-continuation-submission")
+    continuation_submission_parser.add_argument("--logical-job-id", required=True)
+    continuation_submission_parser.add_argument("--scheduler-job-id", required=True)
+    continuation_submission_parser.add_argument("--submitted-at-utc")
     return parser
 
 
@@ -1760,6 +2027,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         payload = collect(source_checkout=args.source_checkout)
     elif args.command == "record-submission":
         payload = record_submission(args.scheduler_job_id, args.submitted_at_utc)
+    elif args.command == "prepare-continuation":
+        payload = prepare_continuation(args.logical_job_id)
+    elif args.command == "record-continuation-submission":
+        payload = record_continuation_submission(
+            args.logical_job_id, args.scheduler_job_id, args.submitted_at_utc
+        )
     else:  # pragma: no cover
         raise AssertionError(args.command)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2))

@@ -172,6 +172,54 @@ def test_no_mace_or_torch_import_and_runner_path_is_narrowly_allowlisted() -> No
     assert "diagnostics/explicit_solvation_eox_r5/orca/jobs/*/*.out" in runner
 
 
+def test_effective_manifest_uses_only_the_single_audited_continuation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    originals = read_csv_rows(SCRIPT.parent / "orca/job_manifest.csv")
+    original = next(row for row in originals if row["job_id"] == "R5EOX_A01_RED")
+    continuation = {field: "" for field in DIAGNOSTIC.CONTINUATION_FIELDS}
+    continuation.update(
+        {
+            "logical_job_id": original["job_id"],
+            "attempt": "1",
+            "attempt_job_id": "R5EOX_A01_RED_CONT1",
+            "calculation_key": original["calculation_key"],
+            "state_role": original["state_role"],
+            "input_path": "diagnostics/retry.inp",
+            "input_sha256": "1" * 64,
+            "output_path": "diagnostics/retry.out",
+            "geometry_key": "continuation1:R5EOX_A01_RED",
+            "source_geometry_path": "diagnostics/retry_source.xyz",
+            "source_geometry_sha256": "2" * 64,
+            "coordinate_payload_sha256": "3" * 64,
+            "exact_reuse_key": "4" * 64,
+        }
+    )
+    path = tmp_path / "continuation_manifest.csv"
+    DIAGNOSTIC.write_csv_deterministic(
+        path, DIAGNOSTIC.CONTINUATION_FIELDS, [continuation]
+    )
+    monkeypatch.setattr(DIAGNOSTIC, "CONTINUATION_MANIFEST_PATH", path)
+
+    effective = DIAGNOSTIC._effective_manifests()  # noqa: SLF001
+    replacement = next(
+        row for row in effective
+        if row.get("logical_job_id") == original["job_id"]
+    )
+
+    assert len(effective) == len(originals)
+    assert replacement["job_id"] == "R5EOX_A01_RED_CONT1"
+    assert replacement["input_geometry_path"] == "diagnostics/retry_source.xyz"
+    assert replacement["method_id"] == original["method_id"]
+
+    continuation["attempt"] = "2"
+    DIAGNOSTIC.write_csv_deterministic(
+        path, DIAGNOSTIC.CONTINUATION_FIELDS, [continuation]
+    )
+    with pytest.raises(DIAGNOSTIC.DiagnosticError, match="only one continuation"):
+        DIAGNOSTIC._continuation_rows()  # noqa: SLF001
+
+
 def test_prepared_artifacts_pass_fail_closed_validation() -> None:
     report = DIAGNOSTIC.validate_prepared()
 

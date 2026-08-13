@@ -36,4 +36,7 @@ diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*_Compound_*.xyz
 # Preserve the tracked top-level prepared decks while ignoring every ORCA-created
 # runtime file, including Compound sub-decks and basis/scratch sidecars.
 diagnostics/explicit_solvation_eox_r5/orca/jobs/**/*
+# A continuation deck is a reviewed input artifact, not an ORCA runtime sidecar.
+!diagnostics/explicit_solvation_eox_r5/orca/jobs/*_CONT1/
+!diagnostics/explicit_solvation_eox_r5/orca/jobs/*_CONT1/*_CONT1.inp
 diagnostics/explicit_solvation_eox_r5/orca/scheduler_logs/
