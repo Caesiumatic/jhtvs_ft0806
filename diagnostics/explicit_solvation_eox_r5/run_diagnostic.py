@@ -108,7 +108,8 @@ CONTINUATION_FIELDS = (
     "source_geometry_sha256", "root_initial_cluster_sha256",
     "input_path", "input_sha256", "output_path", "geometry_key",
     "coordinate_payload_sha256", "exact_reuse_key", "status",
-    "task_path", "task_sha256", "scheduler_job_id", "submitted_at_utc",
+    "task_path", "task_sha256", "bundled_tail_job_ids", "scheduler_job_id",
+    "submitted_at_utc",
 )
 SPIN_FIELDS = (
     "calculation_key", "job_id", "molecule_index", "fragment_role",
@@ -572,6 +573,47 @@ def _effective_manifests() -> list[dict[str, str]]:
     return list(by_job.values())
 
 
+def _read_task_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != TASK_FIELDS:
+            raise DiagnosticError(f"task table header mismatch: {path}")
+        return list(reader)
+
+
+def _continuation_bundle_rows(
+    logical_job_id: str, continuation_task: Mapping[str, str]
+) -> list[dict[str, str]]:
+    """Run the retry, then any previously unattempted tail of its serial pair."""
+
+    original_tasks = _read_task_rows(ORCA_TASKS_PATH)
+    matches = [row for row in original_tasks if row["job_id"] == logical_job_id]
+    if len(matches) != 1:
+        raise DiagnosticError(f"original task is not unique: {logical_job_id}")
+    failed = matches[0]
+    tail = sorted(
+        (
+            row for row in original_tasks
+            if row["array_task"] == failed["array_task"]
+            and int(row["sequence"]) > int(failed["sequence"])
+        ),
+        key=lambda row: int(row["sequence"]),
+    )
+    attempted_tail = [
+        row["job_id"] for row in tail
+        if (REPOSITORY_ROOT / row["output_path"]).exists()
+    ]
+    if attempted_tail:
+        raise DiagnosticError(
+            f"serial tail was already attempted for {logical_job_id}: {attempted_tail}"
+        )
+    bundled = [dict(continuation_task), *(dict(row) for row in tail)]
+    for sequence, row in enumerate(bundled, start=1):
+        row["array_task"] = "1"
+        row["sequence"] = str(sequence)
+    return bundled
+
+
 def _molecule_ranges(
     target_atoms: int, shell_atoms: int, n_shell: int
 ) -> tuple[range, ...]:
@@ -1030,9 +1072,11 @@ def prepare_continuation(logical_job_id: str) -> dict[str, str]:
         "workflow_revision": original["workflow_revision"],
         "method_id": original["method_id"],
     }
-    task_text = "\t".join(TASK_FIELDS) + "\n" + "\t".join(
-        task_row[field] for field in TASK_FIELDS
-    ) + "\n"
+    bundled_tasks = _continuation_bundle_rows(logical_job_id, task_row)
+    task_text = "\t".join(TASK_FIELDS) + "\n" + "".join(
+        "\t".join(row[field] for field in TASK_FIELDS) + "\n"
+        for row in bundled_tasks
+    )
     _write_immutable_bytes(task_path, task_text.encode("utf-8"))
     cluster = _cluster_row(original["calculation_key"])
     row = {
@@ -1058,6 +1102,9 @@ def prepare_continuation(logical_job_id: str) -> dict[str, str]:
         "status": "prepared_not_submitted",
         "task_path": _repo_relative(task_path),
         "task_sha256": sha256_file(task_path),
+        "bundled_tail_job_ids": ";".join(
+            task["job_id"] for task in bundled_tasks[1:]
+        ),
         "scheduler_job_id": "",
         "submitted_at_utc": "",
     }
@@ -1159,12 +1206,11 @@ def validate_prepared() -> dict[str, Any]:
         if len({row["coordinate_payload_sha256"] for row in pair}) != 1:
             issues.append(f"pair_initial_coordinate_payload:{key}")
 
-    task_rows: list[dict[str, str]] = []
-    with ORCA_TASKS_PATH.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        if tuple(reader.fieldnames or ()) != TASK_FIELDS:
-            issues.append("task_table_header")
-        task_rows = list(reader)
+    try:
+        task_rows = _read_task_rows(ORCA_TASKS_PATH)
+    except DiagnosticError:
+        task_rows = []
+        issues.append("task_table_header")
     checks["task_row_count"] = len(task_rows)
     checks["array_task_count"] = len({row["array_task"] for row in task_rows})
     if len(task_rows) != 12 or checks["array_task_count"] != 6:
@@ -1188,6 +1234,21 @@ def validate_prepared() -> dict[str, Any]:
             issues.append(f"continuation_geometry_sha:{attempt['attempt_job_id']}")
         if not task_path.is_file() or sha256_file(task_path) != attempt["task_sha256"]:
             issues.append(f"continuation_task_sha:{attempt['attempt_job_id']}")
+        else:
+            attempt_tasks = _read_task_rows(task_path)
+            expected_tail = (
+                attempt["bundled_tail_job_ids"].split(";")
+                if attempt["bundled_tail_job_ids"] else []
+            )
+            if (
+                not attempt_tasks
+                or attempt_tasks[0]["job_id"] != attempt["attempt_job_id"]
+                or [row["job_id"] for row in attempt_tasks[1:]] != expected_tail
+                or any(row["array_task"] != "1" for row in attempt_tasks)
+                or [row["sequence"] for row in attempt_tasks]
+                != [str(index) for index in range(1, len(attempt_tasks) + 1)]
+            ):
+                issues.append(f"continuation_task_bundle:{attempt['attempt_job_id']}")
         root_cluster = clusters_by_key.get(original["calculation_key"])
         if (
             root_cluster is None

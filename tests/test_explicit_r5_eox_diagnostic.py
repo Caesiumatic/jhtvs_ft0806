@@ -220,6 +220,24 @@ def test_effective_manifest_uses_only_the_single_audited_continuation(
         DIAGNOSTIC._continuation_rows()  # noqa: SLF001
 
 
+def test_reduced_state_continuation_serially_preserves_unattempted_oxidized_state() -> None:
+    continuation_task = {
+        field: "continuation-value" for field in DIAGNOSTIC.TASK_FIELDS
+    }
+    continuation_task["job_id"] = "R5EOX_A01_RED_CONT1"
+
+    bundled = DIAGNOSTIC._continuation_bundle_rows(  # noqa: SLF001
+        "R5EOX_A01_RED", continuation_task
+    )
+
+    assert [row["job_id"] for row in bundled] == [
+        "R5EOX_A01_RED_CONT1",
+        "R5EOX_A01_OX",
+    ]
+    assert [row["array_task"] for row in bundled] == ["1", "1"]
+    assert [row["sequence"] for row in bundled] == ["1", "2"]
+
+
 def test_prepared_artifacts_pass_fail_closed_validation() -> None:
     report = DIAGNOSTIC.validate_prepared()
 
