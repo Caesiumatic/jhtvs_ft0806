@@ -2,7 +2,7 @@
   "checks": {
     "array_task_count": 6,
     "cluster_count": 6,
-    "continuation_count": 1,
+    "continuation_count": 2,
     "eligible_record_count": 15,
     "forbidden_ml_imports": [],
     "input_file_count": 7,
