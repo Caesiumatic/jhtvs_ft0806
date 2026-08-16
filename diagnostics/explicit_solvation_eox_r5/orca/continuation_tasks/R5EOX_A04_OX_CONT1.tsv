@@ -1,0 +1,2 @@
+array_task	sequence	job_id	job_class	input_path	input_sha256	output_path	nprocs	planning_core_h	workflow_revision	method_id
+1	1	R5EOX_A04_OX_CONT1	optfreq	diagnostics/explicit_solvation_eox_r5/orca/jobs/R5EOX_A04_OX_CONT1/R5EOX_A04_OX_CONT1.inp	9dc22b76c938f6b975fc2317c229d84f70b574efd028468d239299a8c500293d	diagnostics/explicit_solvation_eox_r5/orca/jobs/R5EOX_A04_OX_CONT1/R5EOX_A04_OX_CONT1.out	8	192	jhtvs-ft0806-explicit-r5-eox-v1	T2_wB97X-D3_def2-TZVP_OptFreq_def2-TZVPD-SP_SMD_ExplicitR5_Hirshfeld_v1
