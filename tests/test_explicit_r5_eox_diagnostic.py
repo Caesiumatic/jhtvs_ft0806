@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -279,6 +280,46 @@ def test_scheduler_accounting_core_hours_and_maxiter_evidence(
     assert row["core_hours"] == "86.344444444444"
     assert row["output_sha256"] == sha256_file(output)
     assert read_csv_rows(tmp_path / "accounting.csv") == [row]
+
+
+def test_scheduler_accounting_records_user_cancellation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = next(
+        row for row in read_csv_rows(SCRIPT.parent / "orca/job_manifest.csv")
+        if row["job_id"] == "R5EOX_A05_RED"
+    )
+    output = tmp_path / "cancelled.out"
+    output.write_text("GEOMETRY OPTIMIZATION CYCLE 145\n", encoding="utf-8")
+    manifest = tmp_path / "job_manifest.csv"
+    patched = dict(original)
+    patched["output_path"] = output.name
+    DIAGNOSTIC.write_csv_deterministic(
+        manifest, DIAGNOSTIC.ORCA_FIELDS, [patched]
+    )
+    status = tmp_path / "execution_status.json"
+    status.write_text('{"scheduler_job_ids": []}\n', encoding="utf-8")
+    monkeypatch.setattr(DIAGNOSTIC, "REPOSITORY_ROOT", tmp_path)
+    monkeypatch.setattr(DIAGNOSTIC, "DIAGNOSTIC_ROOT", tmp_path)
+    monkeypatch.setattr(DIAGNOSTIC, "ORCA_MANIFEST_PATH", manifest)
+    monkeypatch.setattr(DIAGNOSTIC, "ACCOUNTING_PATH", tmp_path / "accounting.csv")
+    monkeypatch.setattr(
+        DIAGNOSTIC, "CONTINUATION_MANIFEST_PATH", tmp_path / "absent.csv"
+    )
+
+    row = DIAGNOSTIC.record_scheduler_accounting(
+        scheduler_job_id="423864", task_id="5", logical_job_id="R5EOX_A05_RED",
+        attempt="0", start_time_iso="2026-08-12T15:00:23-05:00",
+        end_time_iso="2026-08-16T17:08:50-05:00", wallclock_s="353307",
+        slots="8", failed="100", exit_status="137", outcome="user_cancelled",
+        recorded_at_utc="2026-08-16T22:08:50+00:00",
+    )
+
+    assert row["core_hours"] == "785.126666666667"
+    assert row["outcome"] == "user_cancelled"
+    execution = json.loads(status.read_text(encoding="utf-8"))
+    assert execution["status"] == "CANCELLED_BY_USER"
+    assert execution["scheduler_job_ids"] == ["423864.5"]
 
 
 def test_prepared_artifacts_pass_fail_closed_validation() -> None:

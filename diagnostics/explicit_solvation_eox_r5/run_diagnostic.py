@@ -2079,7 +2079,9 @@ def record_scheduler_accounting(
         raise DiagnosticError("scheduler job and task IDs must be positive integers")
     if attempt not in {"0", "1"}:
         raise DiagnosticError("accounting attempt must be 0 or 1")
-    if outcome not in {"clean_complete", "optimization_maxiter_200"}:
+    if outcome not in {
+        "clean_complete", "optimization_maxiter_200", "user_cancelled"
+    }:
         raise DiagnosticError(f"unsupported accounting outcome: {outcome}")
     originals = {
         row["job_id"]: row for row in read_csv_rows(ORCA_MANIFEST_PATH)
@@ -2112,12 +2114,16 @@ def record_scheduler_accounting(
             or "THE OPTIMIZATION HAS CONVERGED" in output_text
         ):
             raise DiagnosticError("output does not prove a MaxIter failure")
-    elif (
+    elif outcome == "clean_complete" and (
         "THE OPTIMIZATION HAS CONVERGED" not in output_text
         or "ORCA TERMINATED NORMALLY" not in output_text
         or "ERROR !!!" in output_text
     ):
         raise DiagnosticError("output does not prove a clean completed state")
+    elif outcome == "user_cancelled" and (
+        str(int(failed)) != "100" or str(int(exit_status)) != "137"
+    ):
+        raise DiagnosticError("user-cancelled accounting requires failed=100 and exit_status=137")
 
     start = datetime.fromisoformat(start_time_iso)
     end = datetime.fromisoformat(end_time_iso)
@@ -2195,6 +2201,32 @@ def record_scheduler_accounting(
                 "status": "SUBMITTED_WITH_IRRECOVERABLE_FAILURES",
                 "scheduler_job_ids": scheduler_ids,
                 "irrecoverable_unique_systems": sorted(irrecoverable),
+                "updated_at_utc": row["recorded_at_utc"],
+            }
+        )
+        _write_json(status_path, execution)
+    elif outcome == "user_cancelled":
+        if continuation is not None:
+            continuation_rows = _continuation_rows()
+            match = next(
+                item for item in continuation_rows
+                if item["logical_job_id"] == logical_job_id
+            )
+            match["status"] = "cancelled_by_user"
+            write_csv_deterministic(
+                CONTINUATION_MANIFEST_PATH, CONTINUATION_FIELDS, continuation_rows,
+                sort_by=("logical_job_id", "attempt"),
+            )
+        status_path = DIAGNOSTIC_ROOT / "execution_status.json"
+        execution = json.loads(status_path.read_text(encoding="utf-8"))
+        scheduler_ids = list(execution.get("scheduler_job_ids", []))
+        exact_scheduler_id = f"{scheduler_job_id}.{task_id}"
+        if exact_scheduler_id not in scheduler_ids:
+            scheduler_ids.append(exact_scheduler_id)
+        execution.update(
+            {
+                "status": "CANCELLED_BY_USER",
+                "scheduler_job_ids": scheduler_ids,
                 "updated_at_utc": row["recorded_at_utc"],
             }
         )
