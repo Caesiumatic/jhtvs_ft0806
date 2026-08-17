@@ -1,0 +1,25 @@
+cation,anion,solvent,eox_exp_v,eox_sd_v,ip_CAS_ev,ip_CSA_ev,ip_ACS_ev,ip_min_ev,ip_mean_ev,ip_span_ev,topology_of_min_ip,oxidized_fragment_CAS,oxidized_fragment_CSA,oxidized_fragment_ACS,ip_as_direct_ev,delta_ip_CAS_vs_AS,delta_ip_CSA_vs_AS,delta_ip_ACS_vs_AS,delta_ip_min_vs_AS,status,note
+EMIM,NTF2,PC,2.80,0.15,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+EMIM,NTF2,EG,1.95,0.04,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+EMIM,NTF2,THF,2.10,0.14,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMIM,NTF2,PC,2.80,0.14,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMIM,NTF2,EG,2.50,0.18,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMIM,NTF2,THF,2.20,0.12,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,NTF2,PC,2.84,0.13,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,NTF2,EG,2.58,0.19,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,NTF2,THF,2.06,0.11,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+EMIM,OTF,PC,1.60,0.02,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+EMIM,OTF,EG,1.98,0.05,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+EMIM,OTF,THF,1.54,0.09,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,OTF,PC,2.55,0.18,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,OTF,EG,2.41,0.16,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,OTF,THF,2.30,0.17,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMPYRR,OTF,PC,2.55,0.15,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMPYRR,OTF,EG,2.35,0.17,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMPYRR,OTF,THF,2.27,0.14,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMIM,PF6,PC,2.40,0.19,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMIM,PF6,EG,2.40,0.20,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+BMIM,PF6,THF,2.20,0.15,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,PF6,PC,2.35,0.16,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,PF6,EG,2.64,0.19,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result
+HMIM,PF6,THF,2.24,0.16,,,,,,,,,,,,,,,,not_run_or_incomplete,missing numeric result

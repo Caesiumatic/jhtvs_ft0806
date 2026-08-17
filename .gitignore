@@ -12,6 +12,7 @@ runs/*
 artifacts/*
 !artifacts/.gitkeep
 data/resolved/.submission.lock
+data/chauhan_cation_eox/initial/
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.out
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.gbw
 diagnostics/explicit_solvation_sp/orca/jobs/**/*.tmp

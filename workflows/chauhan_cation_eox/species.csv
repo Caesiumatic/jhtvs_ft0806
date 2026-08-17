@@ -1,0 +1,11 @@
+kind,id,name,smiles,formal_charge,epsilon,anchor_rule
+solvent,PC,propylene carbonate,CC1COC(=O)O1,0,65.0,carbonyl O
+solvent,EG,ethylene glycol,OCCO,0,37.0,first O in canonical atom order
+solvent,THF,tetrahydrofuran,C1CCOC1,0,7.6,O
+anion,NTF2,bis(trifluoromethanesulfonyl)imide,O=S(=O)(C(F)(F)F)[N-]S(=O)(=O)C(F)(F)F,-1,,imide N
+anion,OTF,triflate,O=S(=O)([O-])C(F)(F)F,-1,,S
+anion,PF6,hexafluorophosphate,F[P-](F)(F)(F)(F)F,-1,,P
+cation,EMIM,1-ethyl-3-methylimidazolium,CCn1cc[n+](C)c1,1,,imidazolium C2
+cation,BMIM,1-butyl-3-methylimidazolium,CCCCn1cc[n+](C)c1,1,,imidazolium C2
+cation,HMIM,1-hexyl-3-methylimidazolium,CCCCCCn1cc[n+](C)c1,1,,imidazolium C2
+cation,BMPYRR,1-butyl-1-methylpyrrolidinium,CCCC[N+]1(C)CCCC1,1,,quaternary N

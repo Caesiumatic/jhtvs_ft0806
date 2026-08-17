@@ -1,0 +1,25 @@
+cation,anion,solvent,eox_exp_v,eox_sd_v,reference_electrode,mixture
+EMIM,NTF2,PC,2.80,0.15,Ag/AgCl,50 mol% IL + 50 mol% solvent
+EMIM,NTF2,EG,1.95,0.04,Ag/AgCl,50 mol% IL + 50 mol% solvent
+EMIM,NTF2,THF,2.10,0.14,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMIM,NTF2,PC,2.80,0.14,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMIM,NTF2,EG,2.50,0.18,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMIM,NTF2,THF,2.20,0.12,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,NTF2,PC,2.84,0.13,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,NTF2,EG,2.58,0.19,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,NTF2,THF,2.06,0.11,Ag/AgCl,50 mol% IL + 50 mol% solvent
+EMIM,OTF,PC,1.60,0.02,Ag/AgCl,50 mol% IL + 50 mol% solvent
+EMIM,OTF,EG,1.98,0.05,Ag/AgCl,50 mol% IL + 50 mol% solvent
+EMIM,OTF,THF,1.54,0.09,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,OTF,PC,2.55,0.18,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,OTF,EG,2.41,0.16,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,OTF,THF,2.30,0.17,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMPYRR,OTF,PC,2.55,0.15,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMPYRR,OTF,EG,2.35,0.17,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMPYRR,OTF,THF,2.27,0.14,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMIM,PF6,PC,2.40,0.19,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMIM,PF6,EG,2.40,0.20,Ag/AgCl,50 mol% IL + 50 mol% solvent
+BMIM,PF6,THF,2.20,0.15,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,PF6,PC,2.35,0.16,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,PF6,EG,2.64,0.19,Ag/AgCl,50 mol% IL + 50 mol% solvent
+HMIM,PF6,THF,2.24,0.16,Ag/AgCl,50 mol% IL + 50 mol% solvent
