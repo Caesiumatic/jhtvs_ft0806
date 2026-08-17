@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -109,6 +108,22 @@ def test_xtb_fixture_energy_and_atomic_charge_parser():
     fixture = ROOT / "tests" / "fixtures" / "chauhan_cation_eox"
     assert run_calculation.parse_energy((fixture / "xtb.out").read_text()) == pytest.approx(-123.456789012345)
     assert run_calculation.parse_charges(fixture / "charges", 3) == pytest.approx([0.125, -0.375, 0.25])
+
+
+def test_failed_calculation_records_provenance(generated, tmp_path):
+    _, _, calculations = generated
+    fake_xtb = tmp_path / "xtb"
+    fake_xtb.write_text("#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'xtb version 6.7.1'; exit 0; fi\nexit 7\n")
+    fake_xtb.chmod(0o755)
+    row = next(r for r in calculations if r["kind"] == "triad")
+    run_root = tmp_path / "runs"
+    with pytest.raises(RuntimeError, match="exit code 7"):
+        run_calculation.run_task(row, str(fake_xtb), run_root)
+    provenance = json.loads((run_root / row["task_id"] / "provenance.json").read_text())
+    assert provenance["status"] == "failed"
+    assert provenance["reduced_executed_this_invocation"] is True
+    assert provenance["oxidized_executed_this_invocation"] is False
+    assert provenance["reduced_command"][-2:] == ["--input", "xcontrol.inp"]
 
 
 def test_aggregation_formulas(tmp_path):

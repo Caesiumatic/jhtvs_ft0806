@@ -96,41 +96,24 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
     oxidized_dir.mkdir(parents=True, exist_ok=True)
 
     reduced_input = reduced_dir / "in.xyz"
-    if force or not _state_complete(reduced_dir, atom_count, optimized=True):
-        shutil.copy2(input_xyz, reduced_input)
-        command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", row["charge_reduced"], "--uhf", row["uhf_reduced"], "--opt", "normal", "--cosmo", row["epsilon"]]
-        if row["restraint"] != "none":
-            control = reduced_dir / "xcontrol.inp"
-            control.write_text(restraint_text(metadata, row["topology"], float(row["restraint_force_constant_eh_bohr2"])), encoding="utf-8")
-            command.extend(["--input", control.name])
-        _run(command, reduced_dir)
-        if not _state_complete(reduced_dir, atom_count, optimized=True):
-            raise RuntimeError("reduced optimization ended without parseable energy, charges, and xtbopt.xyz")
-    else:
-        command = []
-
+    reduced_command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_reduced"]), "--uhf", str(row["uhf_reduced"]), "--opt", "normal", "--cosmo", str(row["epsilon"])]
+    if row["restraint"] != "none":
+        control = reduced_dir / "xcontrol.inp"
+        control.write_text(restraint_text(metadata, row["topology"], float(row["restraint_force_constant_eh_bohr2"])), encoding="utf-8")
+        reduced_command.extend(["--input", control.name])
     optimized_xyz = reduced_dir / "xtbopt.xyz"
     oxidized_input = oxidized_dir / "in.xyz"
-    if force or not _state_complete(oxidized_dir, atom_count, optimized=False) or not oxidized_input.exists() or sha256_file(oxidized_input) != sha256_file(optimized_xyz):
-        shutil.copy2(optimized_xyz, oxidized_input)
-        oxidized_command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", row["charge_oxidized"], "--uhf", row["uhf_oxidized"], "--cosmo", row["epsilon"]]
-        _run(oxidized_command, oxidized_dir)
-        if not _state_complete(oxidized_dir, atom_count, optimized=False):
-            raise RuntimeError("oxidized single point ended without parseable energy and charges")
-    else:
-        oxidized_command = []
-
+    oxidized_command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_oxidized"]), "--uhf", str(row["uhf_oxidized"]), "--cosmo", str(row["epsilon"])]
+    reduced_executed = False
+    oxidized_executed = False
     provenance = {
         "task": row,
-        "status": "complete",
+        "status": "running",
         "input_geometry_sha256": sha256_file(input_xyz),
-        "optimized_geometry_sha256": sha256_file(optimized_xyz),
-        "oxidized_input_geometry_sha256": sha256_file(oxidized_input),
-        "same_geometry_vertical_sp": sha256_file(optimized_xyz) == sha256_file(oxidized_input),
         "xtb_executable": xtb_path,
         "xtb_version": version,
-        "reduced_command_last_execution": command,
-        "oxidized_command_last_execution": oxidized_command,
+        "reduced_command": reduced_command,
+        "oxidized_command": oxidized_command,
         "restraint": {
             "form": row["restraint"],
             "force_constant_eh_bohr2": row["restraint_force_constant_eh_bohr2"],
@@ -138,7 +121,33 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         },
         "omp_num_threads": os.environ.get("OMP_NUM_THREADS", "1"),
     }
-    (task_dir / "provenance.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        if force or not _state_complete(reduced_dir, atom_count, optimized=True):
+            shutil.copy2(input_xyz, reduced_input)
+            reduced_executed = True
+            _run(reduced_command, reduced_dir)
+            if not _state_complete(reduced_dir, atom_count, optimized=True):
+                raise RuntimeError("reduced optimization ended without parseable energy, charges, and xtbopt.xyz")
+
+        if force or not _state_complete(oxidized_dir, atom_count, optimized=False) or not oxidized_input.exists() or sha256_file(oxidized_input) != sha256_file(optimized_xyz):
+            shutil.copy2(optimized_xyz, oxidized_input)
+            oxidized_executed = True
+            _run(oxidized_command, oxidized_dir)
+            if not _state_complete(oxidized_dir, atom_count, optimized=False):
+                raise RuntimeError("oxidized single point ended without parseable energy and charges")
+        provenance.update({
+            "status": "complete",
+            "optimized_geometry_sha256": sha256_file(optimized_xyz),
+            "oxidized_input_geometry_sha256": sha256_file(oxidized_input),
+            "same_geometry_vertical_sp": sha256_file(optimized_xyz) == sha256_file(oxidized_input),
+        })
+    except Exception as exc:
+        provenance.update({"status": "failed", "error": str(exc)})
+        raise
+    finally:
+        provenance["reduced_executed_this_invocation"] = reduced_executed
+        provenance["oxidized_executed_this_invocation"] = oxidized_executed
+        (task_dir / "provenance.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return provenance
 
 
