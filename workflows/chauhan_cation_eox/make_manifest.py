@@ -11,7 +11,7 @@ FIELDNAMES = [
     "epsilon", "input_xyz", "charge_reduced", "uhf_reduced", "charge_oxidized",
     "uhf_oxidized", "optimize_reduced", "restraint", "restraint_force_constant_eh_bohr2",
 ]
-RESTRAINT_FORCE = 0.02
+RESTRAINT_FORCE = 0.005
 
 
 def generate(structure_manifest: Path, output: Path) -> list[dict]:

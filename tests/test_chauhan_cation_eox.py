@@ -40,6 +40,16 @@ def test_exact_species_and_composition_matrix():
     assert len({(r["cation"], r["anion"], r["solvent"]) for r in common.benchmark_rows()}) == 24
 
 
+def test_real_smoke_summary_has_all_three_anions_and_conserved_charge():
+    rows = common.read_csv(ROOT / "data" / "chauhan_cation_eox" / "smoke_test_summary.csv")
+    assert {row["anion"] for row in rows} == {"NTF2", "OTF", "PF6"}
+    assert all(row["status"] == "complete" for row in rows)
+    assert all(row["topology_preserved"] == "True" for row in rows)
+    assert all(row["same_geometry_vertical_sp"] == "True" for row in rows)
+    for row in rows:
+        assert sum(float(row[key]) for key in ("dq_C", "dq_A", "dq_S")) == pytest.approx(1.0, abs=1e-6)
+
+
 def test_structure_and_calculation_counts_and_charges(generated):
     _, structures, calculations = generated
     assert len([r for r in structures if r["kind"] == "triad"]) == 72
@@ -95,7 +105,7 @@ def test_restraint_targets_only_two_adjacent_anchors(generated):
     row = next(r for r in calculations if r["kind"] == "triad" and r["topology"] == "CSA")
     metadata = common.load_metadata(ROOT / row["input_xyz"] if (ROOT / row["input_xyz"]).exists() else output / "initial" / f"{row['task_id']}.xyz")
     text = run_calculation.restraint_text(metadata, "CSA", make_manifest.RESTRAINT_FORCE)
-    assert "force constant=0.02000000" in text
+    assert "force constant=0.00500000" in text
     assert text.count("distance:") == 2
     assert "atoms:" not in text
 
