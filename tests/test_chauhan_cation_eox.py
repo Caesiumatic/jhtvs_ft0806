@@ -17,6 +17,7 @@ import analyze_pair_only  # noqa: E402
 import build_structures  # noqa: E402
 import common  # noqa: E402
 import make_manifest  # noqa: E402
+import make_unconstrained_manifest  # noqa: E402
 import parse_results  # noqa: E402
 import run_calculation  # noqa: E402
 
@@ -365,3 +366,27 @@ def test_pair_only_raw_protocol_and_same_geometry_validation(generated, tmp_path
     assert record["same_geometry_pass"] is True
     assert record["status"] == "complete"
     assert record["ip_as_direct_ev"] == pytest.approx(0.1 * common.HARTREE_TO_EV)
+
+
+def test_unconstrained_manifest_reuses_exact_triads_without_references(generated, tmp_path):
+    output, _, _ = generated
+    rows = make_unconstrained_manifest.generate(output / "calculation_manifest.csv", tmp_path / "unconstrained.csv")
+    assert len(rows) == 72
+    assert all(row["kind"] == "triad" and row["restraint"] == "none" for row in rows)
+    assert all(row["restraint_force_constant_eh_bohr2"] == "" for row in rows)
+    assert {row["task_id"] for row in rows} == {
+        row["task_id"] for row in common.read_csv(output / "calculation_manifest.csv") if row["kind"] == "triad"
+    }
+    assert all(row["source_initial_xyz_sha256"] == common.sha256_file(Path(row["input_xyz"])) for row in rows)
+
+
+def test_unconstrained_optimization_has_no_xcontrol_and_sp_hashes_match(generated, tmp_path):
+    output, _, _ = generated
+    rows = make_unconstrained_manifest.generate(output / "calculation_manifest.csv", tmp_path / "unconstrained.csv")
+    provenance = run_calculation.run_task(rows[0], str(_fake_xtb(tmp_path / "xtb")), tmp_path / "runs")
+    assert "--opt" in provenance["optimization_command"]
+    assert "--input" not in provenance["optimization_command"]
+    assert not (tmp_path / "runs" / rows[0]["task_id"] / "reduced_opt" / "xcontrol.inp").exists()
+    assert provenance["restraint"]["form"] == "none"
+    assert provenance["optimized_geometry_sha256"] == provenance["reduced_sp_input_geometry_sha256"]
+    assert provenance["optimized_geometry_sha256"] == provenance["oxidized_sp_input_geometry_sha256"]
