@@ -1,13 +1,13 @@
 cation,solvent,epsilon,energy_reduced_opt_eh,energy_reduced_sp_eh,energy_oxidized_sp_eh,ip_cation_ev,status,note
-EMIM,PC,65.0,-24.012473964171,-24.012473929475,-23.558516076859,12.352822466933269,complete,
-EMIM,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-EMIM,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
-BMIM,PC,65.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-BMIM,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-BMIM,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
-HMIM,PC,65.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-HMIM,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-HMIM,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
-BMPYRR,PC,65.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-BMPYRR,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
-BMPYRR,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
+EMIM,PC,65.0,-24.012473964162,-24.012473929464,-23.558516077034,12.352822461871984,complete,
+EMIM,EG,37.0,-24.011517922528,-24.011517888228,-23.554767184534,12.428819816344214,complete,
+EMIM,THF,7.6,-24.002947792401,-24.002947806564,-23.521164672221,13.109986955410024,complete,
+BMIM,PC,65.0,-30.341876163689,-30.341876230734,-29.908112302909,11.80331777962298,complete,
+BMIM,EG,37.0,-30.340918818685,-30.340918883634,-29.904660805925,11.871187055471815,complete,
+BMIM,THF,7.6,-30.332357785495,-30.332357826596,-29.873842168863,12.476846662405869,complete,
+HMIM,PC,65.0,-36.670417432102,-36.67041751466,-36.244420624934,11.591965905923768,complete,
+HMIM,EG,37.0,-36.669455476937,-36.66945555717,-36.241245536908,11.652188255751437,complete,
+HMIM,THF,7.6,-36.660864736751,-36.660864787465,-36.213054757016,12.185531703375345,complete,
+BMPYRR,PC,65.0,-32.094608346605,-32.094608407237,-31.661239857404,11.792558996369419,complete,
+BMPYRR,EG,37.0,-32.09362466399,-32.093624713513,-31.657718142702,11.861622065502322,complete,
+BMPYRR,THF,7.6,-32.084836136428,-32.084836128943,-31.626278144267,12.477998437200535,complete,

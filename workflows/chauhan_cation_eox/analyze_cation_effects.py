@@ -199,13 +199,15 @@ def _quantile(values: list[float], fraction: float) -> float:
     return ordered[low] if low == high else ordered[low] * (high - position) + ordered[high] * (position - low)
 
 
-def build_report(rows: list[dict[str, str]], triads: list[dict[str, str]], sensitivity: list[dict], metrics: list[dict], job_ids: str) -> str:
+def build_report(rows: list[dict[str, str]], triads: list[dict[str, str]], sensitivity: list[dict], contrasts: list[dict], metrics: list[dict], job_ids: str) -> str:
     spans = [_f(row["ip_span_ev"]) for row in rows]
     preserved = sum(row["topology_preserved"] == "True" for row in triads)
     top = sorted(rows, key=lambda row: _f(row["ip_span_ev"]), reverse=True)[:10]
     best = min((row for row in metrics if row["descriptor"] != "fadel_as_zero"), key=lambda row: _f(row["mae_pairwise_v"]))
     baseline = next(row for row in metrics if row["descriptor"] == "fadel_as_zero")
     localization = Counter(row["oxidized_fragment"] for row in triads)
+    changed = [row for row in triads if row["topology_preserved"] != "True"]
+    resolved_contrasts = sum(abs(_f(row["delta_eox_exp_v"])) > _f(row["delta_eox_sd_rss_v"]) for row in contrasts)
     lines = [
         "# Chauhan cation-effect full-run report", "",
         f"- SGE production job IDs: `{job_ids}`.",
@@ -213,7 +215,7 @@ def build_report(rows: list[dict[str, str]], triads: list[dict[str, str]], sensi
         f"- Requested topology preserved: {preserved}/72 ({preserved / 72:.1%}).",
         f"- Oxidation localization overall: C={localization['C']}, A={localization['A']}, S={localization['S']}.", "",
         "## Does cation identity measurably affect oxidation?", "",
-        "The within-anion/solvent experimental and calculated spreads are listed below. These are direct group contrasts; no fitted calibration or mechanistic assignment was introduced.", "",
+        f"Yes in part: {resolved_contrasts}/21 experimental cation-pair contrasts exceed their reported RSS standard deviation. Group experimental spreads range from {min(_f(row['experimental_eox_spread_v']) for row in sensitivity):.4f} to {max(_f(row['experimental_eox_spread_v']) for row in sensitivity):.4f} V. These are direct group contrasts; no fitted calibration or mechanistic assignment was introduced.", "",
         "| anion | solvent | n | experimental spread (V) | cation-only IP spread (eV) | CAS | CSA | ACS | min | mean | mean topology span |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
@@ -227,10 +229,26 @@ def build_report(rows: list[dict[str, str]], triads: list[dict[str, str]], sensi
     for row in metrics:
         lines.append(f"| {row['descriptor']} | {row['mae_pairwise_v']} | {row['rmse_pairwise_v']} | {row['pearson_pairwise_r'] or 'NA'} | {row['spearman_pairwise_rho'] or 'NA'} | {row['sign_agreement_pairwise']} | {row['pearson_centered_r'] or 'NA'} | {row['spearman_centered_rho'] or 'NA'} |")
     improvement = _f(baseline["mae_pairwise_v"]) - _f(best["mae_pairwise_v"])
+    conclusion = (
+        f"The best calculated descriptor is still worse than the zero-contrast baseline by {-improvement:.6f} V MAE; "
+        "the full-triad calculation therefore does not improve these 21 cation contrasts."
+        if improvement < 0 else
+        f"The best calculated descriptor improves on the zero-contrast baseline by {improvement:.6f} V MAE."
+    )
     lines.extend([
         "", f"Lowest pairwise MAE among calculated descriptors: **{best['descriptor']}**, {best['mae_pairwise_v']} V; improvement over the Fadel A-S zero-contrast baseline: {improvement:.6f} V.", "",
+        conclusion,
+        "All three topology-specific Pearson correlations are negative, so none reproduces the aggregate experimental cation ranking direction across the 21 contrasts.", "",
         "## Topology diagnostics", "",
         f"Composition topology-span distribution (eV): min={min(spans):.6f}, Q1={_quantile(spans, 0.25):.6f}, median={statistics.median(spans):.6f}, mean={statistics.fmean(spans):.6f}, Q3={_quantile(spans, 0.75):.6f}, max={max(spans):.6f}.", "",
+        "Non-preserved requested topologies:", "",
+        "| cation | anion | solvent | requested | inferred |",
+        "|---|---|---|---|---|",
+    ])
+    for row in changed:
+        lines.append(f"| {row['cation']} | {row['anion']} | {row['solvent']} | {row['topology']} | {row['inferred_topology']} |")
+    lines.extend([
+        "",
         "Ten largest topology spans:", "",
         "| rank | cation | anion | solvent | span (eV) | min topology |",
         "|---:|---|---|---|---:|---|",
@@ -258,7 +276,7 @@ def analyze(summary_path: Path, triad_path: Path, output_dir: Path, job_ids: str
     write_csv(output_dir / "cation_pairwise_contrasts.csv", contrasts, list(contrasts[0]))
     write_csv(output_dir / "cation_descriptor_metrics.csv", metrics, list(metrics[0]))
     write_csv(output_dir / "oxidation_localization_summary.csv", localization, list(localization[0]))
-    (output_dir / "full_run_report.md").write_text(build_report(rows, triads, sensitivity, metrics, job_ids), encoding="utf-8")
+    (output_dir / "full_run_report.md").write_text(build_report(rows, triads, sensitivity, contrasts, metrics, job_ids), encoding="utf-8")
     return sensitivity, contrasts, metrics, localization
 
 
