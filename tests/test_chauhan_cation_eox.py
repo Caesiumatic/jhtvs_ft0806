@@ -14,11 +14,13 @@ sys.path.insert(0, str(WORKFLOW))
 import aggregate_results  # noqa: E402
 import analyze_cation_effects  # noqa: E402
 import analyze_pair_only  # noqa: E402
+import analyze_unconstrained_results  # noqa: E402
 import build_structures  # noqa: E402
 import common  # noqa: E402
 import make_manifest  # noqa: E402
 import make_unconstrained_manifest  # noqa: E402
 import parse_results  # noqa: E402
+import parse_unconstrained_results  # noqa: E402
 import run_calculation  # noqa: E402
 
 
@@ -390,3 +392,45 @@ def test_unconstrained_optimization_has_no_xcontrol_and_sp_hashes_match(generate
     assert provenance["restraint"]["form"] == "none"
     assert provenance["optimized_geometry_sha256"] == provenance["reduced_sp_input_geometry_sha256"]
     assert provenance["optimized_geometry_sha256"] == provenance["oxidized_sp_input_geometry_sha256"]
+
+
+def test_unconstrained_parser_rejects_restraints_and_uses_sp_minus_sp(generated, tmp_path):
+    output, _, _ = generated
+    rows = make_unconstrained_manifest.generate(output / "calculation_manifest.csv", tmp_path / "unconstrained.csv")
+    run_root = tmp_path / "runs"
+    run_calculation.run_task(rows[0], str(_fake_xtb(tmp_path / "xtb")), run_root)
+    parsed = parse_unconstrained_results.parse_row(rows[0], run_root)
+    assert parsed["status"] == "complete"
+    assert parsed["same_geometry_pass"] is True
+    assert parsed["ip_vertical_ev"] == pytest.approx(0.1 * common.HARTREE_TO_EV)
+
+
+def test_heavy_atom_rmsd_and_geometry_classification_are_deterministic():
+    import numpy as np
+
+    coordinates = np.array([[0.0, 0.0, 0.0], [1.0, 0.2, 0.0], [0.1, 1.3, 0.4]])
+    rotation = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    transformed = coordinates @ rotation + np.array([4.0, -2.0, 1.0])
+    assert analyze_unconstrained_results.heavy_atom_rmsd(coordinates, transformed) == pytest.approx(0.0, abs=1e-12)
+    assert analyze_unconstrained_results.classify_geometry((0.10, 0.20, 0.24)) == "all_same"
+    assert analyze_unconstrained_results.classify_geometry((0.10, 0.40, 0.45)) == "two_same_one_distinct"
+    assert analyze_unconstrained_results.classify_geometry((0.30, 0.40, 0.45)) == "three_distinct"
+
+
+def test_free_min_and_lowest_energy_selection_are_independent():
+    group = {
+        "CAS": {"ip_vertical_ev": "5.0", "energy_neutral_sp_eh": "-10.0"},
+        "CSA": {"ip_vertical_ev": "4.0", "energy_neutral_sp_eh": "-9.8"},
+        "ACS": {"ip_vertical_ev": "4.5", "energy_neutral_sp_eh": "-10.2"},
+    }
+    minimum_ip, lowest_energy = analyze_unconstrained_results.select_topologies(group)
+    assert minimum_ip == "CSA"
+    assert lowest_energy == "ACS"
+
+
+def test_global_offset_fit_keeps_unit_slope():
+    observed = [1.0, 2.0, 4.0]
+    calculated = [5.0, 7.0, 8.0]
+    metric, fitted = analyze_unconstrained_results.offset_metric_row("fixture", observed, calculated)
+    assert metric["slope_fixed"] == 1.0
+    assert all((fit - calc) == pytest.approx(metric["offset_v"]) for fit, calc in zip(fitted, calculated))
