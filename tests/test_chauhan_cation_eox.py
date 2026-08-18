@@ -13,6 +13,7 @@ sys.path.insert(0, str(WORKFLOW))
 
 import aggregate_results  # noqa: E402
 import analyze_cation_effects  # noqa: E402
+import analyze_pair_only  # noqa: E402
 import build_structures  # noqa: E402
 import common  # noqa: E402
 import make_manifest  # noqa: E402
@@ -53,6 +54,7 @@ else:
     energy = base + (0.2 if task_id.startswith('cation__') else 0.1)
 (cwd / 'charges').write_text('\\n'.join([str(charge / atoms)] * atoms) + '\\n')
 print(f'| TOTAL ENERGY {energy:.12f} Eh |')
+print('normal termination of xtb')
 """,
         encoding="utf-8",
     )
@@ -309,3 +311,57 @@ def test_group_centered_descriptor_sums_are_zero():
             assert sum(observed[offset:offset + size]) == pytest.approx(0.0, abs=1e-12)
             assert sum(predicted[offset:offset + size]) == pytest.approx(0.0, abs=1e-12)
             offset += size
+
+
+def _pair_only_fixture_records():
+    records = []
+    for index, (anion, solvent) in enumerate((
+        (anion, solvent) for anion in common.ANIONS for solvent in common.SOLVENTS
+    )):
+        ip = 10.0 + index / 10
+        records.append({
+            "anion": anion, "solvent": solvent,
+            "epsilon": common.species_table()[solvent]["epsilon"],
+            "energy_reduced_opt_eh": -10.1, "energy_reduced_sp_eh": -10.0,
+            "energy_oxidized_sp_eh": -10.0 + ip / common.HARTREE_TO_EV,
+            "ip_as_direct_ev": ip,
+            "eox_as_calc_vs_agagcl_v": ip - analyze_pair_only.AGAGCL_SHIFT_V,
+            "dq_A": 0.75, "dq_S": 0.25, "oxidized_fragment_as": "A",
+            "same_geometry_pass": True, "status": "complete", "note": "",
+        })
+    return records
+
+
+def test_pair_only_tables_have_exact_mapping_and_fixed_conversion():
+    comparison, unique = analyze_pair_only.build_tables(_pair_only_fixture_records(), common.benchmark_rows())
+    assert len(comparison) == 24
+    assert len(unique) == 9
+    for row in comparison:
+        assert float(row["eox_as_calc_vs_agagcl_v"]) == pytest.approx(float(row["ip_as_direct_ev"]) - 4.477)
+    for key in {(row["anion"], row["solvent"]) for row in comparison}:
+        repeated = [row for row in comparison if (row["anion"], row["solvent"]) == key]
+        assert len({(row["ip_as_direct_ev"], row["eox_as_calc_vs_agagcl_v"]) for row in repeated}) == 1
+
+
+def test_pair_only_inputs_contain_only_anion_and_solvent_fragments():
+    tasks = common.read_csv(ROOT / "data" / "chauhan_cation_eox" / "calculation_manifest.csv")
+    pair_tasks = [row for row in tasks if row["kind"] == "as_pair"]
+    assert len(pair_tasks) == 9
+    for row in pair_tasks:
+        xyz = ROOT / row["input_xyz"]
+        atoms, _ = common.read_xyz(xyz)
+        metadata = common.load_metadata(xyz)
+        assert set(metadata["fragments"]) == {"A", "S"}
+        covered = sorted(index for fragment in metadata["fragments"].values() for index in fragment["atom_indices_zero_based"])
+        assert covered == list(range(len(atoms)))
+
+
+def test_pair_only_raw_protocol_and_same_geometry_validation(generated, tmp_path):
+    _, _, calculations = generated
+    pair = next(row for row in calculations if row["kind"] == "as_pair" and row["anion"] == "NTF2" and row["solvent"] == "PC")
+    run_root = tmp_path / "runs"
+    run_calculation.run_task(pair, str(_fake_xtb(tmp_path / "xtb")), run_root)
+    record = analyze_pair_only.load_pair_record(pair, run_root)
+    assert record["same_geometry_pass"] is True
+    assert record["status"] == "complete"
+    assert record["ip_as_direct_ev"] == pytest.approx(0.1 * common.HARTREE_TO_EV)
