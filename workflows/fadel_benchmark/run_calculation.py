@@ -107,7 +107,7 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         raise AssertionError("solvation flag leaked into the vacuum Fadel protocol")
 
     executed = {"optimization": False, "reduced_sp": False, "oxidized_sp": False}
-    recovery = {"used": False, "warmstart_command": [], "restart_optimization_command": []}
+    recovery = {"used": False, "warmstart_command": [], "restart_optimization_command": [], "loose_scc_optimization_command": []}
     provenance = {
         "task": row, "status": "running", "input_geometry_sha256": sha256_file(input_xyz),
         "xtb_executable": xtb_path, "xtb_version": version, "environment": "vacuum",
@@ -136,7 +136,13 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
                     "restart_optimization_command": restart_optimization_command,
                 })
                 _run(warmstart_command, optimization_dir, "xtb_warmstart.out")
-                _run(restart_optimization_command, optimization_dir)
+                try:
+                    _run(restart_optimization_command, optimization_dir)
+                except RuntimeError:
+                    shutil.move(optimization_dir / "xtb.out", optimization_dir / "xtb_restart_failed.out")
+                    loose_scc_command = [*optimization_command, "--acc", "2"]
+                    recovery["loose_scc_optimization_command"] = loose_scc_command
+                    _run(loose_scc_command, optimization_dir)
             if not _state_complete(optimization_dir, atom_count, optimized=True):
                 raise RuntimeError("reduced optimization incomplete")
         if force or not _state_complete(reduced_sp_dir, atom_count, optimized=False) or not reduced_sp_input.exists() or sha256_file(reduced_sp_input) != sha256_file(optimized_xyz):

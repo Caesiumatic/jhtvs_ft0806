@@ -64,6 +64,20 @@ def _fake_xtb_with_recovery(path: Path) -> Path:
     return executable
 
 
+def _fake_xtb_with_loose_scc_recovery(path: Path) -> Path:
+    executable = _fake_xtb(path)
+    text = executable.read_text(encoding="utf-8")
+    text = text.replace(
+        "cwd = pathlib.Path.cwd()\n",
+        "cwd = pathlib.Path.cwd()\n"
+        "if '--opt' in sys.argv and '--acc' not in sys.argv:\n"
+        "    print('SCC did not converge')\n"
+        "    raise SystemExit(1)\n",
+    )
+    executable.write_text(text, encoding="utf-8")
+    return executable
+
+
 def test_exact_fadel_table2_reference_values():
     rows = common.read_csv(ROOT / "data" / "fadel_benchmark" / "fadel_table2_reference.csv")
     observed = {(row["anion"], row["solvent"]): float(row["fadel_ip_dscf_mean_ev"]) for row in rows}
@@ -117,6 +131,17 @@ def test_scc_recovery_returns_to_default_temperature_for_final_optimization(gene
     assert recovery["warmstart_command"][-2:] == ["--etemp", "1000"]
     assert "--restart" in recovery["restart_optimization_command"]
     assert "--etemp" not in recovery["restart_optimization_command"]
+    assert provenance["same_geometry_reduced_sp"] is True
+    assert provenance["same_geometry_oxidized_sp"] is True
+
+
+def test_second_scc_recovery_only_relaxes_optimization_accuracy(generated, tmp_path):
+    _, _, calculations = generated
+    row = next(row for row in calculations if row["kind"] == "triad")
+    provenance = run_calculation.run_task(row, str(_fake_xtb_with_loose_scc_recovery(tmp_path / "xtb")), tmp_path / "runs")
+    recovery = provenance["optimization_recovery"]
+    assert recovery["loose_scc_optimization_command"][-2:] == ["--acc", "2"]
+    assert all("--acc" not in command for command in (provenance["reduced_sp_command"], provenance["oxidized_sp_command"]))
     assert provenance["same_geometry_reduced_sp"] is True
     assert provenance["same_geometry_oxidized_sp"] is True
 
