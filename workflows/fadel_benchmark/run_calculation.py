@@ -72,8 +72,8 @@ def _state_complete(state_dir: Path, atom_count: int, optimized: bool) -> bool:
     return True
 
 
-def _run(command: list[str], cwd: Path) -> None:
-    with (cwd / "xtb.out").open("w", encoding="utf-8") as output:
+def _run(command: list[str], cwd: Path, output_name: str = "xtb.out") -> None:
+    with (cwd / output_name).open("w", encoding="utf-8") as output:
         completed = subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT)
     if completed.returncode != 0:
         raise RuntimeError(f"xTB failed with exit code {completed.returncode}: {' '.join(command)}")
@@ -107,6 +107,7 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         raise AssertionError("solvation flag leaked into the vacuum Fadel protocol")
 
     executed = {"optimization": False, "reduced_sp": False, "oxidized_sp": False}
+    recovery = {"used": False, "warmstart_command": [], "restart_optimization_command": []}
     provenance = {
         "task": row, "status": "running", "input_geometry_sha256": sha256_file(input_xyz),
         "xtb_executable": xtb_path, "xtb_version": version, "environment": "vacuum",
@@ -123,7 +124,19 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         if force or not _state_complete(optimization_dir, atom_count, optimized=True):
             shutil.copy2(input_xyz, optimization_input)
             executed["optimization"] = True
-            _run(optimization_command, optimization_dir)
+            try:
+                _run(optimization_command, optimization_dir)
+            except RuntimeError:
+                shutil.move(optimization_dir / "xtb.out", optimization_dir / "xtb_initial_failed.out")
+                warmstart_command = [*base_reduced, "--etemp", "1000"]
+                restart_optimization_command = [*optimization_command, "--restart"]
+                recovery.update({
+                    "used": True,
+                    "warmstart_command": warmstart_command,
+                    "restart_optimization_command": restart_optimization_command,
+                })
+                _run(warmstart_command, optimization_dir, "xtb_warmstart.out")
+                _run(restart_optimization_command, optimization_dir)
             if not _state_complete(optimization_dir, atom_count, optimized=True):
                 raise RuntimeError("reduced optimization incomplete")
         if force or not _state_complete(reduced_sp_dir, atom_count, optimized=False) or not reduced_sp_input.exists() or sha256_file(reduced_sp_input) != sha256_file(optimized_xyz):
@@ -151,6 +164,7 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         provenance.update({"status": "failed", "error": str(exc)})
         raise
     finally:
+        provenance["optimization_recovery"] = recovery
         provenance.update({f"{name}_executed_this_invocation": value for name, value in executed.items()})
         (task_dir / "provenance.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return provenance
