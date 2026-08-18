@@ -83,6 +83,7 @@ def test_vacuum_commands_and_optimization_only_triad_restraint(generated, tmp_pa
         provenance = run_calculation.run_task(row, fake_xtb, tmp_path / "runs")
         commands = (provenance["optimization_command"], provenance["reduced_sp_command"], provenance["oxidized_sp_command"])
         assert all(not any(flag in command for flag in ("--cosmo", "--alpb", "--gbsa")) for command in commands)
+        assert all(command[command.index("--iterations") + 1] == "500" for command in commands)
         assert "--opt" in commands[0] and all("--opt" not in command for command in commands[1:])
         assert provenance["same_geometry_reduced_sp"] is True
         assert provenance["same_geometry_oxidized_sp"] is True

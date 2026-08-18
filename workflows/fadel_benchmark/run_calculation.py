@@ -95,14 +95,14 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
     optimized_xyz = optimization_dir / "xtbopt.xyz"
     reduced_sp_input = reduced_sp_dir / "in.xyz"
     oxidized_sp_input = oxidized_sp_dir / "in.xyz"
-    base_reduced = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_reduced"]), "--uhf", str(row["uhf_reduced"])]
+    base_reduced = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_reduced"]), "--uhf", str(row["uhf_reduced"]), "--iterations", "500"]
     optimization_command = [*base_reduced, "--opt", "normal"]
     if row["restraint"] != "none":
         control = optimization_dir / "xcontrol.inp"
         control.write_text(restraint_text(metadata, row["topology"], float(row["restraint_force_constant_eh_bohr2"])), encoding="utf-8")
         optimization_command.extend(["--input", control.name])
     reduced_sp_command = base_reduced
-    oxidized_sp_command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_oxidized"]), "--uhf", str(row["uhf_oxidized"])]
+    oxidized_sp_command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_oxidized"]), "--uhf", str(row["uhf_oxidized"]), "--iterations", "500"]
     if any("--cosmo" in command or "--alpb" in command or "--gbsa" in command for command in (optimization_command, reduced_sp_command, oxidized_sp_command)):
         raise AssertionError("solvation flag leaked into the vacuum Fadel protocol")
 
