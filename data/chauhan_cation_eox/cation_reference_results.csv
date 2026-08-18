@@ -1,0 +1,13 @@
+cation,solvent,epsilon,energy_reduced_opt_eh,energy_reduced_sp_eh,energy_oxidized_sp_eh,ip_cation_ev,status,note
+EMIM,PC,65.0,-24.012473964171,-24.012473929475,-23.558516076859,12.352822466933269,complete,
+EMIM,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+EMIM,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
+BMIM,PC,65.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+BMIM,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+BMIM,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
+HMIM,PC,65.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+HMIM,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+HMIM,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable
+BMPYRR,PC,65.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+BMPYRR,EG,37.0,,,,,not_run_or_incomplete,calculation artifacts unavailable
+BMPYRR,THF,7.6,,,,,not_run_or_incomplete,calculation artifacts unavailable

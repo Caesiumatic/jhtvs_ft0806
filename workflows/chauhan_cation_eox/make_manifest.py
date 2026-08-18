@@ -38,6 +38,11 @@ def generate(structure_manifest: Path, output: Path) -> list[dict]:
             oxidized = (1, 1)
             restraint = "none"
             force = ""
+        elif kind == "cation":
+            reduced = (1, 0)
+            oxidized = (2, 1)
+            restraint = "none"
+            force = ""
         else:
             raise ValueError(f"unknown structure kind: {kind}")
         task_id = structure["structure_id"]
@@ -70,7 +75,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=root / "data" / "chauhan_cation_eox" / "calculation_manifest.csv")
     args = parser.parse_args()
     rows = generate(args.structure_manifest.resolve(), args.output.resolve())
-    print(f"wrote {len(rows)} two-state tasks ({2 * len(rows)} xTB calculations) to {args.output}")
+    print(f"wrote {len(rows)} optimized geometries ({3 * len(rows)} xTB invocations) to {args.output}")
 
 
 if __name__ == "__main__":

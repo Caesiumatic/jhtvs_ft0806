@@ -17,6 +17,7 @@ from common import (
     SOLVENTS,
     TOPOLOGIES,
     Atom,
+    cation_solvent_keys,
     composition_keys,
     repo_root,
     species_table,
@@ -261,6 +262,27 @@ def generate(output_dir: Path) -> list[dict]:
             path = output_dir / "initial" / f"anion__{anion}__{solvent}.xyz"
             _write_structure(path, atoms, metadata)
             rows.append({"structure_id": path.stem, "kind": "anion", "cation": "", "anion": anion, "solvent": solvent, "topology": "", "formal_charge": -1, "xyz_path": _manifest_path(path)})
+    for cation, solvent in cation_solvent_keys():
+        component = components[cation]
+        atoms = _translated(component, 0.0)
+        metadata = {
+            "kind": "cation",
+            "cation": cation,
+            "solvent": solvent,
+            "fragments": {
+                "C": {
+                    "species_id": cation,
+                    "atom_indices_zero_based": list(range(len(atoms))),
+                    "geometry_method": component.geometry_method,
+                }
+            },
+            "anchor_indices_zero_based": {"C": component.anchor},
+            "formal_charge": 1,
+            "rdkit_seed": SEED,
+        }
+        path = output_dir / "initial" / f"cation__{cation}__{solvent}.xyz"
+        _write_structure(path, atoms, metadata)
+        rows.append({"structure_id": path.stem, "kind": "cation", "cation": cation, "anion": "", "solvent": solvent, "topology": "", "formal_charge": 1, "xyz_path": _manifest_path(path)})
     write_csv(output_dir / "structure_manifest.csv", rows, ["structure_id", "kind", "cation", "anion", "solvent", "topology", "formal_charge", "xyz_path"])
     return rows
 

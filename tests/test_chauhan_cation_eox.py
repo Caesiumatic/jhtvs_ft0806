@@ -27,6 +27,44 @@ def generated(tmp_path_factory):
     return output, structures, calculations
 
 
+def _fake_xtb(path: Path) -> Path:
+    path.write_text(
+        """#!/usr/bin/env python3
+import pathlib
+import shutil
+import sys
+
+if '--version' in sys.argv:
+    print('xtb version 6.7.1')
+    raise SystemExit(0)
+args = sys.argv[1:]
+cwd = pathlib.Path.cwd()
+atoms = int((cwd / 'in.xyz').read_text().splitlines()[0])
+charge = int(args[args.index('--chrg') + 1])
+task_id = cwd.parent.name
+base = -20.0 if task_id.startswith('cation__') else -30.0
+if cwd.name == 'reduced_opt':
+    energy = base - 0.5
+    shutil.copy2(cwd / 'in.xyz', cwd / 'xtbopt.xyz')
+elif cwd.name == 'reduced_sp':
+    energy = base
+else:
+    energy = base + (0.2 if task_id.startswith('cation__') else 0.1)
+(cwd / 'charges').write_text('\\n'.join([str(charge / atoms)] * atoms) + '\\n')
+print(f'| TOTAL ENERGY {energy:.12f} Eh |')
+""",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
+def _triad_and_cation(calculations):
+    triad = next(r for r in calculations if r["kind"] == "triad" and r["cation"] == "EMIM" and r["anion"] == "NTF2" and r["solvent"] == "PC" and r["topology"] == "CAS")
+    cation = next(r for r in calculations if r["kind"] == "cation" and r["cation"] == "EMIM" and r["solvent"] == "PC")
+    return triad, cation
+
+
 def test_exact_species_and_composition_matrix():
     species = common.species_table()
     assert {key: float(species[key]["epsilon"]) for key in common.SOLVENTS} == {"PC": 65.0, "EG": 37.0, "THF": 7.6}
@@ -36,44 +74,52 @@ def test_exact_species_and_composition_matrix():
         "PF6": ("BMIM", "HMIM"),
     }
     assert len(common.composition_keys()) == 24
+    assert len(common.cation_solvent_keys()) == 12
     assert len(common.benchmark_rows()) == 24
-    assert len({(r["cation"], r["anion"], r["solvent"]) for r in common.benchmark_rows()}) == 24
 
 
-def test_real_smoke_summary_has_all_three_anions_and_conserved_charge():
+def test_real_smoke_summary_is_corrected_full_composition():
     rows = common.read_csv(ROOT / "data" / "chauhan_cation_eox" / "smoke_test_summary.csv")
-    assert {row["anion"] for row in rows} == {"NTF2", "OTF", "PF6"}
+    assert {(row["cation"], row["anion"], row["solvent"], row["topology"]) for row in rows} == {
+        ("EMIM", "NTF2", "PC", topology) for topology in common.TOPOLOGIES
+    }
     assert all(row["status"] == "complete" for row in rows)
     assert all(row["topology_preserved"] == "True" for row in rows)
-    assert all(row["same_geometry_vertical_sp"] == "True" for row in rows)
-    for row in rows:
-        assert sum(float(row[key]) for key in ("dq_C", "dq_A", "dq_S")) == pytest.approx(1.0, abs=1e-6)
+    assert all(row["same_geometry_reduced_sp"] == "True" for row in rows)
+    assert all(row["same_geometry_oxidized_sp"] == "True" for row in rows)
 
 
-def test_structure_and_calculation_counts_and_charges(generated):
+def test_structure_task_and_invocation_counts(generated):
     _, structures, calculations = generated
     assert len([r for r in structures if r["kind"] == "triad"]) == 72
     assert len([r for r in structures if r["kind"] == "as_pair"]) == 9
     assert len([r for r in structures if r["kind"] == "solvent"]) == 3
     assert len([r for r in structures if r["kind"] == "anion"]) == 9
-    assert len(calculations) == 93
-    assert len(calculations) * 2 == 186
+    assert len([r for r in structures if r["kind"] == "cation"]) == 12
+    assert len(calculations) == 105
+    assert len(calculations) * 3 == 315
     assert all(int(r["formal_charge"]) == 0 for r in structures if r["kind"] == "triad")
     assert all(int(r["formal_charge"]) == -1 for r in structures if r["kind"] == "as_pair")
+    assert all(int(r["formal_charge"]) == 1 for r in structures if r["kind"] == "cation")
 
 
-def test_vertical_state_assignments(generated):
+def test_vertical_state_assignments_and_cation_reuse(generated):
     _, _, calculations = generated
+    cation_tasks = [row for row in calculations if row["kind"] == "cation"]
+    assert len(cation_tasks) == 12
+    assert len({(row["cation"], row["solvent"]) for row in cation_tasks}) == 12
     for row in calculations:
         if row["kind"] in {"triad", "solvent"}:
-            assert (int(row["charge_reduced"]), int(row["uhf_reduced"])) == (0, 0)
-            assert (int(row["charge_oxidized"]), int(row["uhf_oxidized"])) == (1, 1)
+            assert (int(row["charge_reduced"]), int(row["uhf_reduced"]), int(row["charge_oxidized"]), int(row["uhf_oxidized"])) == (0, 0, 1, 1)
+        elif row["kind"] == "cation":
+            assert (int(row["charge_reduced"]), int(row["uhf_reduced"]), int(row["charge_oxidized"]), int(row["uhf_oxidized"])) == (1, 0, 2, 1)
         else:
-            assert (int(row["charge_reduced"]), int(row["uhf_reduced"])) == (-1, 0)
-            assert (int(row["charge_oxidized"]), int(row["uhf_oxidized"])) == (0, 1)
+            assert (int(row["charge_reduced"]), int(row["uhf_reduced"]), int(row["charge_oxidized"]), int(row["uhf_oxidized"])) == (-1, 0, 0, 1)
+    for cation, _, solvent in common.composition_keys():
+        assert sum(row["cation"] == cation and row["solvent"] == solvent for row in cation_tasks) == 1
 
 
-def test_geometry_generation_is_deterministic(tmp_path):
+def test_geometry_generation_is_deterministic():
     first = build_structures.build_component("HMIM")
     second = build_structures.build_component("HMIM")
     assert first.anchor == second.anchor
@@ -95,19 +141,71 @@ def test_requested_middle_fragment_is_initially_placed_in_middle(generated):
         anchors = metadata["anchor_indices_zero_based"]
         order = "".join(sorted(anchors, key=lambda label: atoms[anchors[label]].x))
         assert order == row["topology"]
-        metrics = parse_results.geometry_metrics(atoms, metadata)
-        assert metrics["inferred_topology"] == row["topology"]
+        assert parse_results.geometry_metrics(atoms, metadata)["inferred_topology"] == row["topology"]
         assert metadata["minimum_heavy_distance_ang"] >= build_structures.MIN_HEAVY_DISTANCE_ANG
 
 
-def test_restraint_targets_only_two_adjacent_anchors(generated):
-    output, structures, calculations = generated
-    row = next(r for r in calculations if r["kind"] == "triad" and r["topology"] == "CSA")
-    metadata = common.load_metadata(ROOT / row["input_xyz"] if (ROOT / row["input_xyz"]).exists() else output / "initial" / f"{row['task_id']}.xyz")
-    text = run_calculation.restraint_text(metadata, "CSA", make_manifest.RESTRAINT_FORCE)
-    assert "force constant=0.00500000" in text
-    assert text.count("distance:") == 2
-    assert "atoms:" not in text
+def test_commands_limit_restraint_to_optimization_and_hashes_match(generated, tmp_path):
+    _, _, calculations = generated
+    triad, _ = _triad_and_cation(calculations)
+    provenance = run_calculation.run_task(triad, str(_fake_xtb(tmp_path / "xtb")), tmp_path / "runs")
+    assert "--opt" in provenance["optimization_command"]
+    assert provenance["optimization_command"][-2:] == ["--input", "xcontrol.inp"]
+    for command in (provenance["reduced_sp_command"], provenance["oxidized_sp_command"]):
+        assert "--opt" not in command
+        assert "--input" not in command
+    assert provenance["optimized_geometry_sha256"] == provenance["reduced_sp_input_geometry_sha256"]
+    assert provenance["optimized_geometry_sha256"] == provenance["oxidized_sp_input_geometry_sha256"]
+    assert provenance["same_geometry_reduced_sp"] is True
+    assert provenance["same_geometry_oxidized_sp"] is True
+
+
+def test_vertical_ip_uses_sp_minus_sp_and_cation_delta(generated, tmp_path):
+    _, _, calculations = generated
+    triad, cation = _triad_and_cation(calculations)
+    fake = _fake_xtb(tmp_path / "xtb")
+    run_root = tmp_path / "runs"
+    run_calculation.run_task(triad, str(fake), run_root)
+    run_calculation.run_task(cation, str(fake), run_root)
+    parsed = parse_results.parse_triad(triad, calculations, run_root)
+    assert parsed["energy_neutral_opt_eh"] == -30.5
+    assert parsed["energy_neutral_sp_eh"] == -30.0
+    assert parsed["energy_oxidized_sp_eh"] == -29.9
+    assert parsed["ip_vertical_ev"] == pytest.approx(0.1 * common.HARTREE_TO_EV)
+    assert parsed["ip_vertical_ev"] != pytest.approx(0.6 * common.HARTREE_TO_EV)
+    assert parsed["ip_cation_ev"] == pytest.approx(0.2 * common.HARTREE_TO_EV)
+    assert parsed["delta_ip_vs_isolated_cation_ev"] == pytest.approx(-0.1 * common.HARTREE_TO_EV)
+
+
+def test_resume_requires_and_detects_all_three_states(generated, tmp_path):
+    _, _, calculations = generated
+    triad, _ = _triad_and_cation(calculations)
+    fake = _fake_xtb(tmp_path / "xtb")
+    run_root = tmp_path / "runs"
+    run_calculation.run_task(triad, str(fake), run_root)
+    resumed = run_calculation.run_task(triad, str(fake), run_root)
+    assert resumed["optimization_executed_this_invocation"] is False
+    assert resumed["reduced_sp_executed_this_invocation"] is False
+    assert resumed["oxidized_sp_executed_this_invocation"] is False
+    (run_root / triad["task_id"] / "reduced_sp" / "charges").unlink()
+    repaired = run_calculation.run_task(triad, str(fake), run_root)
+    assert repaired["optimization_executed_this_invocation"] is False
+    assert repaired["reduced_sp_executed_this_invocation"] is True
+    assert repaired["oxidized_sp_executed_this_invocation"] is False
+
+
+def test_parser_rejects_geometry_mismatch(generated, tmp_path):
+    _, _, calculations = generated
+    triad, cation = _triad_and_cation(calculations)
+    fake = _fake_xtb(tmp_path / "xtb")
+    run_root = tmp_path / "runs"
+    run_calculation.run_task(triad, str(fake), run_root)
+    run_calculation.run_task(cation, str(fake), run_root)
+    reduced_sp_input = run_root / triad["task_id"] / "reduced_sp" / "in.xyz"
+    reduced_sp_input.write_text(reduced_sp_input.read_text() + "\n", encoding="utf-8")
+    parsed = parse_results.parse_triad(triad, calculations, run_root)
+    assert parsed["status"] == "not_run_or_incomplete"
+    assert "geometry hash differs" in parsed["note"]
 
 
 def test_hartree_to_ev_conversion():
@@ -125,18 +223,18 @@ def test_failed_calculation_records_provenance(generated, tmp_path):
     fake_xtb = tmp_path / "xtb"
     fake_xtb.write_text("#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'xtb version 6.7.1'; exit 0; fi\nexit 7\n")
     fake_xtb.chmod(0o755)
-    row = next(r for r in calculations if r["kind"] == "triad")
+    triad, _ = _triad_and_cation(calculations)
     run_root = tmp_path / "runs"
     with pytest.raises(RuntimeError, match="exit code 7"):
-        run_calculation.run_task(row, str(fake_xtb), run_root)
-    provenance = json.loads((run_root / row["task_id"] / "provenance.json").read_text())
+        run_calculation.run_task(triad, str(fake_xtb), run_root)
+    provenance = json.loads((run_root / triad["task_id"] / "provenance.json").read_text())
     assert provenance["status"] == "failed"
-    assert provenance["reduced_executed_this_invocation"] is True
-    assert provenance["oxidized_executed_this_invocation"] is False
-    assert provenance["reduced_command"][-2:] == ["--input", "xcontrol.inp"]
+    assert provenance["optimization_executed_this_invocation"] is True
+    assert provenance["reduced_sp_executed_this_invocation"] is False
+    assert provenance["oxidized_sp_executed_this_invocation"] is False
 
 
-def test_aggregation_formulas(tmp_path):
+def test_composition_aggregation_formulas(tmp_path):
     triad_path = tmp_path / "triads.csv"
     reference_path = tmp_path / "references.csv"
     benchmark_path = tmp_path / "benchmark.csv"
@@ -154,8 +252,7 @@ def test_aggregation_formulas(tmp_path):
         writer = csv.DictWriter(handle, fieldnames=["cation", "anion", "solvent", "eox_exp_v", "eox_sd_v"])
         writer.writeheader()
         writer.writerow({"cation": "EMIM", "anion": "NTF2", "solvent": "PC", "eox_exp_v": 2.8, "eox_sd_v": 0.15})
-    rows = aggregate_results.aggregate(triad_path, reference_path, benchmark_path, output)
-    row = rows[0]
+    row = aggregate_results.aggregate(triad_path, reference_path, benchmark_path, output)[0]
     assert row["ip_min_ev"] == 5.5
     assert row["ip_mean_ev"] == 6.0
     assert row["ip_span_ev"] == 1.0

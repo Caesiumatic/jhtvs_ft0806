@@ -66,6 +66,10 @@ def composition_keys() -> list[tuple[str, str, str]]:
     ]
 
 
+def cation_solvent_keys() -> list[tuple[str, str]]:
+    return list(dict.fromkeys((cation, solvent) for cation, _, solvent in composition_keys()))
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:

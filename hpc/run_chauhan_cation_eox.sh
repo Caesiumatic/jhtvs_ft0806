@@ -3,7 +3,7 @@
 #$ -cwd
 #$ -j y
 #$ -o runs/chauhan_cation_eox/scheduler_logs/$JOB_ID.$TASK_ID.out
-#$ -t 1-93
+#$ -t 1-105
 
 set -euo pipefail
 

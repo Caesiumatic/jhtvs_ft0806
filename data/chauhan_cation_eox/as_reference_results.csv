@@ -1,10 +1,10 @@
-anion,solvent,epsilon,energy_as_reduced_eh,energy_as_oxidized_eh,ip_as_direct_ev,ip_solvent_ev,ip_anion_ev,ip_fadel_2p8_ev,status,note
-NTF2,PC,65.0,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-NTF2,EG,37.0,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-NTF2,THF,7.6,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-OTF,PC,65.0,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-OTF,EG,37.0,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-OTF,THF,7.6,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-PF6,PC,65.0,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-PF6,EG,37.0,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
-PF6,THF,7.6,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+anion,solvent,epsilon,energy_as_reduced_opt_eh,energy_as_reduced_sp_eh,energy_as_oxidized_sp_eh,ip_as_direct_ev,ip_solvent_ev,ip_anion_ev,ip_fadel_2p8_ev,status,note
+NTF2,PC,65.0,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+NTF2,EG,37.0,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+NTF2,THF,7.6,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+OTF,PC,65.0,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+OTF,EG,37.0,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+OTF,THF,7.6,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+PF6,PC,65.0,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+PF6,EG,37.0,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable
+PF6,THF,7.6,,,,,,,,not_run_or_incomplete,calculation artifacts unavailable

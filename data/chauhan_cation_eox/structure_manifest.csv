@@ -92,3 +92,15 @@ anion__OTF__THF,anion,,OTF,THF,,-1,data/chauhan_cation_eox/initial/anion__OTF__T
 anion__PF6__PC,anion,,PF6,PC,,-1,data/chauhan_cation_eox/initial/anion__PF6__PC.xyz
 anion__PF6__EG,anion,,PF6,EG,,-1,data/chauhan_cation_eox/initial/anion__PF6__EG.xyz
 anion__PF6__THF,anion,,PF6,THF,,-1,data/chauhan_cation_eox/initial/anion__PF6__THF.xyz
+cation__EMIM__PC,cation,EMIM,,PC,,1,data/chauhan_cation_eox/initial/cation__EMIM__PC.xyz
+cation__EMIM__EG,cation,EMIM,,EG,,1,data/chauhan_cation_eox/initial/cation__EMIM__EG.xyz
+cation__EMIM__THF,cation,EMIM,,THF,,1,data/chauhan_cation_eox/initial/cation__EMIM__THF.xyz
+cation__BMIM__PC,cation,BMIM,,PC,,1,data/chauhan_cation_eox/initial/cation__BMIM__PC.xyz
+cation__BMIM__EG,cation,BMIM,,EG,,1,data/chauhan_cation_eox/initial/cation__BMIM__EG.xyz
+cation__BMIM__THF,cation,BMIM,,THF,,1,data/chauhan_cation_eox/initial/cation__BMIM__THF.xyz
+cation__HMIM__PC,cation,HMIM,,PC,,1,data/chauhan_cation_eox/initial/cation__HMIM__PC.xyz
+cation__HMIM__EG,cation,HMIM,,EG,,1,data/chauhan_cation_eox/initial/cation__HMIM__EG.xyz
+cation__HMIM__THF,cation,HMIM,,THF,,1,data/chauhan_cation_eox/initial/cation__HMIM__THF.xyz
+cation__BMPYRR__PC,cation,BMPYRR,,PC,,1,data/chauhan_cation_eox/initial/cation__BMPYRR__PC.xyz
+cation__BMPYRR__EG,cation,BMPYRR,,EG,,1,data/chauhan_cation_eox/initial/cation__BMPYRR__EG.xyz
+cation__BMPYRR__THF,cation,BMPYRR,,THF,,1,data/chauhan_cation_eox/initial/cation__BMPYRR__THF.xyz
