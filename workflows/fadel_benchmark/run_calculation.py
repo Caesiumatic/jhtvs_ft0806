@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -49,14 +50,17 @@ def xtb_version(executable: str) -> tuple[str, str]:
     return resolved, match.group(1)
 
 
-def restraint_text(metadata: dict, topology: str, force: float) -> str:
+def restraint_text(metadata: dict, topology: str, force: float, atoms: list) -> str:
     anchors = metadata["anchor_indices_zero_based"]
     left, middle, right = topology
+    def reference_distance(first: str, second: str) -> float:
+        a, b = atoms[anchors[first]], atoms[anchors[second]]
+        return math.dist((a.x, a.y, a.z), (b.x, b.y, b.z))
     return (
         "$constrain\n"
         f"  force constant={force:.8f}\n"
-        f"  distance: {anchors[left] + 1}, {anchors[middle] + 1}, auto\n"
-        f"  distance: {anchors[middle] + 1}, {anchors[right] + 1}, auto\n"
+        f"  distance: {anchors[left] + 1}, {anchors[middle] + 1}, {reference_distance(left, middle):.10f}\n"
+        f"  distance: {anchors[middle] + 1}, {anchors[right] + 1}, {reference_distance(middle, right):.10f}\n"
         "$end\n"
     )
 
@@ -84,7 +88,8 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         raise ValueError(f"primary Fadel task is not vacuum: {row['task_id']}")
     input_xyz = repo_root() / row["input_xyz"]
     metadata = load_metadata(input_xyz)
-    atom_count = len(read_xyz(input_xyz)[0])
+    input_atoms, _ = read_xyz(input_xyz)
+    atom_count = len(input_atoms)
     xtb_path, version = xtb_version(executable)
     task_dir = run_root / row["task_id"]
     optimization_dir, reduced_sp_dir, oxidized_sp_dir = (task_dir / state for state in ("reduced_opt", "reduced_sp", "oxidized_sp"))
@@ -99,7 +104,7 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
     optimization_command = [*base_reduced, "--opt", "normal"]
     if row["restraint"] != "none":
         control = optimization_dir / "xcontrol.inp"
-        control.write_text(restraint_text(metadata, row["topology"], float(row["restraint_force_constant_eh_bohr2"])), encoding="utf-8")
+        control.write_text(restraint_text(metadata, row["topology"], float(row["restraint_force_constant_eh_bohr2"]), input_atoms), encoding="utf-8")
         optimization_command.extend(["--input", control.name])
     reduced_sp_command = base_reduced
     oxidized_sp_command = [xtb_path, "in.xyz", "--gfn", "2", "--chrg", str(row["charge_oxidized"]), "--uhf", str(row["uhf_oxidized"]), "--iterations", "500"]
@@ -107,7 +112,11 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
         raise AssertionError("solvation flag leaked into the vacuum Fadel protocol")
 
     executed = {"optimization": False, "reduced_sp": False, "oxidized_sp": False}
-    recovery = {"used": False, "warmstart_command": [], "restart_optimization_command": [], "loose_scc_optimization_command": []}
+    recovery = {
+        "used": False, "warmstart_command": [], "restart_optimization_command": [],
+        "loose_scc_optimization_command": [], "high_temperature_optimization_command": [],
+        "default_temperature_polish_command": [], "final_optimization_temperature_k": 300,
+    }
     provenance = {
         "task": row, "status": "running", "input_geometry_sha256": sha256_file(input_xyz),
         "xtb_executable": xtb_path, "xtb_version": version, "environment": "vacuum",
@@ -142,7 +151,26 @@ def run_task(row: dict[str, str], executable: str, run_root: Path, force: bool =
                     shutil.move(optimization_dir / "xtb.out", optimization_dir / "xtb_restart_failed.out")
                     loose_scc_command = [*optimization_command, "--acc", "2"]
                     recovery["loose_scc_optimization_command"] = loose_scc_command
-                    _run(loose_scc_command, optimization_dir)
+                    try:
+                        _run(loose_scc_command, optimization_dir)
+                    except RuntimeError:
+                        shutil.move(optimization_dir / "xtb.out", optimization_dir / "xtb_loose_scc_failed.out")
+                        high_temperature_command = [*optimization_command, "--etemp", "1000"]
+                        polish_command = [*optimization_command, "--restart"]
+                        recovery.update({
+                            "high_temperature_optimization_command": high_temperature_command,
+                            "default_temperature_polish_command": polish_command,
+                        })
+                        _run(high_temperature_command, optimization_dir, "xtb_high_temperature_opt.out")
+                        shutil.copy2(optimized_xyz, optimization_dir / "xtbopt_high_temperature.xyz")
+                        shutil.copy2(optimized_xyz, optimization_input)
+                        try:
+                            _run(polish_command, optimization_dir)
+                        except RuntimeError:
+                            shutil.move(optimization_dir / "xtb.out", optimization_dir / "xtb_default_temperature_polish_failed.out")
+                            shutil.copy2(optimization_dir / "xtbopt_high_temperature.xyz", optimized_xyz)
+                            shutil.copy2(optimization_dir / "xtb_high_temperature_opt.out", optimization_dir / "xtb.out")
+                            recovery["final_optimization_temperature_k"] = 1000
             if not _state_complete(optimization_dir, atom_count, optimized=True):
                 raise RuntimeError("reduced optimization incomplete")
         if force or not _state_complete(reduced_sp_dir, atom_count, optimized=False) or not reduced_sp_input.exists() or sha256_file(reduced_sp_input) != sha256_file(optimized_xyz):

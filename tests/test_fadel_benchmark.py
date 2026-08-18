@@ -103,6 +103,12 @@ def test_exact_task_counts_and_li_formal_charge(generated):
     assert all((row["charge_reduced"], row["uhf_reduced"], row["charge_oxidized"], row["uhf_oxidized"]) == (0, 0, 1, 1) for row in triads)
     assert all(row["formal_charge"] == 0 and row["cation"] == "Li" for row in structures if row["kind"] == "triad")
     assert common.species_table()["TDI"]["smiles"] == "C(#N)C1=C(N=C([N-]1)C(F)(F)F)C#N"
+    triad_path = Path(next(row["xyz_path"] for row in structures if row["kind"] == "triad"))
+    metadata = common.load_metadata(triad_path)
+    atoms, _ = common.read_xyz(triad_path)
+    text = run_calculation.restraint_text(metadata, "CAS", 0.005, atoms)
+    assert "auto" not in text
+    assert text.count("distance:") == 2
 
 
 def test_vacuum_commands_and_optimization_only_triad_restraint(generated, tmp_path):
