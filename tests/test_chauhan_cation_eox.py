@@ -12,6 +12,7 @@ WORKFLOW = ROOT / "workflows" / "chauhan_cation_eox"
 sys.path.insert(0, str(WORKFLOW))
 
 import aggregate_results  # noqa: E402
+import analyze_cation_effects  # noqa: E402
 import build_structures  # noqa: E402
 import common  # noqa: E402
 import make_manifest  # noqa: E402
@@ -240,14 +241,14 @@ def test_composition_aggregation_formulas(tmp_path):
     benchmark_path = tmp_path / "benchmark.csv"
     output = tmp_path / "summary.csv"
     with triad_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["cation", "anion", "solvent", "topology", "ip_vertical_ev", "oxidized_fragment"])
+        writer = csv.DictWriter(handle, fieldnames=["cation", "anion", "solvent", "topology", "ip_vertical_ev", "ip_cation_ev", "oxidized_fragment"])
         writer.writeheader()
         for topology, value, fragment in [("CAS", 6.0, "A"), ("CSA", 5.5, "S"), ("ACS", 6.5, "C")]:
-            writer.writerow({"cation": "EMIM", "anion": "NTF2", "solvent": "PC", "topology": topology, "ip_vertical_ev": value, "oxidized_fragment": fragment})
+            writer.writerow({"cation": "EMIM", "anion": "NTF2", "solvent": "PC", "topology": topology, "ip_vertical_ev": value, "ip_cation_ev": 7.0, "oxidized_fragment": fragment})
     with reference_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["anion", "solvent", "ip_as_direct_ev"])
+        writer = csv.DictWriter(handle, fieldnames=["anion", "solvent", "ip_as_direct_ev", "ip_fadel_2p8_ev"])
         writer.writeheader()
-        writer.writerow({"anion": "NTF2", "solvent": "PC", "ip_as_direct_ev": 5.0})
+        writer.writerow({"anion": "NTF2", "solvent": "PC", "ip_as_direct_ev": 5.0, "ip_fadel_2p8_ev": 4.5})
     with benchmark_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=["cation", "anion", "solvent", "eox_exp_v", "eox_sd_v"])
         writer.writeheader()
@@ -258,4 +259,53 @@ def test_composition_aggregation_formulas(tmp_path):
     assert row["ip_span_ev"] == 1.0
     assert row["topology_of_min_ip"] == "CSA"
     assert row["delta_ip_min_vs_AS"] == 0.5
+    assert row["ip_fadel_2p8_ev"] == 4.5
+    assert row["ip_cation_ev"] == 7.0
     assert row["status"] == "complete"
+
+
+def _analysis_fixture_rows():
+    rows = []
+    cations = {"NTF2": ("EMIM", "BMIM", "HMIM"), "OTF": ("EMIM", "HMIM", "BMPYRR"), "PF6": ("BMIM", "HMIM")}
+    for anion_index, (anion, members) in enumerate(cations.items()):
+        for solvent_index, solvent in enumerate(("PC", "EG", "THF")):
+            for cation_index, cation in enumerate(members):
+                experimental = anion_index + solvent_index / 10 + cation_index / 5
+                base = 5 + anion_index + solvent_index / 10 + cation_index / 5
+                rows.append({
+                    "cation": cation, "anion": anion, "solvent": solvent,
+                    "eox_exp_v": str(experimental), "eox_sd_v": "0.1",
+                    "ip_cation_ev": str(base), "ip_CAS_ev": str(base + 0.1),
+                    "ip_CSA_ev": str(base + 0.2), "ip_ACS_ev": str(base + 0.3),
+                    "ip_min_ev": str(base + 0.1), "ip_mean_ev": str(base + 0.2),
+                    "ip_span_ev": "0.2", "status": "complete",
+                })
+    return rows
+
+
+def test_cation_analysis_cardinalities_and_zero_baseline():
+    rows = _analysis_fixture_rows()
+    sensitivity = analyze_cation_effects.build_sensitivity(rows)
+    contrasts = analyze_cation_effects.build_pairwise(rows)
+    metrics = analyze_cation_effects.build_metrics(rows, contrasts)
+    assert len(sensitivity) == 9
+    assert len(contrasts) == 21
+    assert all(row["delta_fadel_as_zero_ev"] == 0 for row in contrasts)
+    isolated = next(row for row in metrics if row["descriptor"] == "isolated_cation")
+    assert float(isolated["mae_pairwise_v"]) == pytest.approx(0.0)
+    assert float(isolated["pearson_pairwise_r"]) == pytest.approx(1.0)
+    assert float(isolated["spearman_pairwise_rho"]) == pytest.approx(1.0)
+
+
+def test_group_centered_descriptor_sums_are_zero():
+    rows = _analysis_fixture_rows()
+    for _, field in analyze_cation_effects.DESCRIPTORS:
+        if field is None:
+            continue
+        observed, predicted = analyze_cation_effects._centered_vectors(rows, field)
+        assert len(observed) == len(predicted) == 24
+        offset = 0
+        for size in (3, 3, 3, 3, 3, 3, 2, 2, 2):
+            assert sum(observed[offset:offset + size]) == pytest.approx(0.0, abs=1e-12)
+            assert sum(predicted[offset:offset + size]) == pytest.approx(0.0, abs=1e-12)
+            offset += size

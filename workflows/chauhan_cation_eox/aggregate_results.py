@@ -10,8 +10,8 @@ FIELDS = [
     "cation", "anion", "solvent", "eox_exp_v", "eox_sd_v", "ip_CAS_ev", "ip_CSA_ev",
     "ip_ACS_ev", "ip_min_ev", "ip_mean_ev", "ip_span_ev", "topology_of_min_ip",
     "oxidized_fragment_CAS", "oxidized_fragment_CSA", "oxidized_fragment_ACS",
-    "ip_as_direct_ev", "delta_ip_CAS_vs_AS", "delta_ip_CSA_vs_AS", "delta_ip_ACS_vs_AS",
-    "delta_ip_min_vs_AS", "status", "note",
+    "ip_as_direct_ev", "ip_fadel_2p8_ev", "ip_cation_ev", "delta_ip_CAS_vs_AS",
+    "delta_ip_CSA_vs_AS", "delta_ip_ACS_vs_AS", "delta_ip_min_vs_AS", "status", "note",
 ]
 
 
@@ -38,6 +38,10 @@ def aggregate(triad_path: Path, reference_path: Path, benchmark_path: Path, outp
         try:
             ips = {topology: _number(selected[topology]["ip_vertical_ev"]) for topology in ("CAS", "CSA", "ACS")}
             direct = _number(reference["ip_as_direct_ev"] if reference else "")
+            fadel = _number(reference["ip_fadel_2p8_ev"] if reference else "")
+            cation_ips = {_number(selected[topology]["ip_cation_ev"]) for topology in ("CAS", "CSA", "ACS")}
+            if len(cation_ips) != 1:
+                raise ValueError("inconsistent isolated-cation IP across triad topologies")
             minimum_topology = min(ips, key=ips.get)
             out.update({
                 "ip_CAS_ev": ips["CAS"], "ip_CSA_ev": ips["CSA"], "ip_ACS_ev": ips["ACS"],
@@ -46,7 +50,7 @@ def aggregate(triad_path: Path, reference_path: Path, benchmark_path: Path, outp
                 "oxidized_fragment_CAS": selected["CAS"]["oxidized_fragment"],
                 "oxidized_fragment_CSA": selected["CSA"]["oxidized_fragment"],
                 "oxidized_fragment_ACS": selected["ACS"]["oxidized_fragment"],
-                "ip_as_direct_ev": direct,
+                "ip_as_direct_ev": direct, "ip_fadel_2p8_ev": fadel, "ip_cation_ev": cation_ips.pop(),
                 "delta_ip_CAS_vs_AS": ips["CAS"] - direct,
                 "delta_ip_CSA_vs_AS": ips["CSA"] - direct,
                 "delta_ip_ACS_vs_AS": ips["ACS"] - direct,
