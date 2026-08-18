@@ -1,0 +1,5 @@
+anion,solvent,dlpno_ccsdt_pair_ip_ev,m06hf_pair_ip_ev,fadel_table2_m06hf_ip_ev,xtb_as_ip_ev,xtb_triad_min_ip_ev,source
+TDI,PC,4.9,5.9,5.9,10.47659084825395,13.691506976074749,Fadel et al. Supplementary Table 9
+TFSI,PC,6.6,7.5,7.52,11.254659573884268,14.527954820475085,Fadel et al. Supplementary Table 9
+BF4,PC,8.2,8.7,8.75,11.102905289537542,14.964283127739074,Fadel et al. Supplementary Table 9
+PF6,PC,8.3,9.0,9.0,11.574233642458333,15.261977692490623,Fadel et al. Supplementary Table 9

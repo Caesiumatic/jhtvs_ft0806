@@ -182,13 +182,17 @@ def make_scatter(path: Path, rows: list[dict], predicted: list[float], metric: d
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     colors = {"TDI": "#1f77b4", "TFSI": "#d95f02", "BF4": "#2ca02c", "PF6": "#9467bd"}
+    markers = {"DMSO": "o", "DME": "s", "PC": "^", "ACN": "D"}
     observed = [float(row["fadel_ip_dscf_mean_ev"]) for row in rows]
     fig, ax = plt.subplots(figsize=(7.2, 6.4), dpi=180)
     for row, x, y in zip(rows, observed, predicted):
-        ax.scatter(x, y, color=colors[row["anion"]], s=46, edgecolor="black", linewidth=0.4)
-        ax.annotate(f"{row['anion']}-{row['solvent']}", (x, y), xytext=(3, 3), textcoords="offset points", fontsize=6.2)
+        ax.scatter(
+            x, y, color=colors[row["anion"]], marker=markers[row["solvent"]],
+            s=52, edgecolor="black", linewidth=0.45,
+        )
     low, high = min(observed + predicted) - 0.25, max(observed + predicted) + 0.25
     ax.plot([low, high], [low, high], "--", color="#444444", linewidth=1.0)
     ax.set(xlim=(low, high), ylim=(low, high), xlabel="Fadel M06-HF mean vertical IP (eV)", ylabel="GFN2-xTB vertical IP (eV)", title=title)
@@ -198,6 +202,14 @@ def make_scatter(path: Path, rows: list[dict], predicted: list[float], metric: d
     if offset is not None:
         label += f"\noffset = {offset:+.3f} eV"
     ax.text(0.035, 0.965, label, transform=ax.transAxes, va="top", bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.9, "edgecolor": "#aaaaaa"})
+    legend_handles = [
+        Line2D([], [], marker="o", linestyle="none", markerfacecolor=color, markeredgecolor="black", label=anion)
+        for anion, color in colors.items()
+    ] + [
+        Line2D([], [], marker=marker, linestyle="none", color="black", markerfacecolor="white", label=solvent)
+        for solvent, marker in markers.items()
+    ]
+    ax.legend(handles=legend_handles, loc="lower right", ncol=2, fontsize=7.0, framealpha=0.92, handletextpad=0.4, columnspacing=0.8)
     fig.tight_layout()
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)

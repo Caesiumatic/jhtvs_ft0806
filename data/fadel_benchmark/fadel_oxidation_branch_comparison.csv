@@ -1,0 +1,17 @@
+anion,solvent,fadel_dominant_oxidized_fragment,fadel_anion_oxidation_fraction,fadel_solvent_oxidation_fraction,xtb_as_oxidized_fragment,xtb_triad_min_oxidized_fragment,as_branch_match,triad_branch_match
+TDI,DMSO,A,1.0,0.0,A,A,True,True
+TFSI,DMSO,S,0.0,1.0,S,S,True,True
+BF4,DMSO,S,0.0,1.0,S,S,True,True
+PF6,DMSO,S,0.0,1.0,S,S,True,True
+TDI,DME,A,1.0,0.0,A,A,True,True
+TFSI,DME,A,0.9,0.1,S,S,False,False
+BF4,DME,S,0.0,1.0,S,S,True,True
+PF6,DME,S,0.0,1.0,S,S,True,True
+TDI,PC,A,1.0,0.0,A,A,True,True
+TFSI,PC,A,1.0,0.0,A,A,True,True
+BF4,PC,S,0.0,1.0,S,S,True,True
+PF6,PC,S,0.0,1.0,S,S,True,True
+TDI,ACN,A,1.0,0.0,A,A,True,True
+TFSI,ACN,A,1.0,0.0,A,A,True,True
+BF4,ACN,S,0.4,0.6,A,S,False,True
+PF6,ACN,S,0.06666666666666667,0.9333333333333333,A,S,False,True

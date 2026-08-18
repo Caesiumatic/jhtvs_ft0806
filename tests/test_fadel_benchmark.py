@@ -186,3 +186,34 @@ def test_offset_only_fit_has_fixed_unit_slope():
     assert metric["offset_ev"] == pytest.approx(-1.0)
     assert corrected == pytest.approx(observed)
     assert metric["MAE_after_offset_ev"] == pytest.approx(0.0)
+
+
+def test_committed_production_results_are_complete_and_self_consistent():
+    data_dir = ROOT / "data" / "fadel_benchmark"
+    tasks = common.read_csv(data_dir / "fadel_task_results.csv")
+    comparison = common.read_csv(data_dir / "fadel_as_vs_cas.csv")
+    raw = common.read_csv(data_dir / "fadel_method_metrics_raw.csv")
+    offsets = common.read_csv(data_dir / "fadel_method_metrics_offset.csv")
+    branches = common.read_csv(data_dir / "fadel_oxidation_branch_comparison.csv")
+
+    assert len(tasks) == 64
+    assert sum(row["kind"] == "as_pair" for row in tasks) == 16
+    assert sum(row["kind"] == "triad" for row in tasks) == 48
+    assert all(row["status"] == "complete" and row["same_geometry_pass"] == "True" for row in tasks)
+    assert len(comparison) == len(branches) == 16
+    assert {row["descriptor"] for row in raw} == {descriptor for descriptor, _ in analyze_results.DESCRIPTORS}
+    assert {row["descriptor"] for row in offsets} == {descriptor for descriptor, _ in analyze_results.DESCRIPTORS}
+    assert all(row["n"] == "16" for row in raw + offsets)
+    assert all(float(row["slope_fixed"]) == 1.0 for row in offsets)
+
+    for row in comparison:
+        reference = float(row["fadel_ip_dscf_mean_ev"])
+        as_ip = float(row["xtb_as_ip_ev"])
+        topology_values = {topology: float(row[f"xtb_{topology}_ev"]) for topology in common.TOPOLOGIES}
+        minimum_topology = min(common.TOPOLOGIES, key=topology_values.__getitem__)
+        triad_min = topology_values[minimum_topology]
+        assert row["triad_min_topology"] == minimum_topology
+        assert float(row["xtb_triad_min_ev"]) == pytest.approx(triad_min)
+        assert float(row["error_as_ev"]) == pytest.approx(as_ip - reference)
+        assert float(row["error_triad_min_ev"]) == pytest.approx(triad_min - reference)
+        assert float(row["triad_improvement_over_as_ev"]) == pytest.approx(abs(as_ip - reference) - abs(triad_min - reference))
