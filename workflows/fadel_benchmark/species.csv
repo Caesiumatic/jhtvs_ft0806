@@ -1,0 +1,10 @@
+kind,id,name,smiles,formal_charge,anchor_rule,source
+cation,Li,lithium,[Li+],1,Li atom,Fadel Li-ion context
+anion,TDI,"4,5-dicyano-2-(trifluoromethyl)imidazolide",C(#N)C1=C(N=C([N-]1)C(F)(F)F)C#N,-1,anionic imidazolide N,PubChem CID 73995168 LiTDI component
+anion,TFSI,bis(trifluoromethanesulfonyl)imide,O=S(=O)(C(F)(F)F)[N-]S(=O)(=O)C(F)(F)F,-1,imide N,Fadel et al. and project registry
+anion,BF4,tetrafluoroborate,[B-](F)(F)(F)F,-1,B atom,Fadel et al.
+anion,PF6,hexafluorophosphate,F[P-](F)(F)(F)(F)F,-1,P atom,Fadel et al. and project registry
+solvent,DMSO,dimethyl sulfoxide,CS(C)=O,0,sulfoxide O,Fadel et al. and project registry
+solvent,DME,"1,2-dimethoxyethane",COCCOC,0,first O in canonical atom order,Fadel et al.
+solvent,PC,propylene carbonate,CC1COC(=O)O1,0,carbonyl O,Fadel et al. and project registry
+solvent,ACN,acetonitrile,CC#N,0,nitrile N,Fadel et al. and project registry

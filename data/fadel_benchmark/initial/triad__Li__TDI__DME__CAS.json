@@ -1,0 +1,70 @@
+{
+  "anchor_indices_zero_based": {
+    "A": 7,
+    "C": 0,
+    "S": 15
+  },
+  "anion": "TDI",
+  "cation": "Li",
+  "formal_charge": 0,
+  "fragments": {
+    "A": {
+      "atom_indices_zero_based": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "geometry_method": "ETKDGv3+MMFF94",
+      "species_id": "TDI"
+    },
+    "C": {
+      "atom_indices_zero_based": [
+        0
+      ],
+      "geometry_method": "single_atom",
+      "species_id": "Li"
+    },
+    "S": {
+      "atom_indices_zero_based": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "geometry_method": "ETKDGv3+MMFF94",
+      "species_id": "DME"
+    }
+  },
+  "initial_anchor_distances_ang": {
+    "left_middle": 3.5,
+    "middle_right": 3.5
+  },
+  "kind": "triad",
+  "minimum_heavy_distance_ang": 3.096962907565984,
+  "rdkit_seed": 20260818,
+  "solvent": "DME",
+  "structure_id": "triad__Li__TDI__DME__CAS",
+  "topology": "CAS"
+}

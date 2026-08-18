@@ -1,0 +1,44 @@
+{
+  "anchor_indices_zero_based": {
+    "A": 0,
+    "S": 8
+  },
+  "anion": "BF4",
+  "formal_charge": -1,
+  "fragments": {
+    "A": {
+      "atom_indices_zero_based": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "geometry_method": "ideal_tetrahedral_BF4",
+      "species_id": "BF4"
+    },
+    "S": {
+      "atom_indices_zero_based": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "geometry_method": "ETKDGv3+MMFF94",
+      "species_id": "DMSO"
+    }
+  },
+  "initial_anchor_distance_ang": 3.5,
+  "kind": "as_pair",
+  "minimum_heavy_distance_ang": 2.9243746958865695,
+  "rdkit_seed": 20260818,
+  "solvent": "DMSO",
+  "structure_id": "as__BF4__DMSO",
+  "topology": "AS"
+}

@@ -1,0 +1,60 @@
+{
+  "anchor_indices_zero_based": {
+    "A": 7,
+    "S": 16
+  },
+  "anion": "TFSI",
+  "formal_charge": -1,
+  "fragments": {
+    "A": {
+      "atom_indices_zero_based": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "geometry_method": "ETKDGv3+MMFF94",
+      "species_id": "TFSI"
+    },
+    "S": {
+      "atom_indices_zero_based": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "geometry_method": "ETKDGv3+MMFF94",
+      "species_id": "DME"
+    }
+  },
+  "initial_anchor_distance_ang": 3.5,
+  "kind": "as_pair",
+  "minimum_heavy_distance_ang": 2.051576410650818,
+  "rdkit_seed": 20260818,
+  "solvent": "DME",
+  "structure_id": "as__TFSI__DME",
+  "topology": "AS"
+}

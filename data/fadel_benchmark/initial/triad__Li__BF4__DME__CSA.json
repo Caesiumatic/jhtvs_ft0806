@@ -1,0 +1,62 @@
+{
+  "anchor_indices_zero_based": {
+    "A": 17,
+    "C": 0,
+    "S": 2
+  },
+  "anion": "BF4",
+  "cation": "Li",
+  "formal_charge": 0,
+  "fragments": {
+    "A": {
+      "atom_indices_zero_based": [
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "geometry_method": "ideal_tetrahedral_BF4",
+      "species_id": "BF4"
+    },
+    "C": {
+      "atom_indices_zero_based": [
+        0
+      ],
+      "geometry_method": "single_atom",
+      "species_id": "Li"
+    },
+    "S": {
+      "atom_indices_zero_based": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "geometry_method": "ETKDGv3+MMFF94",
+      "species_id": "DME"
+    }
+  },
+  "initial_anchor_distances_ang": {
+    "left_middle": 3.5,
+    "middle_right": 3.5
+  },
+  "kind": "triad",
+  "minimum_heavy_distance_ang": 2.063652643118892,
+  "rdkit_seed": 20260818,
+  "solvent": "DME",
+  "structure_id": "triad__Li__BF4__DME__CSA",
+  "topology": "CSA"
+}

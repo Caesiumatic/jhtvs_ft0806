@@ -1,0 +1,17 @@
+anion,solvent,n_snapshots,anion_oxidation_count,solvent_oxidation_count,anion_oxidation_fraction,solvent_oxidation_fraction,fadel_dominant_oxidized_fragment,source
+TDI,DMSO,30,30,0,1.0,0.0,A,Fadel Figshare DataAvailability.xlsx Figure2
+TDI,DME,30,30,0,1.0,0.0,A,Fadel Figshare DataAvailability.xlsx Figure2
+TDI,PC,30,30,0,1.0,0.0,A,Fadel Figshare DataAvailability.xlsx Figure2
+TDI,ACN,30,30,0,1.0,0.0,A,Fadel Figshare DataAvailability.xlsx Figure2
+TFSI,DMSO,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+TFSI,DME,30,27,3,0.9,0.1,A,Fadel Figshare DataAvailability.xlsx Figure2
+TFSI,PC,30,30,0,1.0,0.0,A,Fadel Figshare DataAvailability.xlsx Figure2
+TFSI,ACN,30,30,0,1.0,0.0,A,Fadel Figshare DataAvailability.xlsx Figure2
+BF4,DMSO,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+BF4,DME,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+BF4,PC,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+BF4,ACN,30,12,18,0.4,0.6,S,Fadel Figshare DataAvailability.xlsx Figure2
+PF6,DMSO,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+PF6,DME,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+PF6,PC,30,0,30,0.0,1.0,S,Fadel Figshare DataAvailability.xlsx Figure2
+PF6,ACN,30,2,28,0.06666666666666667,0.9333333333333333,S,Fadel Figshare DataAvailability.xlsx Figure2

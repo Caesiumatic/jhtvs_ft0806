@@ -1,0 +1,17 @@
+anion,solvent,fadel_ip_dscf_mean_ev,reference_method,reference_sampling,reference_environment,source
+TDI,DMSO,5.85,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TFSI,DMSO,6.66,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+BF4,DMSO,6.24,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+PF6,DMSO,6.41,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TDI,DME,5.76,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TFSI,DME,7.28,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+BF4,DME,7.20,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+PF6,DME,7.44,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TDI,PC,5.90,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TFSI,PC,7.52,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+BF4,PC,8.75,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+PF6,PC,9.00,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TDI,ACN,5.77,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+TFSI,ACN,7.38,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+BF4,ACN,9.28,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2
+PF6,ACN,9.54,M06-HF/aug-cc-pVTZ,mean of 30 MD snapshots,vacuum,Fadel et al. Nat Commun 2019 Table 2

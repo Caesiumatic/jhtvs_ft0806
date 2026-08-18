@@ -1,0 +1,19 @@
+{
+  "article_doi": "10.1038/s41467-019-11317-3",
+  "figshare_doi": "10.6084/m9.figshare.8162132.v1",
+  "figshare_article_id": 8162132,
+  "figshare_file_id": 15207812,
+  "figshare_file_name": "DataAvailability.xlsx",
+  "figshare_file_size_bytes": 84905,
+  "figshare_supplied_md5": "7f3ea01db8d0abf7502d72be2bc2c9a0",
+  "downloaded_sha256": "4ff1780be706ceb657f84636e0287e2a73389eb814de0a57692cb2e012d8c30f",
+  "sheets": ["Figure1and5", "Figure2", "Table2", "Figure3"],
+  "contains_snapshot_identifiers": true,
+  "contains_snapshot_vertical_ips": true,
+  "contains_snapshot_oxidation_branches": true,
+  "contains_atomic_coordinates": false,
+  "same_geometry_xtb_snapshot_diagnostic_available": false,
+  "snapshot_diagnostic_note": "The official Figshare workbook supplies configuration identifiers, energies/IPs, and oxidation branches but no atomic coordinates; no substitute Fadel geometries were invented.",
+  "tdi_structure_source": "PubChem CID 73995168 LiTDI component",
+  "tdi_anion_smiles": "C(#N)C1=C(N=C([N-]1)C(F)(F)F)C#N"
+}
