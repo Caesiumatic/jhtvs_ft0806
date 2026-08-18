@@ -434,3 +434,40 @@ def test_global_offset_fit_keeps_unit_slope():
     metric, fitted = analyze_unconstrained_results.offset_metric_row("fixture", observed, calculated)
     assert metric["slope_fixed"] == 1.0
     assert all((fit - calc) == pytest.approx(metric["offset_v"]) for fit, calc in zip(fitted, calculated))
+
+
+def test_unconstrained_production_outputs_are_complete_and_protocol_consistent():
+    output = ROOT / "data" / "chauhan_cation_eox" / "unconstrained"
+    parsed = common.read_csv(output / "unconstrained_triad_results.csv")
+    compositions = common.read_csv(output / "unconstrained_composition_summary.csv")
+    comparisons = common.read_csv(output / "restrained_vs_unconstrained.csv")
+    raw_metrics = common.read_csv(output / "raw_absolute_metrics.csv")
+    offset_metrics = common.read_csv(output / "offset_only_metrics.csv")
+
+    assert len(parsed) == 72
+    assert all(row["status"] == "complete" for row in parsed)
+    assert all(row["same_geometry_pass"] == "True" for row in parsed)
+    assert len(compositions) == 24
+    assert all(row["status"] == "complete" for row in compositions)
+    assert len(comparisons) == 72
+
+    for row in compositions:
+        for topology in common.TOPOLOGIES:
+            assert float(row[f"eox_free_from_{topology}_v"]) == pytest.approx(
+                float(row[f"ip_free_from_{topology}_ev"]) - analyze_pair_only.AGAGCL_SHIFT_V
+            )
+        assert float(row["eox_free_min_v"]) == pytest.approx(
+            float(row["ip_free_min_ev"]) - analyze_pair_only.AGAGCL_SHIFT_V
+        )
+        assert float(row["eox_free_lowest_energy_geometry_v"]) == pytest.approx(
+            float(row["ip_free_lowest_energy_geometry_ev"]) - analyze_pair_only.AGAGCL_SHIFT_V
+        )
+
+    expected_descriptors = {
+        "AS_direct", "restrained_triad_min", "unconstrained_free_min",
+        "unconstrained_lowest_energy_geometry",
+    }
+    assert {row["descriptor"] for row in raw_metrics} == expected_descriptors
+    assert {row["descriptor"] for row in offset_metrics} == expected_descriptors
+    assert all(row["n"] == "24" for row in raw_metrics + offset_metrics)
+    assert all(float(row["slope_fixed"]) == 1.0 for row in offset_metrics)
