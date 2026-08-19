@@ -75,6 +75,7 @@ def build_input(row: dict[str, str], state: str, xyz_path: Path, nprocs: int = 8
         f"%maxcore {maxcore_mb}",
         "%scf",
         "  MaxIter 500",
+        "  AutoTRAH true",
         "end",
         "%output",
         "  Print[P_AtCharges_M] 1",

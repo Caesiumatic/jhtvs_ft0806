@@ -10,10 +10,32 @@ import subprocess
 from pathlib import Path
 
 try:
-    from .common import BASIS, METHOD, SOFTWARE, read_csv, read_xyz, repo_root, sha256_file
+    from .common import (
+        BASIS,
+        FUNCTIONAL_IMPLEMENTATION,
+        LIBXC_CORRELATION,
+        LIBXC_EXCHANGE,
+        METHOD,
+        SOFTWARE,
+        read_csv,
+        read_xyz,
+        repo_root,
+        sha256_file,
+    )
     from .orca_input import bias_payload, build_input
 except ImportError:
-    from common import BASIS, METHOD, SOFTWARE, read_csv, read_xyz, repo_root, sha256_file
+    from common import (
+        BASIS,
+        FUNCTIONAL_IMPLEMENTATION,
+        LIBXC_CORRELATION,
+        LIBXC_EXCHANGE,
+        METHOD,
+        SOFTWARE,
+        read_csv,
+        read_xyz,
+        repo_root,
+        sha256_file,
+    )
     from orca_input import bias_payload, build_input
 
 VERSION_RE = re.compile(r"Program Version\s+([0-9]+(?:\.[0-9]+){1,2})", re.I)
@@ -66,6 +88,9 @@ def run_case(row: dict[str, str], orca: str, run_root: Path) -> dict:
         "method": METHOD,
         "basis": BASIS,
         "software": SOFTWARE,
+        "functional_implementation": FUNCTIONAL_IMPLEMENTATION,
+        "libxc_exchange": LIBXC_EXCHANGE,
+        "libxc_correlation": LIBXC_CORRELATION,
         "orca_executable": resolved_orca,
         "input_geometry_sha256": sha256_file(input_xyz),
         "atom_count": atom_count,

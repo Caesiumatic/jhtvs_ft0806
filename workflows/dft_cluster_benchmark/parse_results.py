@@ -17,8 +17,9 @@ S2_RE = re.compile(r"Expectation value of\s*<S\*\*2>\s*:\s*(-?\d+(?:\.\d+)?)", r
 VERSION_RE = re.compile(r"Program Version\s+([0-9]+(?:\.[0-9]+){1,2})", re.I)
 FIELDS = [
     "task_index", "task_id", "benchmark", "kind", "cation", "anion", "solvent", "topology", "environment",
-    "solvation_model", "epsilon", "method", "basis", "software", "software_version", "integral_approximation",
-    "population_scheme", "charge_reduced", "multiplicity_reduced", "charge_oxidized", "multiplicity_oxidized",
+    "solvation_model", "epsilon", "method", "basis", "software", "software_version", "functional_implementation",
+    "libxc_exchange", "libxc_correlation", "integral_approximation", "population_scheme", "charge_reduced",
+    "multiplicity_reduced", "charge_oxidized", "multiplicity_oxidized",
     "energy_reduced_sp_eh", "energy_oxidized_sp_eh", "ip_vertical_ev", "q_C_reduced", "q_A_reduced", "q_S_reduced",
     "q_C_oxidized", "q_A_oxidized", "q_S_oxidized", "dq_C", "dq_A", "dq_S", "oxidized_fragment",
     "s2_reduced", "s2_oxidized", "scf_reduced_converged", "scf_oxidized_converged", "optimization_converged",

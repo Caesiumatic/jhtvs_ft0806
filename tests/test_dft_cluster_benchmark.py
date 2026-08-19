@@ -46,6 +46,7 @@ def test_orca_inputs_preserve_method_environment_and_restraint_scope(manifest_ro
     assert "! aug-cc-pVTZ RIJCOSX AutoAux" in opt
     assert "Exchange hyb_mgga_x_m06_hf" in opt
     assert "Correlation mgga_c_m06_hf" in opt
+    assert "AutoTRAH true" in opt
     assert "! M06-HF" not in opt
     assert chauhan_triad["functional_implementation"] == "LibXC"
     assert "%cpcm" in opt and "epsilon 65.00000000" in opt
