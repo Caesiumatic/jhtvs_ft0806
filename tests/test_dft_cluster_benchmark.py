@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from workflows.dft_cluster_benchmark import common, make_manifest, orca_input, parse_results, run_case  # noqa: E402
+from workflows.dft_cluster_benchmark import analyze_results, common, make_manifest, orca_input, parse_results, run_case  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -115,3 +115,41 @@ print('ORCA TERMINATED NORMALLY')
     assert provenance["status"] == "complete"
     assert provenance["same_sp_geometry"] is True
     assert provenance["optimized_geometry_sha256"] == provenance["reduced_sp_input_geometry_sha256"] == provenance["oxidized_sp_input_geometry_sha256"]
+
+
+def _synthetic_task_results(manifest_rows):
+    topology_shift = {"AS": 0.0, "CAS": 0.3, "CSA": 0.2, "ACS": 0.1}
+    rows = []
+    for index, source in enumerate(manifest_rows):
+        rows.append({
+            **source,
+            "ip_vertical_ev": 6.0 + 0.01 * index + topology_shift[source["topology"]],
+            "oxidized_fragment": "A" if source["topology"] in {"AS", "ACS"} else "S",
+            "status": "complete",
+        })
+    return rows
+
+
+def test_analysis_aggregation_has_exact_compositions_and_minimum(manifest_rows):
+    tasks = _synthetic_task_results(manifest_rows)
+    chauhan = analyze_results.build_chauhan_summary(tasks, common.read_csv(ROOT / "workflows/chauhan_cation_eox/benchmark_chauhan.csv"))
+    fadel = analyze_results.build_fadel_summary(tasks, common.read_csv(ROOT / "data/fadel_benchmark/fadel_table2_reference.csv"))
+    assert len(chauhan) == 24
+    assert len(fadel) == 16
+    for row in chauhan + fadel:
+        minimum = min(common.TOPOLOGIES, key=lambda topology: float(row[f"dft_ip_{topology}_ev"]))
+        assert row["topology_of_min"] == minimum
+        assert float(row["dft_ip_min_ev"]) == pytest.approx(float(row[f"dft_ip_{minimum}_ev"]))
+
+
+def test_metric_tables_use_one_fixed_unit_slope_offset():
+    rows = [
+        {"reference": 5.0, **{f"prediction_{key}": value for _, key in analyze_results.DESCRIPTORS}}
+        for value in (6.0, 7.0, 9.0, 10.0)
+    ]
+    for index, row in enumerate(rows):
+        row["reference"] = (5.0, 6.0, 8.0, 9.0)[index]
+    raw, offsets, corrected = analyze_results.metric_tables(rows, "reference", "prediction_")
+    assert len(raw) == len(offsets) == 6
+    assert all(row["slope_fixed"] == 1.0 and row["offset"] == pytest.approx(-1.0) for row in offsets)
+    assert corrected["AS"] == pytest.approx([5.0, 6.0, 8.0, 9.0])
