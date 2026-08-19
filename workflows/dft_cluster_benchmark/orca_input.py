@@ -106,16 +106,15 @@ def build_input(row: dict[str, str], state: str, xyz_path: Path, nprocs: int = 8
         biases = bias_payload(row, xyz_path)
         lines.extend(["%geom", "  MaxIter 300"])
         if biases:
-            entries = [
-                "{ B %d %d %.10f %.10f %.8f }"
-                % (
-                    bias["left_index"], bias["right_index"], bias["reference_distance_ang"],
-                    bias["depth_kcal_mol"], bias["alpha_angstrom_inv"],
+            for bias in biases:
+                # ORCA 6.1 accepts one bond entry per BIAS keyword.
+                lines.append(
+                    "  BIAS { B %d %d %.10f %.10f %.8f } END"
+                    % (
+                        bias["left_index"], bias["right_index"], bias["reference_distance_ang"],
+                        bias["depth_kcal_mol"], bias["alpha_angstrom_inv"],
+                    )
                 )
-                for bias in biases
-            ]
-            # ORCA 6.1 requires the first bias entry on the BIAS keyword line.
-            lines.append("  BIAS " + " ".join(entries) + " END")
         lines.append("end")
     lines.extend([f"* xyzfile {charge} {multiplicity} in.xyz", ""])
     text = "\n".join(lines)

@@ -52,8 +52,9 @@ def test_orca_inputs_preserve_method_environment_and_restraint_scope(manifest_ro
     assert "%cpcm" in opt and "epsilon 65.00000000" in opt
     assert "%cpcm" in reduced and "%cpcm" in oxidized
     assert "BIAS" in opt and "BIAS" not in reduced and "BIAS" not in oxidized
-    bias_line = next(line for line in opt.splitlines() if line.strip().startswith("BIAS"))
-    assert bias_line.count("{ B ") == 2 and bias_line.rstrip().endswith("END")
+    bias_lines = [line for line in opt.splitlines() if line.strip().startswith("BIAS")]
+    assert len(bias_lines) == 2
+    assert all(line.count("{ B ") == 1 and line.rstrip().endswith("END") for line in bias_lines)
     assert "* xyzfile 0 1 in.xyz" in opt
     assert "* xyzfile 1 2 in.xyz" in oxidized
     assert "%cpcm" not in vacuum
