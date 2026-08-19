@@ -3,9 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 
 try:
-    from .common import BIAS_ALPHA_ANGSTROM_INV, atom_distance, load_metadata, orca_bias_depth_kcal_mol, read_xyz
+    from .common import (
+        BIAS_ALPHA_ANGSTROM_INV,
+        LIBXC_CORRELATION,
+        LIBXC_EXCHANGE,
+        atom_distance,
+        load_metadata,
+        orca_bias_depth_kcal_mol,
+        read_xyz,
+    )
 except ImportError:
-    from common import BIAS_ALPHA_ANGSTROM_INV, atom_distance, load_metadata, orca_bias_depth_kcal_mol, read_xyz
+    from common import (
+        BIAS_ALPHA_ANGSTROM_INV,
+        LIBXC_CORRELATION,
+        LIBXC_EXCHANGE,
+        atom_distance,
+        load_metadata,
+        orca_bias_depth_kcal_mol,
+        read_xyz,
+    )
 
 
 def bias_payload(row: dict[str, str], xyz_path: Path) -> list[dict[str, float | int]]:
@@ -41,14 +57,20 @@ def build_input(row: dict[str, str], state: str, xyz_path: Path, nprocs: int = 8
     reduced = state != "oxidized_sp"
     charge = row["charge_reduced"] if reduced else row["charge_oxidized"]
     multiplicity = row["multiplicity_reduced"] if reduced else row["multiplicity_oxidized"]
-    keywords = ["M06-HF", "aug-cc-pVTZ", "RIJCOSX", "AutoAux", "TightSCF", "DEFGRID3", "SlowConv", "MULLIKEN"]
+    keywords = ["aug-cc-pVTZ", "RIJCOSX", "AutoAux", "TightSCF", "DEFGRID3", "SlowConv", "MULLIKEN"]
     if optimize:
         keywords.append("Opt")
     lines = [
         f"# task_id: {row['task_id']}",
         f"# state: {state}",
         f"# method_id: {row['method_id']}",
+        "# M06-HF is supplied by LibXC as its published exchange and correlation components.",
         f"! {' '.join(keywords)}",
+        "%method",
+        "  Method DFT",
+        f"  Exchange {LIBXC_EXCHANGE}",
+        f"  Correlation {LIBXC_CORRELATION}",
+        "end",
         f"%pal nprocs {nprocs} end",
         f"%maxcore {maxcore_mb}",
         "%scf",

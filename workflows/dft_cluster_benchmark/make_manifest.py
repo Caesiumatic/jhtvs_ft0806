@@ -6,15 +6,42 @@ from collections import Counter
 from pathlib import Path
 
 try:
-    from .common import BASIS, INTEGRAL_APPROXIMATION, METHOD, METHOD_ID, POPULATION_SCHEME, SOFTWARE, read_csv, repo_root, write_csv
+    from .common import (
+        BASIS,
+        FUNCTIONAL_IMPLEMENTATION,
+        INTEGRAL_APPROXIMATION,
+        LIBXC_CORRELATION,
+        LIBXC_EXCHANGE,
+        METHOD,
+        METHOD_ID,
+        POPULATION_SCHEME,
+        SOFTWARE,
+        read_csv,
+        repo_root,
+        write_csv,
+    )
 except ImportError:
-    from common import BASIS, INTEGRAL_APPROXIMATION, METHOD, METHOD_ID, POPULATION_SCHEME, SOFTWARE, read_csv, repo_root, write_csv
+    from common import (
+        BASIS,
+        FUNCTIONAL_IMPLEMENTATION,
+        INTEGRAL_APPROXIMATION,
+        LIBXC_CORRELATION,
+        LIBXC_EXCHANGE,
+        METHOD,
+        METHOD_ID,
+        POPULATION_SCHEME,
+        SOFTWARE,
+        read_csv,
+        repo_root,
+        write_csv,
+    )
 
 FIELDS = [
     "task_index", "task_id", "benchmark", "source_task_id", "kind", "cation", "anion", "solvent", "topology",
     "environment", "solvation_model", "epsilon", "input_xyz", "charge_reduced", "multiplicity_reduced",
     "charge_oxidized", "multiplicity_oxidized", "restraint", "restraint_force_constant_eh_bohr2",
-    "method", "basis", "software", "integral_approximation", "population_scheme", "method_id",
+    "method", "basis", "software", "functional_implementation", "libxc_exchange", "libxc_correlation",
+    "integral_approximation", "population_scheme", "method_id",
 ]
 
 
@@ -41,6 +68,9 @@ def _base(row: dict[str, str], benchmark: str, environment: str, solvation_model
         "method": METHOD,
         "basis": BASIS,
         "software": SOFTWARE,
+        "functional_implementation": FUNCTIONAL_IMPLEMENTATION,
+        "libxc_exchange": LIBXC_EXCHANGE,
+        "libxc_correlation": LIBXC_CORRELATION,
         "integral_approximation": INTEGRAL_APPROXIMATION,
         "population_scheme": POPULATION_SCHEME,
         "method_id": METHOD_ID,

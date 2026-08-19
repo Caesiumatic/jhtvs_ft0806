@@ -43,8 +43,11 @@ def test_orca_inputs_preserve_method_environment_and_restraint_scope(manifest_ro
     reduced = orca_input.build_input(chauhan_triad, "reduced_sp", triad_xyz)
     oxidized = orca_input.build_input(chauhan_triad, "oxidized_sp", triad_xyz)
     vacuum = orca_input.build_input(fadel_pair, "reduced_opt", pair_xyz)
-    assert "M06-HF aug-cc-pVTZ" in opt
-    assert "RIJCOSX AutoAux" in opt
+    assert "! aug-cc-pVTZ RIJCOSX AutoAux" in opt
+    assert "Exchange hyb_mgga_x_m06_hf" in opt
+    assert "Correlation mgga_c_m06_hf" in opt
+    assert "! M06-HF" not in opt
+    assert chauhan_triad["functional_implementation"] == "LibXC"
     assert "%cpcm" in opt and "epsilon 65.00000000" in opt
     assert "%cpcm" in reduced and "%cpcm" in oxidized
     assert "BIAS" in opt and "BIAS" not in reduced and "BIAS" not in oxidized
@@ -104,7 +107,7 @@ import sys
 text = pathlib.Path(sys.argv[1]).read_text()
 print('Program Version 6.1.0')
 print('SCF CONVERGED AFTER 8 CYCLES')
-if ' Opt' in text.splitlines()[3]:
+if any(line.startswith('! ') and ' Opt' in line for line in text.splitlines()):
     shutil.copy2('in.xyz', 'orca.xyz')
     print('THE OPTIMIZATION HAS CONVERGED')
 print('FINAL SINGLE POINT ENERGY     -100.000000000000')
