@@ -330,7 +330,7 @@ def analyze(root: Path, task_results: Path, job_ids: str) -> None:
     xtb_chauhan_raw, xtb_chauhan_offsets, _ = metric_tables(xtb_chauhan_rows, "eox_exp_v", "xtb_eox_")
     xtb_fadel_raw, xtb_fadel_offsets, _ = metric_tables(xtb_fadel_rows, "fadel_ip_ev", "xtb_ip_")
 
-    raw_by_chauhan, offset_by_chauhan = _metric_map(chauhan_raw), _metric_map(chauhan_offsets)
+    offset_by_chauhan = _metric_map(chauhan_offsets)
     raw_by_fadel, offset_by_fadel = _metric_map(fadel_raw), _metric_map(fadel_offsets)
     for descriptor, key in DESCRIPTORS[:5]:
         make_plot(

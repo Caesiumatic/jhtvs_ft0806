@@ -26,7 +26,10 @@ def test_manifest_has_exact_authorized_case_counts(manifest_rows):
     counts = Counter((row["benchmark"], row["kind"]) for row in manifest_rows)
     assert len(manifest_rows) == 145
     assert counts == {("chauhan", "as_pair"): 9, ("chauhan", "triad"): 72, ("fadel", "as_pair"): 16, ("fadel", "triad"): 48}
-    charge_spin = lambda row: tuple(int(row[field]) for field in ("charge_reduced", "multiplicity_reduced", "charge_oxidized", "multiplicity_oxidized"))
+
+    def charge_spin(row):
+        return tuple(int(row[field]) for field in ("charge_reduced", "multiplicity_reduced", "charge_oxidized", "multiplicity_oxidized"))
+
     assert all(charge_spin(row) == (-1, 1, 0, 2) for row in manifest_rows if row["kind"] == "as_pair")
     assert all(charge_spin(row) == (0, 1, 1, 2) for row in manifest_rows if row["kind"] == "triad")
 
