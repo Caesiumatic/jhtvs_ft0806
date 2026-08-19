@@ -23,9 +23,38 @@ FIELDS = [
     "energy_reduced_sp_eh", "energy_oxidized_sp_eh", "ip_vertical_ev", "q_C_reduced", "q_A_reduced", "q_S_reduced",
     "q_C_oxidized", "q_A_oxidized", "q_S_oxidized", "dq_C", "dq_A", "dq_S", "oxidized_fragment",
     "s2_reduced", "s2_oxidized", "scf_reduced_converged", "scf_oxidized_converged", "optimization_converged",
+    "protocol_decks_verified",
     "optimized_geometry_sha256", "reduced_sp_input_geometry_sha256", "oxidized_sp_input_geometry_sha256",
     "same_sp_geometry", "status", "note",
 ]
+
+
+def verify_protocol_decks(row: dict[str, str], task_dir: Path) -> None:
+    states = ("reduced_opt", "reduced_sp", "oxidized_sp")
+    decks = {state: (task_dir / state / "orca.inp").read_text(encoding="utf-8") for state in states}
+    for state, text in decks.items():
+        for required in (
+            "! aug-cc-pVTZ ",
+            f"Exchange {row['libxc_exchange']}",
+            f"Correlation {row['libxc_correlation']}",
+        ):
+            if required not in text:
+                raise ValueError(f"{state} input is missing required protocol token: {required.strip()}")
+        reduced = state != "oxidized_sp"
+        charge = row["charge_reduced"] if reduced else row["charge_oxidized"]
+        multiplicity = row["multiplicity_reduced"] if reduced else row["multiplicity_oxidized"]
+        if f"* xyzfile {charge} {multiplicity} in.xyz" not in text:
+            raise ValueError(f"{state} input charge/multiplicity mismatch")
+        if row["benchmark"] == "chauhan":
+            if "%cpcm" not in text or f"epsilon {float(row['epsilon']):.8f}" not in text:
+                raise ValueError(f"{state} input solvent mismatch")
+        elif "%cpcm" in text:
+            raise ValueError(f"{state} Fadel input is not vacuum")
+    if " Opt" not in decks["reduced_opt"] or " Opt" in decks["reduced_sp"] or " Opt" in decks["oxidized_sp"]:
+        raise ValueError("optimization scope mismatch")
+    has_opt_bias = "BIAS" in decks["reduced_opt"]
+    if has_opt_bias != (row["kind"] == "triad") or "BIAS" in decks["reduced_sp"] or "BIAS" in decks["oxidized_sp"]:
+        raise ValueError("topology-bias scope mismatch")
 
 
 def parse_energy(text: str) -> float:
@@ -76,6 +105,7 @@ def parse_task(row: dict[str, str], run_root: Path) -> dict:
         provenance = json.loads((task_dir / "provenance.json").read_text(encoding="utf-8"))
         if provenance["status"] != "complete" or not provenance["same_sp_geometry"]:
             raise ValueError("run provenance is not complete and same-geometry")
+        verify_protocol_decks(row, task_dir)
         opt_text = (task_dir / "reduced_opt/orca.out").read_text(encoding="utf-8", errors="replace")
         reduced_text = (task_dir / "reduced_sp/orca.out").read_text(encoding="utf-8", errors="replace")
         oxidized_text = (task_dir / "oxidized_sp/orca.out").read_text(encoding="utf-8", errors="replace")
@@ -102,6 +132,7 @@ def parse_task(row: dict[str, str], run_root: Path) -> dict:
             "scf_reduced_converged": "SCF CONVERGED AFTER" in reduced_text and "SCF NOT CONVERGED" not in reduced_text,
             "scf_oxidized_converged": "SCF CONVERGED AFTER" in oxidized_text and "SCF NOT CONVERGED" not in oxidized_text,
             "optimization_converged": "THE OPTIMIZATION HAS CONVERGED" in opt_text,
+            "protocol_decks_verified": True,
             "optimized_geometry_sha256": sha256_file(task_dir / "reduced_opt/orca.xyz"),
             "reduced_sp_input_geometry_sha256": sha256_file(task_dir / "reduced_sp/in.xyz"),
             "oxidized_sp_input_geometry_sha256": sha256_file(task_dir / "oxidized_sp/in.xyz"),

@@ -53,6 +53,17 @@ def bias_payload(row: dict[str, str], xyz_path: Path) -> list[dict[str, float | 
 def build_input(row: dict[str, str], state: str, xyz_path: Path, nprocs: int = 8, maxcore_mb: int = 3000) -> str:
     if state not in {"reduced_opt", "reduced_sp", "oxidized_sp"}:
         raise ValueError(f"unknown state: {state}")
+    expected_protocol = {
+        "method": "M06-HF",
+        "basis": "aug-cc-pVTZ",
+        "software": "ORCA",
+        "functional_implementation": "LibXC",
+        "libxc_exchange": LIBXC_EXCHANGE,
+        "libxc_correlation": LIBXC_CORRELATION,
+    }
+    mismatches = {key: (row.get(key), value) for key, value in expected_protocol.items() if row.get(key) != value}
+    if mismatches:
+        raise ValueError(f"manifest electronic-structure protocol mismatch: {mismatches}")
     optimize = state == "reduced_opt"
     reduced = state != "oxidized_sp"
     charge = row["charge_reduced"] if reduced else row["charge_oxidized"]

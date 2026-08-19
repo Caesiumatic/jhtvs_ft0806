@@ -59,6 +59,13 @@ def test_orca_inputs_preserve_method_environment_and_restraint_scope(manifest_ro
     assert "* xyzfile -1 1 in.xyz" in vacuum
 
 
+def test_orca_input_rejects_manifest_protocol_drift(manifest_rows):
+    row = next(row for row in manifest_rows if row["benchmark"] == "fadel" and row["kind"] == "as_pair")
+    drifted = {**row, "basis": "def2-TZVP"}
+    with pytest.raises(ValueError, match="protocol mismatch"):
+        orca_input.build_input(drifted, "reduced_opt", ROOT / row["input_xyz"])
+
+
 def test_orca_bias_matches_original_local_harmonic_curvature(manifest_rows):
     row = next(row for row in manifest_rows if row["kind"] == "triad")
     payload = orca_input.bias_payload(row, ROOT / row["input_xyz"])
@@ -122,6 +129,7 @@ print('ORCA TERMINATED NORMALLY')
     assert provenance["status"] == "complete"
     assert provenance["same_sp_geometry"] is True
     assert provenance["optimized_geometry_sha256"] == provenance["reduced_sp_input_geometry_sha256"] == provenance["oxidized_sp_input_geometry_sha256"]
+    parse_results.verify_protocol_decks(row, tmp_path / "runs" / row["task_id"])
 
 
 def _synthetic_task_results(manifest_rows):
