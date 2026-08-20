@@ -121,6 +121,10 @@ print('SCF CONVERGED AFTER 8 CYCLES')
 if any(line.startswith('! ') and ' Opt' in line for line in text.splitlines()):
     shutil.copy2('in.xyz', 'orca.xyz')
     print('THE OPTIMIZATION HAS CONVERGED')
+pathlib.Path('orca.gbw').write_bytes(b'checkpoint')
+pathlib.Path('core.999').write_bytes(b'core dump')
+pathlib.Path('scratch').mkdir(exist_ok=True)
+pathlib.Path('scratch/temporary').write_bytes(b'temporary')
 print('FINAL SINGLE POINT ENERGY     -100.000000000000')
 print('ORCA TERMINATED NORMALLY')
 """,
@@ -132,7 +136,14 @@ print('ORCA TERMINATED NORMALLY')
     assert provenance["status"] == "complete"
     assert provenance["same_sp_geometry"] is True
     assert provenance["optimized_geometry_sha256"] == provenance["reduced_sp_input_geometry_sha256"] == provenance["oxidized_sp_input_geometry_sha256"]
-    parse_results.verify_protocol_decks(row, tmp_path / "runs" / row["task_id"])
+    task_dir = tmp_path / "runs" / row["task_id"]
+    parse_results.verify_protocol_decks(row, task_dir)
+    for state in ("reduced_opt", "reduced_sp", "oxidized_sp"):
+        state_dir = task_dir / state
+        assert {path.name for path in state_dir.iterdir()} <= run_case.AUDIT_STATE_FILES
+        assert not (state_dir / "orca.gbw").exists()
+        assert not (state_dir / "core.999").exists()
+        assert not (state_dir / "scratch").exists()
 
 
 def _synthetic_task_results(manifest_rows):

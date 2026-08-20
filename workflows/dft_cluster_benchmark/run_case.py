@@ -39,6 +39,7 @@ except ImportError:
     from orca_input import bias_payload, build_input
 
 VERSION_RE = re.compile(r"Program Version\s+([0-9]+(?:\.[0-9]+){1,2})", re.I)
+AUDIT_STATE_FILES = frozenset({"in.xyz", "orca.inp", "orca.out", "orca.xyz"})
 
 
 def _markers_complete(output: Path, optimized: bool) -> bool:
@@ -54,9 +55,24 @@ def _markers_complete(output: Path, optimized: bool) -> bool:
     )
 
 
+def _cleanup_transient_files(state_dir: Path) -> None:
+    """Retain the auditable deck/output/geometry payload and remove ORCA scratch."""
+
+    for path in state_dir.iterdir():
+        if path.name in AUDIT_STATE_FILES:
+            continue
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink(missing_ok=True)
+
+
 def _run_orca(orca: str, state_dir: Path) -> None:
-    with (state_dir / "orca.out").open("w", encoding="utf-8") as output:
-        completed = subprocess.run([orca, "orca.inp"], cwd=state_dir, stdout=output, stderr=subprocess.STDOUT)
+    try:
+        with (state_dir / "orca.out").open("w", encoding="utf-8") as output:
+            completed = subprocess.run([orca, "orca.inp"], cwd=state_dir, stdout=output, stderr=subprocess.STDOUT)
+    finally:
+        _cleanup_transient_files(state_dir)
     if completed.returncode != 0:
         raise RuntimeError(f"ORCA exited with status {completed.returncode}")
 

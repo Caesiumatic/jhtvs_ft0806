@@ -4,6 +4,7 @@
 #$ -j y
 #$ -pe mpi 8
 set -euo pipefail
+ulimit -c 0
 
 : "${SGE_TASK_ID:?submit as an SGE array job}"
 : "${DFT_MANIFEST_SHA256:?set DFT_MANIFEST_SHA256 at submission}"
