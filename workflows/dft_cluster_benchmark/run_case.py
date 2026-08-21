@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 try:
@@ -40,6 +41,12 @@ except ImportError:
 
 VERSION_RE = re.compile(r"Program Version\s+([0-9]+(?:\.[0-9]+){1,2})", re.I)
 AUDIT_STATE_FILES = frozenset({"in.xyz", "orca.inp", "orca.out", "orca.xyz"})
+MAX_TRANSIENT_STARTUP_ATTEMPTS = 3
+TRANSIENT_STARTUP_MARKERS = (
+    "execution daemon on host",
+    "ORTE was unable to reliably start",
+    "exited on signal 6",
+)
 
 
 def _markers_complete(output: Path, optimized: bool) -> bool:
@@ -59,7 +66,7 @@ def _cleanup_transient_files(state_dir: Path) -> None:
     """Retain the auditable deck/output/geometry payload and remove ORCA scratch."""
 
     for path in state_dir.iterdir():
-        if path.name in AUDIT_STATE_FILES:
+        if path.name in AUDIT_STATE_FILES or (path.name.startswith("orca.attempt") and path.name.endswith(".out")):
             continue
         if path.is_dir() and not path.is_symlink():
             shutil.rmtree(path)
@@ -67,13 +74,28 @@ def _cleanup_transient_files(state_dir: Path) -> None:
             path.unlink(missing_ok=True)
 
 
+def _is_transient_startup_failure(text: str) -> bool:
+    return "error termination in Startup" in text and any(marker in text for marker in TRANSIENT_STARTUP_MARKERS)
+
+
 def _run_orca(orca: str, state_dir: Path) -> None:
-    try:
-        with (state_dir / "orca.out").open("w", encoding="utf-8") as output:
-            completed = subprocess.run([orca, "orca.inp"], cwd=state_dir, stdout=output, stderr=subprocess.STDOUT)
-    finally:
-        _cleanup_transient_files(state_dir)
-    if completed.returncode != 0:
+    for attempt in range(1, MAX_TRANSIENT_STARTUP_ATTEMPTS + 1):
+        attempt_output = state_dir / f"orca.attempt{attempt}.out"
+        (state_dir / "orca.xyz").unlink(missing_ok=True)
+        try:
+            with attempt_output.open("w", encoding="utf-8") as output:
+                completed = subprocess.run([orca, "orca.inp"], cwd=state_dir, stdout=output, stderr=subprocess.STDOUT)
+        finally:
+            _cleanup_transient_files(state_dir)
+        text = attempt_output.read_text(encoding="utf-8", errors="replace")
+        transient = _is_transient_startup_failure(text)
+        if completed.returncode == 0:
+            attempt_output.replace(state_dir / "orca.out")
+            return
+        if transient and attempt < MAX_TRANSIENT_STARTUP_ATTEMPTS:
+            time.sleep(15)
+            continue
+        attempt_output.replace(state_dir / "orca.out")
         raise RuntimeError(f"ORCA exited with status {completed.returncode}")
 
 

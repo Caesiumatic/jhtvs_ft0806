@@ -146,6 +146,38 @@ print('ORCA TERMINATED NORMALLY')
         assert not (state_dir / "scratch").exists()
 
 
+def test_orca_runner_retries_only_explicit_transient_startup_failure(tmp_path, monkeypatch):
+    fake_orca = tmp_path / "orca"
+    fake_orca.write_text(
+        """#!/usr/bin/env python3
+import pathlib
+import sys
+
+counter = pathlib.Path(__file__).with_name('attempt_count')
+attempt = int(counter.read_text()) + 1 if counter.exists() else 1
+counter.write_text(str(attempt))
+if attempt == 1:
+    print("error: execution daemon on host compute-0-1 didn't accept task")
+    print('ORTE was unable to reliably start one or more daemons.')
+    print('ORCA finished by error termination in Startup')
+    raise SystemExit(1)
+print('ORCA TERMINATED NORMALLY')
+""",
+        encoding="utf-8",
+    )
+    fake_orca.chmod(0o755)
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    (state_dir / "orca.inp").write_text("! fixture\n", encoding="utf-8")
+    monkeypatch.setattr(run_case.time, "sleep", lambda _: None)
+
+    run_case._run_orca(str(fake_orca), state_dir)
+
+    assert "ORCA TERMINATED NORMALLY" in (state_dir / "orca.out").read_text()
+    assert "didn't accept task" in (state_dir / "orca.attempt1.out").read_text()
+    assert (tmp_path / "attempt_count").read_text() == "2"
+
+
 def _synthetic_task_results(manifest_rows):
     topology_shift = {"AS": 0.0, "CAS": 0.3, "CSA": 0.2, "ACS": 0.1}
     rows = []
